@@ -3,7 +3,7 @@
 // of the regular `npm test`. Locally: `docker compose up -d` then
 // `npm run db:migrate` from repo root. In CI: a Postgres service
 // container, migrated before this runs — see .github/workflows/ci.yml.
-import { createPool, runMigrations } from "@byok/db";
+import { createPool } from "@byok/db";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -13,16 +13,14 @@ import { PostgresReservationStore } from "./reservationStore.js";
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   throw new Error(
-    "DATABASE_URL is required for the integration suite. Start the local stack (`docker compose up -d`) and set DATABASE_URL, " +
-      "or run this via `npm run test:integration` in CI where a Postgres service container provides it.",
+    "DATABASE_URL is required for the integration suite. Start the local stack (`docker compose up -d`), run " +
+      "`npm run db:migrate`, then set DATABASE_URL — or run via `npm run test:integration` in CI, where the " +
+      "workflow migrates a Postgres service container before this runs. Migrations are NOT re-run here: " +
+      "CREATE POLICY isn't idempotent, so running them a second time would fail with 'policy already exists'.",
   );
 }
 
 const pool = createPool({ connectionString: DATABASE_URL, max: 20 });
-
-// Real migrations only need to run once per test process, and this file is
-// the only one hitting the DB in this package's integration suite today.
-await runMigrations(pool);
 
 function ceilings(companyMonthlyUsd: number): CeilingConfig {
   return { companyMonthlyUsd, perRoleUsd: {}, perTaskTypeUsd: {} };

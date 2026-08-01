@@ -76,9 +76,14 @@ export class InMemoryDurableAuditLog implements DurableAuditLog {
   }
 
   async recentForTenant(tenantId: string, limit = 50): Promise<StoredAuditEvent[]> {
+    // Newest-first by insertion order, not by comparing `at` strings —
+    // two events appended within the same millisecond (routine on a fast
+    // CI runner) would otherwise tie, and a tie-break on wall-clock time
+    // alone can't distinguish them correctly.
     return this.events
       .filter((e) => e.tenantId === tenantId)
-      .sort((a, b) => b.at.localeCompare(a.at))
+      .slice()
+      .reverse()
       .slice(0, limit);
   }
 }

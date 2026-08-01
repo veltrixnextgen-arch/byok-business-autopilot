@@ -1,6 +1,6 @@
 // Integration suite — requires a real, migrated Postgres (DATABASE_URL).
 // See reservationStore.itest.ts (packages/cost-gate) for how to run this.
-import { createPool, insertAuditEvent, runMigrations, withTenantScope } from "@byok/db";
+import { createPool, insertAuditEvent, withTenantScope } from "@byok/db";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -12,7 +12,6 @@ if (!DATABASE_URL) {
 }
 
 const pool = createPool({ connectionString: DATABASE_URL, max: 10 });
-await runMigrations(pool);
 
 test("spendByRole and spendByTaskType aggregate cost_reservations correctly, scoped to the tenant", async () => {
   const tenantId = randomUUID();

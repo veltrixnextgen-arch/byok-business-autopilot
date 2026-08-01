@@ -1,7 +1,7 @@
 // Integration suite — requires a real, migrated Postgres (DATABASE_URL).
 // See packages/cost-gate/src/durable/reservationStore.itest.ts for how to
 // run this.
-import { createPool, runMigrations } from "@byok/db";
+import { createPool } from "@byok/db";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -13,7 +13,6 @@ if (!DATABASE_URL) {
 }
 
 const pool = createPool({ connectionString: DATABASE_URL, max: 20 });
-await runMigrations(pool);
 
 test("concurrent approvals for the same (tenant, task type) never lose an increment — the row lock serializes them", async () => {
   const tenantId = randomUUID();
