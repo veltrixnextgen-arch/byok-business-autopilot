@@ -1,0 +1,98 @@
+{
+  "simulatedDay": [
+    {
+      "agentName": "Maya",
+      "subAgentId": "listing-copywriter",
+      "roleTitle": "CMO",
+      "summary": "Drafted optimized Etsy listings for 3 new lavender and eucalyptus candle variants — titles, tags, and descriptions ready for review"
+    },
+    {
+      "agentName": "Jordan",
+      "subAgentId": "production-tracker",
+      "roleTitle": "Ops Lead",
+      "summary": "Logged 5 batches of hand-poured candles completed today: 24 lavender, 18 vanilla, 12 seasonal blends — updated finished-goods inventory"
+    },
+    {
+      "agentName": "Sam",
+      "subAgentId": "invoicing",
+      "roleTitle": "CFO",
+      "summary": "Created invoices and receipts for 7 orders shipped this week — all reconciled with Etsy payout records"
+    },
+    {
+      "agentName": "Riley",
+      "subAgentId": "tier1-triage",
+      "roleTitle": "Support Lead",
+      "summary": "Processed 4 customer messages: 2 shipment status questions (replied with tracking), 1 scent recommendation request (drafted response), 1 custom order inquiry flagged for escalation"
+    },
+    {
+      "agentName": "Casey",
+      "subAgentId": "marketplace-analytics",
+      "roleTitle": "CMO",
+      "summary": "Reviewed this week's Etsy shop stats: 156 shop views, 12 favorites, 2 sales — identified seasonal lavender listing as top performer"
+    }
+  ],
+  "charterDraft": {
+    "sharpenedIdea": "Handmade scented candles sold directly through Etsy, starting with core scents (lavender, vanilla, seasonal blends) and expanding based on customer feedback and trend data.",
+    "mvpDefinition": "An Etsy shop launching with 5–8 core candle SKUs (different scents and styles), professional product photography, optimized listings, a basic inventory system, and order-to-ship fulfillment workflows. The focus is on getting real customer feedback and proving demand before scaling production or adding complex product lines.",
+    "roleTasks": [
+      {
+        "roleTitle": "Chief of Staff",
+        "tasks": [
+          "Draft a weekly priority list highlighting the top 3–5 tasks across all teams",
+          "Flag any conflicts or bottlenecks (e.g., production delays affecting fulfillment, or marketing campaigns blocked by stock levels)",
+          "Prepare a brief weekly check-in summary for the founder"
+        ]
+      },
+      {
+        "roleTitle": "CFO",
+        "tasks": [
+          "Oversee all financial operations: invoicing, expense tracking, cash-flow forecasting, and tax compliance",
+          "Monitor Etsy payouts and reconcile with order records",
+          "Track all business expenses (raw materials, packaging, Etsy fees, shipping supplies) and categorize for tax purposes",
+          "Maintain a 30/60/90-day cash-flow forecast to ensure the business stays within budget and alert the founder if burn rate is unsustainable",
+          "Flag and track all Texas sales-tax collection and remittance obligations for Etsy sales, and track quarterly due dates",
+          "Prepare quarterly tax documents and checklists for professional review"
+        ]
+      },
+      {
+        "roleTitle": "CMO",
+        "tasks": [
+          "Grow awareness and sales for the Etsy shop through targeted marketing across Instagram, Pinterest, and TikTok",
+          "Research trending candle scents, seasonal themes, and design styles to keep product ideas fresh and customer-focused",
+          "Monitor Etsy shop analytics (views, favorites, conversion rates) and use insights to optimize listings and marketing spend",
+          "Draft and continuously improve Etsy product listing copy, titles, and tags for search visibility",
+          "Write occasional blog or newsletter content in the shop's brand voice to build community",
+          "Manage email marketing sequences for new customers and repeat-purchase campaigns",
+          "Create platform-sized social media posts that showcase products, behind-the-scenes candle-making, and customer testimonials"
+        ]
+      },
+      {
+        "roleTitle": "Ops Lead",
+        "tasks": [
+          "Manage end-to-end inventory: track stock levels for each product SKU and flag reorder points for raw materials (wax, fragrance, wicks) and packaging",
+          "Coordinate with vendors to place reorder communications and ensure supplies arrive on time",
+          "Oversee the production process: track batch runs (wax, fragrance, and wick quantities used per batch), log completed candles, and update finished-goods inventory after each production session",
+          "Fulfill orders: post shipping updates and tracking information to customers within 24 hours of dispatch",
+          "Identify and resolve any production or supply-chain bottlenecks that could delay fulfillment"
+        ]
+      },
+      {
+        "roleTitle": "Support Lead",
+        "tasks": [
+          "Receive and triage all inbound customer messages: read, tag by urgency and topic (e.g., shipment status, scent question, bulk order), and draft responses to frequently asked questions",
+          "Identify angry, confused, or complex cases and escalate to the founder with full context and recommended next steps",
+          "Maintain a knowledge base of common customer questions and responses to speed up future triage",
+          "Track customer sentiment and flag any systemic issues (e.g., shipping delays, product concerns) to the founder"
+        ]
+      }
+    ],
+    "monthOneGoals": [
+      "Launch the Etsy shop with 5–8 core candle SKUs, professional product photos, and optimized listings ready for traffic",
+      "Establish repeatable production and fulfillment workflows: complete at least 3 full batch production runs and fulfill 20+ test orders with 100% on-time delivery",
+      "Build initial audience: post 2–3 times per week on Instagram and Pinterest, and reach 100 initial followers across social channels",
+      "Validate product-market fit: collect at least 10 customer reviews and identify the top-selling scent(s) to inform next month's focus",
+      "Set up financial infrastructure: open a dedicated business bank account, establish expense tracking, and run a first cash-flow forecast"
+    ],
+    "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+  }
+}

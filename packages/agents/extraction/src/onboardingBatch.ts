@@ -8,8 +8,15 @@ import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
 // separate paid feature. This runs as one additional call AFTER assembly,
 // since both outputs need the FINAL team/sub-agent structure (not just the
 // customized task list) to be coherent.
-export const CLAUDE_MODEL = "claude-sonnet-4-6";
-const MAX_OUTPUT_TOKENS = 1800;
+//
+// Model: haiku, not sonnet. This is formatting/synthesis over an
+// already-extracted org chart (narrate the existing tasks as a digest and a
+// charter), not fresh reasoning — verified via a 2-fixture, both-models
+// experiment (see test/results/haiku-batch-experiment.md): ~4x cheaper
+// ($0.008 vs $0.03/call) with comparable quality once the prompt explicitly
+// banned "Label: task" prefixing (haiku's one real style tic — fixed below).
+export const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
+const MAX_OUTPUT_TOKENS = 3000;
 
 const ONBOARDING_BATCH_TOOL = {
   name: "generate_onboarding_batch",
@@ -109,6 +116,9 @@ function buildPrompt(chart: OrgChart, idea: string, answers: InterviewAnswers): 
       `that's the human, not a role to summarize). Keep the MVP definition scoped to what's actually launchable, ` +
       `not the whole long-term vision. budgetCeilingPlaceholder should read the interview's budget answer above ` +
       `and phrase it as a starting monthly ceiling.`,
+    `3. Write every roleTasks entry as natural plain-language prose — do NOT prefix it with the sub-agent's ` +
+      `category label. Write "Track stock levels for each product and flag reorder points" not "Inventory: ` +
+      `Track stock levels...". No internal jargon or label:value formatting anywhere in the charter.`,
   ].join("\n");
 }
 
@@ -123,15 +133,16 @@ export async function generateOnboardingBatch(
   answers: InterviewAnswers,
   apiKey: string,
   maxCostUsd: number,
+  model: string = CLAUDE_MODEL,
 ): Promise<OnboardingBatchResult> {
   const prompt = buildPrompt(chart, idea, answers);
 
-  guardEstimatedCost(CLAUDE_MODEL, prompt, MAX_OUTPUT_TOKENS, maxCostUsd);
+  guardEstimatedCost(model, prompt, MAX_OUTPUT_TOKENS, maxCostUsd);
 
   const client = new Anthropic({ apiKey });
 
   const response = await client.messages.create({
-    model: CLAUDE_MODEL,
+    model,
     max_tokens: MAX_OUTPUT_TOKENS,
     tools: [ONBOARDING_BATCH_TOOL],
     tool_choice: { type: "tool", name: "generate_onboarding_batch" },
@@ -140,7 +151,7 @@ export async function generateOnboardingBatch(
 
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;
-  const costUsd = actualCostUsd(CLAUDE_MODEL, inputTokens, outputTokens);
+  const costUsd = actualCostUsd(model, inputTokens, outputTokens);
 
   const toolUse = response.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
@@ -149,6 +160,7 @@ export async function generateOnboardingBatch(
 
   const input = toolUse.input as { simulatedDay?: SimulatedDayCard[]; charterDraft?: CharterDraft };
   if (!input.simulatedDay || !input.charterDraft) {
+    console.error(`[onboarding-batch] stop_reason=${response.stop_reason}, outputTokens=${outputTokens}/${MAX_OUTPUT_TOKENS}`);
     throw new Error("generate_onboarding_batch tool call was missing simulatedDay or charterDraft.");
   }
 
@@ -159,6 +171,6 @@ export async function generateOnboardingBatch(
 
   return {
     batch: { simulatedDay, charterDraft: input.charterDraft },
-    usage: { step: "onboarding-batch", model: CLAUDE_MODEL, inputTokens, outputTokens, costUsd },
+    usage: { step: "onboarding-batch", model, inputTokens, outputTokens, costUsd },
   };
 }

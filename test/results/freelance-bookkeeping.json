@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I'm starting a freelance bookkeeping service for local restaurants",
-    "generatedAt": "2026-08-01T09:34:46.492Z",
+    "generatedAt": "2026-08-01T09:59:03.196Z",
     "templateSelection": {
       "primary": "service",
       "blendedWith": null,
@@ -20,25 +20,25 @@
         "step": "customize",
         "model": "claude-sonnet-4-6",
         "inputTokens": 3712,
-        "outputTokens": 1376,
-        "costUsd": 0.031776
+        "outputTokens": 1360,
+        "costUsd": 0.031536
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2042,
+        "inputTokens": 2082,
         "outputTokens": 33,
-        "costUsd": 0.0017656
+        "costUsd": 0.0017976000000000001
       },
       {
         "step": "onboarding-batch",
-        "model": "claude-sonnet-4-6",
-        "inputTokens": 2129,
-        "outputTokens": 1407,
-        "costUsd": 0.027492000000000003
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2259,
+        "outputTokens": 1425,
+        "costUsd": 0.0075072
       }
     ],
-    "costUsd": 0.0610336
+    "costUsd": 0.040840800000000003
   },
   "teams": [
     {
@@ -78,8 +78,8 @@
       "roleTitle": "Sales Lead",
       "isHuman": false,
       "subAgentIds": [
-        "proposal-builder",
-        "outreach-drafter"
+        "outreach-drafter",
+        "proposal-builder"
       ]
     },
     {
@@ -180,7 +180,7 @@
       "autonomyDefault": "locked",
       "handsTools": [
         "Client-facing systems (per-client, scoped access)",
-        "QuickBooks (client-scoped, per-client OAuth)"
+        "QuickBooks (client, per-client OAuth)"
       ]
     },
     {
@@ -205,6 +205,20 @@
       "autonomyDefault": "earnable",
       "handsTools": [
         "Client-facing systems (per-client, scoped access)"
+      ]
+    },
+    {
+      "id": "outreach-drafter",
+      "label": "Outreach drafter",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.outreach.draft",
+        "customize.service.5.outreach-drafter"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "Email"
       ]
     },
     {
@@ -297,7 +311,7 @@
     },
     {
       "id": "client-expense-categorization",
-      "label": "Restaurant Expense Categorizer",
+      "label": "Client Expense Categorizer",
       "teamId": "delivery",
       "taskIds": [
         "customize.service.2.client-expense-categorization"
@@ -305,12 +319,12 @@
       "suggestedTier": "T1",
       "autonomyDefault": "locked",
       "handsTools": [
-        "QuickBooks (client-scoped, per-client OAuth)"
+        "QuickBooks (client, per-client OAuth)"
       ]
     },
     {
       "id": "client-reporting",
-      "label": "Client P&L Report Builder",
+      "label": "Client P&L Reporter",
       "teamId": "delivery",
       "taskIds": [
         "customize.service.3.client-reporting"
@@ -318,19 +332,8 @@
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": [
-        "QuickBooks (client-scoped, per-client OAuth)"
+        "QuickBooks (client, per-client OAuth)"
       ]
-    },
-    {
-      "id": "outreach-drafter",
-      "label": "Referral Ask Drafter",
-      "teamId": "sales",
-      "taskIds": [
-        "customize.service.5.outreach-drafter"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
     }
   ],
   "tasks": [
@@ -353,7 +356,7 @@
       "subAgentType": "invoicing",
       "subAgentLabel": "Invoicing",
       "teamHint": "cfo",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -367,7 +370,7 @@
       "subAgentType": "invoicing",
       "subAgentLabel": "Invoicing",
       "teamHint": "cfo",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -460,6 +463,20 @@
       "origin": "template"
     },
     {
+      "id": "sales.outreach.draft",
+      "text": "Draft personalized first-touch and follow-up outreach",
+      "subAgentType": "outreach-drafter",
+      "subAgentLabel": "Outreach drafter",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending, always",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
       "id": "sales.proposal.build",
       "text": "Build quotes/proposals from templates and deal context",
       "subAgentType": "proposal-builder",
@@ -479,7 +496,7 @@
       "subAgentType": "onboarding",
       "subAgentLabel": "Onboarding",
       "teamHint": "support",
-      "frequency": "adhoc",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -492,7 +509,7 @@
       "subAgentType": "onboarding",
       "subAgentLabel": "Onboarding",
       "teamHint": "support",
-      "frequency": "adhoc",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -548,7 +565,7 @@
       "subAgentType": "social-manager",
       "subAgentLabel": "Social manager",
       "teamHint": "cmo",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -578,43 +595,43 @@
       "stakes": "high",
       "tier": "T1",
       "autonomy": "locked",
-      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
+      "handsTool": "QuickBooks (client, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
       "id": "customize.service.2.client-expense-categorization",
-      "text": "Categorize restaurant-specific expenses (food & beverage COGS, labor, delivery fees, POS fees) in each client's books",
+      "text": "Categorize each restaurant client's vendor invoices, food/beverage costs, and payroll expenses into their chart of accounts",
       "subAgentType": "client-expense-categorization",
-      "subAgentLabel": "Restaurant Expense Categorizer",
+      "subAgentLabel": "Client Expense Categorizer",
       "teamHint": "delivery",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "high",
       "tier": "T1",
       "autonomy": "locked",
-      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
+      "handsTool": "QuickBooks (client, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
       "id": "customize.service.3.client-reporting",
-      "text": "Generate a simple monthly P&L summary report for each restaurant client",
+      "text": "Generate a monthly P&L summary report for each restaurant client and flag any unusual variances (e.g. food cost % spike)",
       "subAgentType": "client-reporting",
-      "subAgentLabel": "Client P&L Report Builder",
+      "subAgentLabel": "Client P&L Reporter",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
+      "handsTool": "QuickBooks (client, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
       "id": "customize.service.4.compliance-review",
-      "text": "Flag upcoming Ohio sales-tax filing deadlines for restaurant clients and prepare a handoff summary for the owner to review with their CPA",
+      "text": "Flag Ohio sales tax obligations for each restaurant client (food, alcohol, taxable vs. exempt items) and track quarterly filing deadlines for human/professional review",
       "subAgentType": "compliance-review",
-      "subAgentLabel": "Ohio Sales-Tax Deadline Tracker",
+      "subAgentLabel": "Restaurant Tax Compliance Tracker",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -626,12 +643,12 @@
     },
     {
       "id": "customize.service.5.outreach-drafter",
-      "text": "Draft referral outreach messages to existing satisfied clients asking for introductions to other local restaurant owners",
+      "text": "Identify and reach out to local restaurant owners via referral partner introductions (e.g. restaurant accountants, POS vendors, food distributors) to build the client pipeline",
       "subAgentType": "outreach-drafter",
-      "subAgentLabel": "Referral Ask Drafter",
+      "subAgentLabel": "Referral Outreach Drafter",
       "teamHint": "sales",
-      "frequency": "monthly",
-      "stakes": "low",
+      "frequency": "weekly",
+      "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
       "handsTool": null,
@@ -639,11 +656,11 @@
     },
     {
       "id": "customize.service.6.social-manager",
-      "text": "Draft a short LinkedIn or local-community post (e.g. restaurant owner Facebook groups) with a practical bookkeeping tip for restaurant owners",
+      "text": "Draft one short LinkedIn or local Facebook post showcasing a bookkeeping tip specific to restaurant owners (e.g. managing food cost %, tip reporting) to build credibility",
       "subAgentType": "social-manager",
       "subAgentLabel": "Restaurant Niche Content Poster",
       "teamHint": "cmo",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T3",
       "autonomy": "earnable",
@@ -662,20 +679,9 @@
     ],
     "removed": [
       "sales.qualifier.score",
-      "sales.outreach.draft",
       "sales.crm.hygiene"
     ],
     "frequencyAdjustments": [
-      {
-        "taskId": "cfo.invoicing.create",
-        "from": "weekly",
-        "to": "monthly"
-      },
-      {
-        "taskId": "cfo.invoicing.remind",
-        "from": "weekly",
-        "to": "monthly"
-      },
       {
         "taskId": "delivery.core.execute",
         "from": "weekly",
@@ -692,119 +698,116 @@
         "to": "monthly"
       },
       {
-        "taskId": "support.onboarding.welcome",
-        "from": "weekly",
-        "to": "adhoc"
+        "taskId": "sales.outreach.draft",
+        "from": "daily",
+        "to": "weekly"
       },
       {
-        "taskId": "support.onboarding.setup",
-        "from": "weekly",
-        "to": "adhoc"
+        "taskId": "cmo.social.expertise",
+        "from": "monthly",
+        "to": "weekly"
       }
     ],
     "categoryCorrections": [],
-    "notes": "Bookkeeping for restaurants runs on a monthly close cycle, not weekly; removed high-volume daily sales tasks unsuited to a referral-only solo freelancer; added client-scoped delivery tasks with distinct handsTool strings; added Ohio sales-tax compliance flagging; added referral-ask sales task matching the sole stated growth channel."
+    "notes": "Core delivery shifted to monthly (bookkeeping cadence); removed lead-scoring and CRM hygiene (referral-only pipeline, no inbound volume); added client reconciliation, expense categorization, and P&L reporting as distinct delivery tasks with client-scoped handsTool; added Ohio restaurant sales-tax compliance flag; boosted social posting to weekly to counter founder's marketing dread; referral outreach drafted weekly."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Alex",
-        "subAgentId": "invoicing",
-        "roleTitle": "CFO",
-        "summary": "drafted 2 retainer invoices for this month's restaurant clients and queued payment reminder emails for 1 overdue account"
-      },
-      {
-        "agentName": "Rosie",
+        "agentName": "Marcus",
         "subAgentId": "core-service-delivery",
         "roleTitle": "Delivery Lead",
-        "summary": "reconciled 3 months of bank and credit card transactions for Maplewood Bistro and flagged 4 uncategorized charges for your review"
+        "summary": "Reconciled bank and credit card transactions for Giuseppe's Trattoria and flagged a $340 duplicate charge for your review"
       },
       {
-        "agentName": "Marco",
-        "subAgentId": "social-manager",
-        "roleTitle": "CMO",
-        "summary": "drafted a LinkedIn post sharing a practical tip on how local restaurants can separate food COGS from labor costs to spot margin leaks faster"
+        "agentName": "Elena",
+        "subAgentId": "invoicing",
+        "roleTitle": "CFO",
+        "summary": "Created and sent October retainer invoices to all 3 active restaurant clients; payment due by Oct 25"
       },
       {
-        "agentName": "Priya",
-        "subAgentId": "proposal-builder",
+        "agentName": "David",
+        "subAgentId": "outreach-drafter",
         "roleTitle": "Sales Lead",
-        "summary": "built a tailored service proposal for a new pizza restaurant prospect, including a monthly retainer breakdown and a scope-of-work summary"
+        "summary": "Drafted personalized follow-up to the POS vendor referral contact and prepared 2 new restaurant prospect names from local networking list"
       },
       {
-        "agentName": "Jordan",
-        "subAgentId": "tier1-triage",
-        "roleTitle": "Support Lead",
-        "summary": "read 3 inbound client messages, tagged 1 as urgent (a question about a missing January statement), and drafted ready-to-send replies for the other 2"
+        "agentName": "Sophia",
+        "subAgentId": "compliance-review",
+        "roleTitle": "CFO",
+        "summary": "Updated Ohio sales tax obligations tracker for all clients and flagged that The Rustic Grill's Q4 filing is due in 10 days"
+      },
+      {
+        "agentName": "James",
+        "subAgentId": "client-reporting",
+        "roleTitle": "Delivery Lead",
+        "summary": "Generated September P&L for Bella's Bistro and flagged a 15% spike in food costs for owner discussion"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A freelance bookkeeping service that handles the financial back-office for local restaurants — reconciling accounts, tracking expenses, generating P&L reports, and keeping owners tax-ready — so they can focus on running their kitchens.",
-      "mvpDefinition": "Version 1 is a one-person bookkeeping practice serving 2–5 local restaurant clients on a monthly retainer. Core deliverables are: monthly bank and credit card reconciliation, restaurant-specific expense categorization (food & beverage COGS, labor, POS fees, delivery fees), and a simple monthly P&L summary report. Clients are signed through direct outreach and referrals. All client work is reviewed by the founder before delivery. Everything else — upsells, team growth, software integrations — comes after the first paying clients are locked in.",
+      "sharpenedIdea": "Provide reliable monthly bookkeeping and restaurant-specific financial reporting for 2–5 local restaurants, handling bank reconciliation, expense categorization, and P&L summaries to give owners clarity on their numbers.",
+      "mvpDefinition": "Launch with one paying restaurant client who gives you 6–8 hours/month of transaction work (bank/credit reconciliation, expense tagging, monthly P&L). Build repeatable processes for client onboarding, monthly delivery, and invoice reminders. Track your own cash flow and set up basic compliance reminders for Ohio sales tax deadlines so you stay on top of state filing obligations for each restaurant.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft a focused weekly plan for the founder each Monday",
-            "Flag scheduling conflicts or cross-team blockers before they become problems"
+            "Draft the weekly plan and flag any cross-team conflicts or bottlenecks for the founder to resolve"
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Create and send client retainer invoices on schedule",
-            "Draft polite but firm payment reminders tailored to each client's history",
-            "Tag and categorize all business expenses; flag anything unusual",
-            "Maintain a rolling 30/60/90-day cash-flow projection and alert the founder if runway looks tight",
-            "Track all tax deadlines and prepare a clean handoff packet for the accountant",
-            "Monitor Ohio sales-tax filing deadlines for restaurant clients and flag contract red-flags or regulation changes"
+            "Create invoices for client retainers and projects, and draft payment reminders matched to each client's payment history",
+            "Tag business expenses and flag any unusual or duplicate charges",
+            "Build and update 30/60/90-day cash-flow projections and alert the founder when runway shortens",
+            "Track tax deadlines throughout the year and prepare packets for the accountant handoff",
+            "Flag contract red-flags during client agreements and track Ohio sales tax and federal filing deadlines; alert the founder on quarterly filing deadlines for each restaurant client so the founder can conduct owner conversations"
           ]
         },
         {
           "roleTitle": "Delivery Lead",
           "tasks": [
-            "Reconcile each restaurant client's bank and credit card transactions monthly",
-            "Categorize restaurant-specific expenses (food & beverage COGS, labor, delivery fees, POS fees) in each client's books",
-            "Generate a simple monthly P&L summary report for each client",
-            "QA-check all completed client work for accuracy before it goes out",
-            "Package and deliver finished work to the client in a clean, professional format"
+            "Reconcile bank and credit card transactions for each restaurant client every month and flag unusual or duplicate charges",
+            "Review completed monthly work for accuracy before sending to clients",
+            "Package and deliver finished work to clients on time",
+            "Categorize each restaurant client's vendor invoices, food and beverage costs, and payroll expenses into their chart of accounts",
+            "Generate a monthly P&L summary report for each restaurant client and flag unusual variances such as food cost percentage spikes"
           ]
         },
         {
           "roleTitle": "Sales Lead",
           "tasks": [
-            "Build tailored service proposals and quotes from templates and deal context",
-            "Draft referral outreach messages to satisfied clients asking for warm introductions to other local restaurant owners"
+            "Draft personalized first-touch and follow-up messages to restaurant owners; Identify and reach out to local restaurant owners through referral partners such as restaurant accountants, POS vendors, and food distributors to build the pipeline",
+            "Build quotes and proposals from templates using deal context and pricing"
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Draft welcome sequences and setup guides for new restaurant clients",
-            "Read and triage all inbound client messages by urgency, and draft replies to common questions",
-            "Detect complex or upset client situations and package full context for the founder to handle personally"
+            "Draft welcome sequences for newly signed clients and setup guides and check-in messages to help them get started",
+            "Read inbound client messages, tag them by urgency, and draft replies to common or known questions",
+            "Detect complex or upset client cases and package context for the founder to handle directly"
           ]
         },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Draft short LinkedIn posts and local-community social content (e.g. restaurant owner Facebook groups) with practical bookkeeping tips for restaurant owners",
-            "Maintain a consistent, credible professional presence to attract inbound leads"
+            "Draft occasional posts establishing professional expertise; Write and schedule one short LinkedIn or local Facebook post per month showcasing a bookkeeping tip specific to restaurant owners—such as managing food cost percentage or tip reporting—to build credibility and reach"
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Manage the founder's calendar and handle booking confirmations and reminders for all client calls"
+            "Manage the founder's calendar, send booking confirmations and reminders for client calls"
           ]
         }
       ],
       "monthOneGoals": [
-        "Sign and onboard at least 2 paying restaurant clients on a monthly retainer",
-        "Complete and deliver the first full month of reconciled books and a P&L report for each active client",
-        "Send proposals to at least 5 restaurant prospects through direct outreach or referrals",
-        "Publish 2–3 social posts establishing credibility in local restaurant owner communities",
-        "Set up all internal workflows (invoicing, expense tracking, client delivery) so the business runs on a repeatable system"
+        "Onboard and complete the first month of bookkeeping work for 1–2 restaurant clients with clean deliverables and zero errors",
+        "Create and send invoices and payment reminders to all active clients; track cash in and cash out",
+        "Identify and build an outreach list of 5–10 local restaurants or referral partners (accountants, POS vendors) and send initial introduction messages",
+        "Set up tax deadline tracking and compliance reminders for all client restaurants' Ohio sales tax filings and any federal obligations",
+        "Draft and publish 2–3 social media posts or tips on restaurant bookkeeping to establish credibility and reach"
       ],
       "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
     }

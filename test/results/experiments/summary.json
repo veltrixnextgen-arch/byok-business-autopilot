@@ -1,0 +1,30 @@
+[
+  {
+    "fixture": "mortgage-brokerage",
+    "model": "claude-sonnet-4-6",
+    "costUsd": 0.033279,
+    "inputTokens": 2338,
+    "outputTokens": 1751
+  },
+  {
+    "fixture": "mortgage-brokerage",
+    "model": "claude-haiku-4-5-20251001",
+    "costUsd": 0.008207200000000001,
+    "inputTokens": 2349,
+    "outputTokens": 1582
+  },
+  {
+    "fixture": "candle-shop",
+    "model": "claude-sonnet-4-6",
+    "costUsd": 0.027345,
+    "inputTokens": 2150,
+    "outputTokens": 1393
+  },
+  {
+    "fixture": "candle-shop",
+    "model": "claude-haiku-4-5-20251001",
+    "costUsd": 0.008120800000000001,
+    "inputTokens": 2161,
+    "outputTokens": 1598
+  }
+]

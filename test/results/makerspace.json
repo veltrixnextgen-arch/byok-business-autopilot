@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I want to run a community makerspace with paid memberships, equipment rentals, and weekend classes.",
-    "generatedAt": "2026-08-01T09:35:35.030Z",
+    "generatedAt": "2026-08-01T09:59:35.486Z",
     "templateSelection": {
       "primary": "physical-space",
       "blendedWith": null,
@@ -20,25 +20,25 @@
         "step": "customize",
         "model": "claude-sonnet-4-6",
         "inputTokens": 3726,
-        "outputTokens": 1110,
-        "costUsd": 0.027828000000000002
+        "outputTokens": 1065,
+        "costUsd": 0.027153
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2045,
-        "outputTokens": 135,
-        "costUsd": 0.002176
+        "inputTokens": 2052,
+        "outputTokens": 33,
+        "costUsd": 0.0017736
       },
       {
         "step": "onboarding-batch",
-        "model": "claude-sonnet-4-6",
-        "inputTokens": 2316,
-        "outputTokens": 1475,
-        "costUsd": 0.029072999999999998
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2392,
+        "outputTokens": 1664,
+        "costUsd": 0.0085696
       }
     ],
-    "costUsd": 0.059077000000000005
+    "costUsd": 0.0374962
   },
   "teams": [
     {
@@ -59,8 +59,7 @@
         "cashflow-forecast",
         "tax-deadline-tracker",
         "safety-waivers",
-        "insurance-compliance-tracker",
-        "makerspace-licensing-tracker"
+        "regulatory-tracker"
       ]
     },
     {
@@ -73,7 +72,9 @@
         "facility-maintenance",
         "vendor-manager",
         "event-coordinator",
-        "consumables-inventory"
+        "consumables-tracker",
+        "equipment-usage-logger",
+        "class-enrollment-monitor"
       ]
     },
     {
@@ -84,7 +85,7 @@
         "social-manager",
         "email-marketing",
         "seo-agent",
-        "local-community-outreach"
+        "class-promo-writer"
       ]
     },
     {
@@ -93,8 +94,7 @@
       "isHuman": false,
       "subAgentIds": [
         "tier1-triage",
-        "escalation",
-        "class-registration-manager"
+        "escalation"
       ]
     },
     {
@@ -323,57 +323,57 @@
       "handsTools": []
     },
     {
-      "id": "insurance-compliance-tracker",
-      "label": "Insurance & Liability Compliance Tracker",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.physical-space.1.insurance-compliance-tracker"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "makerspace-licensing-tracker",
-      "label": "Makerspace Licensing & Regulatory Tracker",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.physical-space.2.makerspace-licensing-tracker"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "consumables-inventory",
-      "label": "Consumables Inventory Tracker",
+      "id": "consumables-tracker",
+      "label": "Class Consumables Tracker",
       "teamId": "ops",
       "taskIds": [
-        "customize.physical-space.3.consumables-inventory"
+        "customize.physical-space.1.consumables-tracker"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
-      "id": "class-registration-manager",
-      "label": "Weekend Class Registration Manager",
-      "teamId": "support",
+      "id": "equipment-usage-logger",
+      "label": "Equipment Usage Logger",
+      "teamId": "ops",
       "taskIds": [
-        "customize.physical-space.4.class-registration-manager"
+        "customize.physical-space.2.equipment-usage-logger"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
-      "id": "local-community-outreach",
-      "label": "Local Community Outreach Agent",
+      "id": "regulatory-tracker",
+      "label": "Makerspace Regulatory Tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.physical-space.3.regulatory-tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "class-promo-writer",
+      "label": "Weekend Class Promoter",
       "teamId": "cmo",
       "taskIds": [
-        "customize.physical-space.5.local-community-outreach"
+        "customize.physical-space.4.class-promo-writer"
       ],
-      "suggestedTier": "T3",
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "class-enrollment-monitor",
+      "label": "Class Enrollment Monitor",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.physical-space.5.class-enrollment-monitor"
+      ],
+      "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": []
     }
@@ -478,7 +478,7 @@
       "subAgentType": "facility-maintenance",
       "subAgentLabel": "Facility maintenance",
       "teamHint": "ops",
-      "frequency": "daily",
+      "frequency": "weekly",
       "stakes": "medium",
       "tier": "T1",
       "autonomy": "eligible-early",
@@ -622,38 +622,10 @@
       "origin": "template"
     },
     {
-      "id": "customize.physical-space.1.insurance-compliance-tracker",
-      "text": "Identify and track equipment safety and public liability insurance requirements for a community makerspace in Victoria, Australia",
-      "subAgentType": "insurance-compliance-tracker",
-      "subAgentLabel": "Insurance & Liability Compliance Tracker",
-      "teamHint": "compliance",
-      "frequency": "monthly",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "requiresProfessionalVerification": true,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.physical-space.2.makerspace-licensing-tracker",
-      "text": "Identify and track local licensing and regulatory requirements for operating a community makerspace (including equipment use, public access, and food/beverage if applicable) in Victoria, Australia",
-      "subAgentType": "makerspace-licensing-tracker",
-      "subAgentLabel": "Makerspace Licensing & Regulatory Tracker",
-      "teamHint": "compliance",
-      "frequency": "monthly",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "requiresProfessionalVerification": true,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.physical-space.3.consumables-inventory",
-      "text": "Track consumable materials inventory by equipment type (e.g. filament, wood stock, resins) and flag reorder points before weekend classes",
-      "subAgentType": "consumables-inventory",
-      "subAgentLabel": "Consumables Inventory Tracker",
+      "id": "customize.physical-space.1.consumables-tracker",
+      "text": "Track consumables used in classes (filament, wood, resin, solder, etc.) and flag when per-class material costs exceed budget thresholds",
+      "subAgentType": "consumables-tracker",
+      "subAgentLabel": "Class Consumables Tracker",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
@@ -663,11 +635,38 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.physical-space.4.class-registration-manager",
-      "text": "Build and promote the weekend class schedule: draft descriptions, set capacity limits, open registration, and send reminders to enrolled members",
-      "subAgentType": "class-registration-manager",
-      "subAgentLabel": "Weekend Class Registration Manager",
-      "teamHint": "support",
+      "id": "customize.physical-space.2.equipment-usage-logger",
+      "text": "Log equipment usage hours per machine (e.g. laser cutter, 3D printer, lathe) and flag machines approaching service intervals",
+      "subAgentType": "equipment-usage-logger",
+      "subAgentLabel": "Equipment Usage Logger",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.physical-space.3.regulatory-tracker",
+      "text": "Identify and track local licensing and regulatory requirements for operating a community makerspace (including equipment safety, electrical/workshop safety, and public venue obligations) in Victoria, Australia",
+      "subAgentType": "regulatory-tracker",
+      "subAgentLabel": "Makerspace Regulatory Tracker",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.physical-space.4.class-promo-writer",
+      "text": "Draft promotional content for upcoming weekend classes — descriptions, instructor bios, and registration links for local community boards and social channels",
+      "subAgentType": "class-promo-writer",
+      "subAgentLabel": "Weekend Class Promoter",
+      "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
@@ -676,14 +675,14 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.physical-space.5.local-community-outreach",
-      "text": "Draft local marketing content targeting hobbyists, DIYers, and small creators: community boards, local Facebook groups, and neighbourhood apps",
-      "subAgentType": "local-community-outreach",
-      "subAgentLabel": "Local Community Outreach Agent",
-      "teamHint": "cmo",
+      "id": "customize.physical-space.5.class-enrollment-monitor",
+      "text": "Monitor class registration numbers against minimum viable attendance thresholds and alert founder to cancel or boost undersubscribed classes before the cut-off date",
+      "subAgentType": "class-enrollment-monitor",
+      "subAgentLabel": "Class Enrollment Monitor",
+      "teamHint": "ops",
       "frequency": "weekly",
-      "stakes": "low",
-      "tier": "T3",
+      "stakes": "medium",
+      "tier": "T2",
       "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
@@ -691,134 +690,121 @@
   ],
   "customization": {
     "added": [
-      "customize.physical-space.1.insurance-compliance-tracker",
-      "customize.physical-space.2.makerspace-licensing-tracker",
-      "customize.physical-space.3.consumables-inventory",
-      "customize.physical-space.4.class-registration-manager",
-      "customize.physical-space.5.local-community-outreach"
+      "customize.physical-space.1.consumables-tracker",
+      "customize.physical-space.2.equipment-usage-logger",
+      "customize.physical-space.3.regulatory-tracker",
+      "customize.physical-space.4.class-promo-writer",
+      "customize.physical-space.5.class-enrollment-monitor"
     ],
     "removed": [],
     "frequencyAdjustments": [
-      {
-        "taskId": "ops.facility.maintenance",
-        "from": "weekly",
-        "to": "daily"
-      },
       {
         "taskId": "compliance.safety-waivers",
         "from": "monthly",
         "to": "weekly"
       }
     ],
-    "categoryCorrections": [
-      {
-        "taskId": "customize.physical-space.4.class-registration-manager",
-        "from": "ops",
-        "to": "support",
-        "reason": "Class registration, reminders, and member communication are customer-facing support operations, not internal ops logistics. The 'promote' piece (schedule descriptions) could be cmo, but the core work—managing enrollment and sending reminders—is support, not ops."
-      }
-    ],
-    "notes": "Added makerspace-specific compliance trackers (generic, Victoria-safe), consumables inventory, weekend class registration management, and local grassroots outreach. Bumped facility maintenance to daily (power tools require frequent safety checks) and safety waivers to weekly (high equipment-risk environment with ongoing new member onboarding). No template tasks removed — all apply cleanly to this physical-space membership model."
+    "categoryCorrections": [],
+    "notes": "Added makerspace-specific tasks for consumables tracking, per-machine usage hours, class enrolment monitoring, class promotional content, and a generic Victoria compliance tracker. Bumped safety waivers to weekly given continuous public access to dangerous machinery. No template tasks removed as all apply cleanly to this business model."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Maya",
+        "agentName": "Morgan",
         "subAgentId": "membership-billing",
         "roleTitle": "CFO",
-        "summary": "processed 3 new membership sign-ups and issued receipts for 2 equipment rental day-passes from the weekend"
+        "summary": "Processed 3 new membership sign-ups and flagged 2 renewal reminders due next week"
       },
       {
-        "agentName": "Leo",
+        "agentName": "Jamie",
         "subAgentId": "booking-scheduler",
         "roleTitle": "Ops Lead",
-        "summary": "flagged a double-booking conflict on the laser cutter for Saturday 10am and drafted a resolution options list for your review"
+        "summary": "Resolved a double-booking conflict on the laser cutter for Saturday morning and confirmed availability with both members"
       },
       {
-        "agentName": "Priya",
+        "agentName": "Alex",
+        "subAgentId": "event-coordinator",
+        "roleTitle": "Ops Lead",
+        "summary": "Confirmed instructor availability for next weekend's woodworking class and sent attendee reminders to 12 registered participants"
+      },
+      {
+        "agentName": "Casey",
         "subAgentId": "social-manager",
         "roleTitle": "CMO",
-        "summary": "drafted 2 Instagram posts — one announcing next weekend's intro-to-woodworking class and one member spotlight on a local furniture maker"
+        "summary": "Posted 2 local Instagram stories highlighting this week's new member projects and tagged an open afternoon slot on the 3D printer"
       },
       {
         "agentName": "Sam",
-        "subAgentId": "class-registration-manager",
+        "subAgentId": "tier1-triage",
         "roleTitle": "Support Lead",
-        "summary": "opened registration for 3 upcoming weekend classes, set capacity limits (12 seats each), and queued reminder emails for the 8 members already enrolled"
-      },
-      {
-        "agentName": "Jordan",
-        "subAgentId": "facility-maintenance",
-        "roleTitle": "Ops Lead",
-        "summary": "reviewed equipment condition logs and flagged the 3D printer (Unit 2) as overdue for a nozzle service based on logged print hours"
+        "summary": "Triaged 4 member messages — answered 2 FAQs about membership pricing, escalated 1 equipment malfunction report, and drafted a reply about weekend class registration"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A community makerspace in Victoria, Australia offering paid memberships, equipment rentals, and weekend classes — giving hobbyists, DIYers, and small creators access to shared tools and skills in a safe, well-run space.",
-      "mvpDefinition": "Launch with a single membership tier, a small suite of bookable equipment (e.g. laser cutter, 3D printers, basic woodworking tools), and a recurring weekend class program of 2–3 classes per month. Members can sign up online, book equipment slots, register for classes, and receive email communications — all managed by the agent team. The founder handles in-person operations, instructor relationships, and any legal/insurance decisions flagged by agents.",
+      "sharpenedIdea": "A pay-to-use community makerspace offering monthly memberships, hourly equipment rentals, and weekend classes for makers in Victoria, Australia.",
+      "mvpDefinition": "Launch with a single shared workshop space open 20 hours per week, 2–3 core pieces of equipment (laser cutter, 3D printers, basic hand tools), tiered membership tiers (casual day-pass, monthly full access), and one beginner-friendly weekend class to start. Focus on word-of-mouth and local community sign-ups; keep instructor recruitment and scheduling manual for now.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft a weekly priorities plan for the founder each Monday",
-            "Scan across all teams for conflicts or blocked tasks and surface them in one place",
-            "Flag any decisions that need the founder's input before the week progresses"
+            "Draft a rolling weekly plan that maps out member bookings, upcoming classes, and key milestones",
+            "Flag scheduling or resource conflicts between different teams (e.g., equipment needed for both a class and a private rental) and escalate to founder for decision"
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Process new membership sign-ups, renewals, and rental or day-pass charges, and issue receipts",
-            "Tag all facility and equipment expenses by category and flag anything unusual",
-            "Produce 30/60/90-day cash-flow projections and alert the founder if runway looks tight",
-            "Track upcoming tax deadlines and local business licence renewal dates",
-            "Manage member waivers and flag any safety or liability concerns from incident reports for human legal and insurance review",
-            "Identify and monitor equipment safety and public liability insurance requirements for a Victoria-based makerspace",
-            "Track local licensing and regulatory requirements for operating a makerspace in Victoria, including equipment use, public access, and food or beverage rules"
+            "Process new membership sign-ups, renewals, and rental/day-pass charges; issue receipts and confirmations",
+            "Categorize all facility expenses (rent, utilities, insurance, equipment maintenance) and consumables costs (filament, wood, resin), flagging any unusual spikes",
+            "Generate 30/60/90-day cash-flow projections showing runway and alert founder if burn rate threatens sustainability",
+            "Track tax filing deadlines and local business license renewal dates for Victoria, Australia",
+            "Collect member waivers, manage safety documentation, and flag any reported incidents or safety concerns for founder legal/insurance review",
+            "Research and track all relevant licensing, equipment safety standards, and regulatory obligations for operating a public makerspace in Victoria (electrical safety, workshop safety codes, public venue insurance requirements)"
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Manage the booking calendar for equipment, rooms, and rental slots — catch conflicts and double-bookings before they reach members",
-            "Track active memberships, flag upcoming renewals, and identify lapsed members",
-            "Monitor equipment and facility condition logs and flag anything overdue for maintenance",
-            "Track supply and consumables orders and flag when reorder points are approaching",
-            "Compile and publish the class and event schedule, confirm instructor and room availability, and send attendee reminders",
-            "Track consumable materials inventory by equipment type (filament, wood stock, resins, etc.) and flag shortfalls before weekend classes"
+            "Maintain the shared booking calendar for equipment, workshop rooms, and rental slots; flag double-bookings and resolve conflicts",
+            "Track all active, renewing, and lapsed memberships; alert founder to churn trends or high-value member departures",
+            "Monitor equipment and facility condition logs (cleanliness, wear, damage); flag overdue maintenance and schedule repairs to minimize downtime",
+            "Track consumables inventory (filament, wood, resin, solder, etc.) and reorder points; flag when stock is low",
+            "Compile the weekend class and event schedule; confirm instructor/host availability and room allocation; send pre-class reminders to registered attendees",
+            "Track material costs per class session and alert founder if consumables spending exceeds the budgeted cost per participant",
+            "Log monthly usage hours for each major piece of equipment (laser cutter, 3D printers, lathe, etc.) and flag machines approaching scheduled service intervals",
+            "Monitor class registration numbers against minimum viable class size; alert founder early if a class is undersubscribed so he can decide whether to cancel, reschedule, or promote it"
           ]
         },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Draft local social media posts promoting new classes, open equipment slots, and member spotlights",
-            "Write member newsletters and renewal or win-back email campaigns",
-            "Keep the Google Business listing and local SEO content current and optimised",
-            "Draft outreach content for community boards, local Facebook groups, and neighbourhood apps to attract hobbyists, DIYers, and small creators"
+            "Draft local social media posts highlighting new classes, available equipment slots, and member spotlights to attract and engage the community",
+            "Compose member newsletters (monthly renewal tips, new equipment announcements) and re-engagement campaigns for lapsed members",
+            "Keep Google Business Profile and local search presence fresh with updated hours, photos, and member reviews",
+            "Write promotional content for each upcoming weekend class — compelling descriptions, instructor bios, and clear registration links — and distribute to local community boards and social channels"
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Read inbound member messages and DMs, tag by urgency, and draft replies to common questions",
-            "Detect upset members or complex issues and prepare full context summaries for the founder to respond",
-            "Build and promote the weekend class schedule: write class descriptions, set seat caps, open registration, and send reminders to enrolled members"
+            "Read all inbound member messages, DMs, and support requests; tag by urgency (urgent, normal, low); draft replies to common questions (hours, pricing, waiver status, booking help)",
+            "Identify upset or frustrated members or unusually complex cases; summarize context and escalate to founder for personal follow-up or decision-making"
           ]
         },
         {
           "roleTitle": "People Lead",
           "tasks": [
-            "Draft job posts when hiring signals appear — instructors, front-desk staff, or maintenance help",
-            "Summarise applicants into a shortlist for the founder to screen and interview"
+            "Draft job posts when hiring signals appear (instructors for new class types, front-desk/admin help, maintenance technician)",
+            "Summarize incoming applicants for founder screening — highlighting relevant experience, teaching/workshop background, and fit for the makerspace culture"
           ]
         }
       ],
       "monthOneGoals": [
-        "Sign up the first 10 paying members across at least one membership tier",
-        "Run at least 2 weekend classes with paying registrants and collect post-class feedback",
-        "Complete all Victoria regulatory and insurance requirements identified by the compliance agents",
-        "Achieve zero double-bookings by establishing the equipment booking calendar as the single source of truth",
-        "Publish at least 8 pieces of local social or community outreach content to build awareness in the area"
+        "Finalize facility setup, safety protocols, and equipment commissioning; complete all required waiver documentation and regulatory compliance checks for Victoria",
+        "Recruit and onboard first 3 instructors (or subject-matter experts) and lock in the schedule for 2 weekend starter classes",
+        "Achieve first 20 paid memberships (mix of monthly and day-pass) through direct outreach and local buzz",
+        "Launch basic website and Google Business Profile; post 3 social media stories/posts per week to build awareness in local maker community",
+        "Establish daily/weekly operational routines (booking checks, facility maintenance logs, consumables tracking) so the founder can focus on growth and member experience"
       ],
       "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
     }

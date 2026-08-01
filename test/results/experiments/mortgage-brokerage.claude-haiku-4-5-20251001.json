@@ -1,0 +1,102 @@
+{
+  "simulatedDay": [
+    {
+      "agentName": "Maya",
+      "subAgentId": "lead-qualifier",
+      "roleTitle": "Sales Lead",
+      "summary": "Scored 8 new inbound leads from your website and enriched 3 of them with property details and credit range estimates from public records"
+    },
+    {
+      "agentName": "James",
+      "subAgentId": "mortgage-file-prep",
+      "roleTitle": "Delivery Lead",
+      "summary": "Organized Aisha Chen's mortgage application package (3 pay stubs, tax returns, and property appraisal) and prepped it for lender submission"
+    },
+    {
+      "agentName": "Sarah",
+      "subAgentId": "lender-product-research",
+      "roleTitle": "Support Lead",
+      "summary": "Researched fixed vs. variable rates across 5 lenders for Marcus T.'s file and summarized the best options for your client conversation"
+    },
+    {
+      "agentName": "David",
+      "subAgentId": "cashflow-forecast",
+      "roleTitle": "CFO",
+      "summary": "Prepared your 90-day cash-flow projection showing runway through Q2, flagging when retainer income will hit month 2"
+    },
+    {
+      "agentName": "Elena",
+      "subAgentId": "chief-of-staff",
+      "roleTitle": "Chief of Staff",
+      "summary": "Drafted next week's operating plan, flagged a scheduling conflict between your client calls and the compliance review deadline"
+    }
+  ],
+  "charterDraft": {
+    "sharpenedIdea": "A mortgage brokerage that guides first-time homebuyers through application approval by handling document preparation, lender research, and compliance—so they close faster and with confidence.",
+    "mvpDefinition": "Version 1 is a single-broker operation serving first-time buyers in your local market. You personally qualify leads and conduct client consultations; your team handles document prep, lender research, application tracking, and compliance filing. You source clients through referral partners and inbound web leads, compile each client's mortgage package, research the best lender products, and manage the application pipeline until close. The broker (you) retains all lender relationships and final approval authority. Initial scope: 2–4 active client files per month, focusing on applications with strong approval odds.",
+    "roleTasks": [
+      {
+        "roleTitle": "Chief of Staff",
+        "tasks": [
+          "Draft a weekly operating plan that maps client milestones, compliance deadlines, and key broker decisions",
+          "Flag cross-team conflicts (e.g., a lender deadline clashing with a compliance review) before they derail the schedule"
+        ]
+      },
+      {
+        "roleTitle": "CFO",
+        "tasks": [
+          "Create invoices for client retainer fees and project-based pay-outs",
+          "Tag all business expenses (software subscriptions, lender fees, travel) and alert if any category spikes unexpectedly",
+          "Prepare 30/60/90-day cash-flow projections and flag runway concerns early",
+          "Track all tax deadlines (quarterly estimated payments, annual filings) and prepare the accountant handoff packet each quarter",
+          "Review all client contracts and service agreements for compliance and red-flag liability clauses",
+          "Monitor BCFSA broker licensing renewal deadlines and remind you when continuing education or renewal fees are due",
+          "Watch for client transaction patterns that may trigger FINTRAC AML/KYC reporting obligations and queue them for your compliance review"
+        ]
+      },
+      {
+        "roleTitle": "Delivery Lead",
+        "tasks": [
+          "Execute the core brokerage work for each active client: analyze their financial profile, compare lender options, and draft recommendations",
+          "Quality-check all completed client work (application packages, lender summaries, rate quotes) for accuracy and completeness before delivery",
+          "Package finished work and deliver it to clients, confirming receipt and next-step clarity",
+          "Compile and organize each client's application documents (pay stubs, tax returns, credit consent, property details) into a lender-ready package"
+        ]
+      },
+      {
+        "roleTitle": "Sales Lead",
+        "tasks": [
+          "Score inbound leads by credit readiness and down-payment strength; enrich them with public property and financial data",
+          "Draft personalized first-touch and follow-up outreach emails to qualified leads",
+          "Log all lead interactions, update deal stages in the CRM, and flag leads that have gone silent for 2+ weeks",
+          "Build quotes and service proposals from your standard templates, customized with deal details and lender options",
+          "Track and manage your referral partner pipeline: log every referral received, send thank-you notes, and alert you when key partners go quiet"
+        ]
+      },
+      {
+        "roleTitle": "Support Lead",
+        "tasks": [
+          "Draft welcome sequences for new clients and setup guides for their first interactions",
+          "Read inbound client messages, tag them by urgency (approval news, rate lock deadline, document request), and draft replies to routine questions",
+          "Detect complex or upset cases and escalate them to you with full context",
+          "Research and compare lender products (rates, terms, qualification criteria) for each active client file and summarize the best options for you to present",
+          "Draft and send status update messages to clients tracking their mortgage application through the lender pipeline"
+        ]
+      },
+      {
+        "roleTitle": "Ops Lead",
+        "tasks": [
+          "Manage your calendar, send client booking confirmations, and trigger reminders before calls and document deadlines"
+        ]
+      }
+    ],
+    "monthOneGoals": [
+      "Close 2–3 first-time buyer mortgage applications and collect post-close feedback to refine your process",
+      "Establish relationships with 3–5 key lenders and confirm their rate sheets and qualification criteria",
+      "Build a referral partner pipeline of 5–10 real estate agents or financial advisors who will send leads regularly",
+      "Finalize your compliance checklist, service agreement templates, and AML/KYC workflows with a licensed lawyer or compliance consultant",
+      "Launch a simple onboarding sequence and track time-to-close and client satisfaction for your first cohort"
+    ],
+    "budgetCeilingPlaceholder": "$50+/month (from your interview answer — adjust anytime)"
+  }
+}

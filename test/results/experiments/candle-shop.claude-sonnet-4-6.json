@@ -1,0 +1,85 @@
+{
+  "simulatedDay": [
+    {
+      "agentName": "Maya",
+      "subAgentId": "listing-copywriter",
+      "roleTitle": "CMO",
+      "summary": "drafted optimized Etsy listing titles, tags, and descriptions for 3 candle products — including a 'Autumn Hearth' soy candle — ready for your review before publishing"
+    },
+    {
+      "agentName": "Felix",
+      "subAgentId": "cashflow-forecast",
+      "roleTitle": "CFO",
+      "summary": "built a 30/60/90-day cash-flow projection based on your current inventory costs and average Etsy order value, with a runway alert flagged for review"
+    },
+    {
+      "agentName": "Priya",
+      "subAgentId": "inventory",
+      "roleTitle": "Ops Lead",
+      "summary": "checked stock levels across your candle SKUs and flagged that coconut-soy wax blend is approaching reorder point — draft reorder note attached"
+    },
+    {
+      "agentName": "Jordan",
+      "subAgentId": "social-manager",
+      "roleTitle": "CMO",
+      "summary": "drafted 3 platform-sized posts for Instagram, Pinterest, and TikTok promoting your fall candle collection, sized and captioned for each platform — ready for your approval"
+    },
+    {
+      "agentName": "Sam",
+      "subAgentId": "tier1-triage",
+      "roleTitle": "Support Lead",
+      "summary": "triaged 2 new customer messages — tagged one as a shipping status question (draft reply prepared) and one as a custom order inquiry (flagged for your response)"
+    }
+  ],
+  "charterDraft": {
+    "sharpenedIdea": "A handmade candle shop selling beautifully crafted, small-batch candles through Etsy — starting lean, growing through great listings, consistent social presence, and happy repeat customers.",
+    "mvpDefinition": "Launch an Etsy shop with a focused lineup of 5–10 handmade candle products, each with polished listing copy and photography. Drive early traffic through optimized Etsy SEO and organic social posts on Instagram and Pinterest. Handle orders, shipping updates, and customer messages consistently. Track costs and revenue from day one so the business stays profitable from the first sale.",
+    "roleTasks": [
+      {
+        "roleTitle": "CFO",
+        "tasks": [
+          "Create invoices and receipts for every Etsy order so financial records stay clean and complete.",
+          "Tag every transaction by category and flag anything that looks unusual or out of place.",
+          "Build and maintain a 30/60/90-day cash-flow projection with alerts when runway looks tight.",
+          "Track upcoming tax deadlines, prepare a document checklist ahead of each one, and flag Texas sales-tax collection and remittance obligations for Etsy sales — quarterly due dates monitored, with a reminder that professional verification is recommended."
+        ]
+      },
+      {
+        "roleTitle": "CMO",
+        "tasks": [
+          "Draft ready-to-post social content sized for Instagram, Pinterest, and TikTok — captions, hashtags, and format all tailored per platform.",
+          "Write occasional blog posts or newsletter content in the shop's brand voice to build audience and trust.",
+          "Draft email marketing sequences — welcome series, abandoned-cart nudges, and seasonal campaign copy — for your review before sending.",
+          "Research keywords and marketplace search terms to keep Etsy listing titles and tags competitive.",
+          "Track trending candle scents, aesthetics, and seasonal themes so new product ideas stay ahead of the curve.",
+          "Monitor Etsy shop stats — views, favorites, and conversion rate — and surface concrete, actionable insights from the data.",
+          "Draft and optimize Etsy product listing copy — titles, tags, and descriptions — for both new candles and existing listings that could perform better."
+        ]
+      },
+      {
+        "roleTitle": "Ops Lead",
+        "tasks": [
+          "Track stock levels for every candle product and SKU, and flag reorder points for raw materials like wax, fragrance oils, wicks, and packaging.",
+          "Post order status and shipping updates to customers so they're always in the loop.",
+          "Track supplier orders for raw materials and draft reorder communications to vendors when stock runs low.",
+          "Log each production batch — wax, fragrance, and wick quantities used — and update finished-goods inventory automatically after every pour session."
+        ]
+      },
+      {
+        "roleTitle": "Support Lead",
+        "tasks": [
+          "Read every inbound customer message, tag it by urgency and topic, and draft replies to common questions like shipping times, ingredients, and return policies.",
+          "Detect messages that are emotionally charged or too complex for a templated reply, and package the full context so you can step in with everything you need."
+        ]
+      }
+    ],
+    "monthOneGoals": [
+      "Publish a fully set-up Etsy shop with 5–10 candle listings, each with optimized titles, tags, and descriptions.",
+      "Make the first 3 sales and fulfill each order with a tracking update sent to the customer.",
+      "Post at least 3 times per week across Instagram and Pinterest to begin building an organic audience.",
+      "Establish a clean financial baseline — every transaction categorized, cash-flow projection in place, and tax obligations identified.",
+      "Respond to every customer message within 24 hours, maintaining Etsy's Star Seller response-rate threshold."
+    ],
+    "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+  }
+}

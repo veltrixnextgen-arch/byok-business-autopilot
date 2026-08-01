@@ -1,0 +1,95 @@
+{
+  "simulatedDay": [
+    {
+      "agentName": "Maya",
+      "subAgentId": "lead-qualifier",
+      "roleTitle": "Sales Lead",
+      "summary": "Scored 4 new inbound leads from the website contact form — 3 flagged as strong first-time buyer candidates (stable employment, 5–10% down payment ready), 1 marked low-priority due to credit score concerns. Summaries queued for your review."
+    },
+    {
+      "agentName": "Finn",
+      "subAgentId": "mortgage-file-prep",
+      "roleTitle": "Delivery Lead",
+      "summary": "Compiled a lender-ready mortgage application package for the Chen family — income verification, T4s, credit consent form, and property details organized and cross-checked against lender checklist. Ready for your sign-off before submission."
+    },
+    {
+      "agentName": "Sadie",
+      "subAgentId": "aml-kyc-monitor",
+      "roleTitle": "CFO",
+      "summary": "Reviewed active client files for FINTRAC triggers — flagged one client's down payment source as requiring a third-party determination form before proceeding. Packaged the details for your compliance review."
+    },
+    {
+      "agentName": "Leo",
+      "subAgentId": "application-status-comms",
+      "roleTitle": "Support Lead",
+      "summary": "Drafted status update messages for 3 clients with applications currently in the lender pipeline — notified the Patels that their file moved to underwriting, and sent a document request reminder to two other buyers awaiting lender conditions."
+    },
+    {
+      "agentName": "Cora",
+      "subAgentId": "cashflow-forecast",
+      "roleTitle": "CFO",
+      "summary": "Generated a 30/60/90-day cash-flow projection based on your current client retainers and expected commission closings — flagged a potential tight spot at the 60-day mark if two pending deals slip. Full report ready for your review."
+    }
+  ],
+  "charterDraft": {
+    "sharpenedIdea": "A boutique mortgage brokerage that guides first-time homebuyers from initial inquiry to funded mortgage — handling the paperwork, lender research, and communication so buyers feel confident and supported throughout the entire process.",
+    "mvpDefinition": "Version 1 of this business is a fully operational one-broker shop capable of taking a first-time buyer from initial consultation to submitted lender application. That means a working intake and lead qualification process, a standardized mortgage file-building workflow, a curated shortlist of lender relationships to shop rates against, clear client communication touchpoints at each pipeline stage, and the compliance and licensing guardrails required to operate legally in BC. The goal is to close the first 3–5 funded deals, gather referral relationships, and prove the end-to-end workflow before adding volume or staff.",
+    "roleTasks": [
+      {
+        "roleTitle": "CFO",
+        "tasks": [
+          "Create and send invoices for client retainers and broker fee arrangements.",
+          "Categorize all business expenses and flag anything that looks unusual or out of place.",
+          "Produce 30, 60, and 90-day cash-flow projections and alert you when runway looks tight — especially important given commission-based income timing.",
+          "Track all tax filing and remittance deadlines and assemble the handoff packet your accountant needs each season.",
+          "Review contracts and agreements for red flags and monitor any shifting regulation deadlines that affect the brokerage.",
+          "Monitor BCFSA licensing renewal deadlines and surface upcoming requirements so you can act with your licensed professional before anything lapses.",
+          "Scan active client files for transaction patterns that could trigger FINTRAC AML/KYC reporting obligations and queue anything flagged for your compliance review before the file moves forward."
+        ]
+      },
+      {
+        "roleTitle": "Delivery Lead",
+        "tasks": [
+          "Execute the core paid work for each active client file — coordinating the steps between intake and lender submission.",
+          "Review all completed client work for accuracy and completeness before it leaves the brokerage.",
+          "Package and deliver finished work, approvals, and documents to clients in a clean, professional format.",
+          "Compile each client's full mortgage application package — gathering income verification, T4s, credit consent, and property details — and organize everything into a lender-ready file so nothing is missing at submission."
+        ]
+      },
+      {
+        "roleTitle": "Sales Lead",
+        "tasks": [
+          "Score every inbound lead and enrich their profile with publicly available information so you know exactly who to prioritize.",
+          "Draft personalized first-touch outreach and follow-up messages tailored to each prospect's situation.",
+          "Keep the CRM clean and current — log every interaction, update deal stages, and flag any lead that's gone quiet too long.",
+          "Build quotes and fee disclosure summaries from your templates and the specifics of each deal.",
+          "Track your referral partner relationships — log referrals as they come in, send thank-you follow-ups to referring partners, and flag anyone in your network who hasn't sent a referral recently so you can re-engage them."
+        ]
+      },
+      {
+        "roleTitle": "Support Lead",
+        "tasks": [
+          "Draft welcome sequences and onboarding guides for new clients so they know exactly what to expect and what to prepare from day one.",
+          "Read all inbound client messages, assign an urgency level, and draft replies to common questions about the mortgage process, timelines, and document requirements.",
+          "Detect messages from clients who are confused, frustrated, or raising issues outside the norm — and package the full context so you can step in with the right information.",
+          "Research lender products across your panel — comparing rates, terms, and qualification criteria for each active client file — and summarize the best-fit options for you to present and recommend.",
+          "Draft and send application status updates to clients at every meaningful milestone in the lender pipeline, so buyers always know where their file stands without having to chase you for answers."
+        ]
+      },
+      {
+        "roleTitle": "Ops Lead",
+        "tasks": [
+          "Manage your calendar end-to-end — scheduling client discovery calls, lender check-ins, and follow-up appointments, and sending confirmations and reminders so nothing falls through the cracks."
+        ]
+      }
+    ],
+    "monthOneGoals": [
+      "Complete BCFSA licensing verification and confirm all compliance prerequisites are in place before taking on paying clients.",
+      "Onboard 3–5 first-time buyer prospects through the full intake process and submit at least 1–2 complete lender applications.",
+      "Establish relationships with a minimum of 3 lenders and confirm your product access and rate submission process with each.",
+      "Activate at least 2 referral partner relationships (e.g., real estate agents, financial planners) and log them in the CRM.",
+      "Run the cash-flow forecast and set a break-even target based on your expected commission per funded deal."
+    ],
+    "budgetCeilingPlaceholder": "$50+/month (from your interview answer — adjust anytime)"
+  }
+}

@@ -1,42 +1,42 @@
 {
-  "startedAt": "2026-08-01T09:47:13.661Z",
-  "updatedAt": "2026-08-01T09:48:33.274Z",
+  "startedAt": "2026-08-01T09:58:01.835Z",
+  "updatedAt": "2026-08-01T10:04:49.024Z",
   "runs": {
     "candle-shop.json": {
       "status": "ok",
-      "costUsd": 0.055704,
+      "costUsd": 0.037764400000000004,
       "template": "ecommerce",
-      "completedAt": "2026-08-01T09:33:57.596Z"
+      "completedAt": "2026-08-01T09:58:24.327Z"
     },
     "freelance-bookkeeping.json": {
       "status": "ok",
-      "costUsd": 0.0610336,
+      "costUsd": 0.040840800000000003,
       "template": "service",
-      "completedAt": "2026-08-01T09:34:46.492Z"
+      "completedAt": "2026-08-01T09:59:03.196Z"
     },
     "makerspace.json": {
       "status": "ok",
-      "costUsd": 0.059077000000000005,
+      "costUsd": 0.0374962,
       "template": "physical-space",
-      "completedAt": "2026-08-01T09:35:35.030Z"
+      "completedAt": "2026-08-01T09:59:35.486Z"
     },
     "mortgage-brokerage.json": {
       "status": "ok",
-      "costUsd": 0.0653492,
+      "costUsd": 0.041385399999999996,
       "template": "service",
-      "completedAt": "2026-08-01T09:36:23.758Z"
+      "completedAt": "2026-08-01T10:00:18.487Z"
     },
     "saas-scheduler.json": {
       "status": "ok",
-      "costUsd": 0.06404699999999999,
+      "costUsd": 0.0457824,
       "template": "saas",
-      "completedAt": "2026-08-01T09:37:20.492Z"
+      "completedAt": "2026-08-01T10:01:09.896Z"
     },
     "wedding-photographer.json": {
       "status": "ok",
-      "costUsd": 0.06453880000000001,
+      "costUsd": 0.0434956,
       "template": "content",
-      "completedAt": "2026-08-01T09:48:33.274Z"
+      "completedAt": "2026-08-01T10:01:51.778Z"
     }
   }
 }

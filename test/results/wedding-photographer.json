@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I'm a wedding photographer who also sells Lightroom presets and online editing courses.",
-    "generatedAt": "2026-08-01T09:47:58.083Z",
+    "generatedAt": "2026-08-01T10:01:51.778Z",
     "templateSelection": {
       "primary": "content",
       "blendedWith": "ecommerce",
@@ -20,25 +20,25 @@
         "step": "customize",
         "model": "claude-sonnet-4-6",
         "inputTokens": 3578,
-        "outputTokens": 1380,
-        "costUsd": 0.031434000000000004
+        "outputTokens": 1500,
+        "costUsd": 0.033234
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2096,
+        "inputTokens": 2134,
         "outputTokens": 195,
-        "costUsd": 0.0024568000000000003
+        "costUsd": 0.0024872
       },
       {
         "step": "onboarding-batch",
-        "model": "claude-sonnet-4-6",
-        "inputTokens": 2271,
-        "outputTokens": 1589,
-        "costUsd": 0.030647999999999998
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2308,
+        "outputTokens": 1482,
+        "costUsd": 0.007774400000000001
       }
     ],
-    "costUsd": 0.06453880000000001
+    "costUsd": 0.0434956
   },
   "teams": [
     {
@@ -46,8 +46,7 @@
       "roleTitle": "Founder / CEO",
       "isHuman": true,
       "subAgentIds": [
-        "chief-of-staff",
-        "revenue-monitor"
+        "chief-of-staff"
       ]
     },
     {
@@ -58,9 +57,7 @@
         "content-writer",
         "social-manager",
         "seo-agent",
-        "email-marketing",
-        "trend-researcher",
-        "launch-copywriter"
+        "email-marketing"
       ]
     },
     {
@@ -72,8 +69,7 @@
         "cashflow-forecast",
         "invoicing",
         "tax-deadline-tracker",
-        "contract-risk-flagger",
-        "tax-compliance-monitor"
+        "compliance-monitor"
       ]
     },
     {
@@ -83,9 +79,7 @@
       "subAgentIds": [
         "tier1-triage",
         "onboarding",
-        "escalation",
-        "client-communication",
-        "digital-product-support"
+        "escalation"
       ]
     },
     {
@@ -96,6 +90,14 @@
         "inventory",
         "fulfillment",
         "vendor-manager"
+      ]
+    },
+    {
+      "id": "sales",
+      "roleTitle": "Sales Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "outreach-drafter"
       ]
     }
   ],
@@ -117,9 +119,10 @@
       "teamId": "cmo",
       "taskIds": [
         "cmo.content.longform",
-        "cmo.content.blog"
+        "cmo.content.blog",
+        "customize.content.5.content-writer"
       ],
-      "suggestedTier": "T2",
+      "suggestedTier": "T3",
       "autonomyDefault": "earnable",
       "handsTools": []
     },
@@ -156,7 +159,8 @@
       "teamId": "cmo",
       "taskIds": [
         "cmo.email.newsletter",
-        "cmo.email.campaigns"
+        "cmo.email.campaigns",
+        "customize.content.8.email-marketing"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
@@ -170,10 +174,11 @@
       "label": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
-        "cfo.expenses.categorize"
+        "cfo.expenses.categorize",
+        "customize.content.4.expense-categorization"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
@@ -192,10 +197,11 @@
       "label": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
-        "support.triage.inbound"
+        "support.triage.inbound",
+        "customize.content.1.tier1-triage"
       ],
       "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
+      "autonomyDefault": "locked",
       "handsTools": [
         "Shared inbox"
       ]
@@ -218,12 +224,14 @@
       "label": "Invoicing",
       "teamId": "cfo",
       "taskIds": [
-        "cfo.invoicing.create"
+        "cfo.invoicing.create",
+        "customize.content.3.invoicing"
       ],
       "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
+      "autonomyDefault": "locked",
       "handsTools": [
-        "Stripe"
+        "Stripe",
+        "HoneyBook (own books)"
       ]
     },
     {
@@ -289,79 +297,25 @@
       "handsTools": []
     },
     {
-      "id": "client-communication",
-      "label": "Wedding Client Communicator",
-      "teamId": "support",
+      "id": "outreach-drafter",
+      "label": "Wedding Leads Outreach",
+      "teamId": "sales",
       "taskIds": [
-        "customize.content.1.client-communication"
+        "customize.content.2.outreach-drafter"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
-      "id": "revenue-monitor",
-      "label": "Digital Product Revenue Monitor",
-      "teamId": "founder",
+      "id": "compliance-monitor",
+      "label": "Digital Product Sales Tax Compliance",
+      "teamId": "cfo",
       "taskIds": [
-        "customize.content.2.revenue-monitor"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "trend-researcher",
-      "label": "Photography Trend Researcher",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.content.3.trend-researcher"
+        "customize.content.6.compliance-monitor",
+        "customize.content.7.compliance-monitor"
       ],
       "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": []
-    },
-    {
-      "id": "launch-copywriter",
-      "label": "Product Launch Copywriter",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.content.4.launch-copywriter"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "digital-product-support",
-      "label": "Digital Product Support Agent",
-      "teamId": "support",
-      "taskIds": [
-        "customize.content.5.digital-product-support"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "contract-risk-flagger",
-      "label": "Contract Risk Flagger",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.content.6.contract-risk-flagger"
-      ],
-      "suggestedTier": "T3",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "tax-compliance-monitor",
-      "label": "Digital Sales Tax Monitor",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.content.7.tax-compliance-monitor"
-      ],
-      "suggestedTier": "T3",
       "autonomyDefault": "locked",
       "handsTools": []
     }
@@ -399,7 +353,7 @@
       "subAgentType": "social-manager",
       "subAgentLabel": "Social manager",
       "teamHint": "cmo",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -468,7 +422,7 @@
       "subAgentType": "tier1-triage",
       "subAgentLabel": "Tier-1 triage",
       "teamHint": "support",
-      "frequency": "daily",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -482,7 +436,7 @@
       "subAgentType": "onboarding",
       "subAgentLabel": "Onboarding",
       "teamHint": "support",
-      "frequency": "monthly",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -667,25 +621,52 @@
       "origin": "template"
     },
     {
-      "id": "customize.content.1.client-communication",
-      "text": "Draft follow-up emails and delivery confirmations for wedding photography clients (shot lists, gallery delivery timelines, contract reminders)",
-      "subAgentType": "client-communication",
-      "subAgentLabel": "Wedding Client Communicator",
+      "id": "customize.content.1.tier1-triage",
+      "text": "Draft reply templates and escalation scripts for preset and course customer support inquiries (refunds, download issues, license questions)",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Product Support Triage",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.content.2.outreach-drafter",
+      "text": "Draft follow-up email sequences for wedding photography inquiry leads (initial contact, pricing guide send, booking nudge)",
+      "subAgentType": "outreach-drafter",
+      "subAgentLabel": "Wedding Leads Outreach",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "high",
       "tier": "T2",
       "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.content.2.revenue-monitor",
-      "text": "Monitor Lightroom preset and online course sales dashboards; flag unusual drops or spikes in revenue for the founder",
-      "subAgentType": "revenue-monitor",
-      "subAgentLabel": "Digital Product Revenue Monitor",
-      "teamHint": "founder",
-      "frequency": "weekly",
+      "id": "customize.content.3.invoicing",
+      "text": "Create invoices for wedding photography bookings (deposits and final balances) and flag overdue payments",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Wedding Photography Invoicing",
+      "teamHint": "cfo",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": "HoneyBook (own books)",
+      "handsScope": "own-backoffice",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.content.4.expense-categorization",
+      "text": "Reconcile digital product revenue (preset and course sales) from e-commerce platforms against bank deposits and flag discrepancies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Digital Product Revenue Reconciliation",
+      "teamHint": "delivery",
+      "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -693,23 +674,51 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.content.3.trend-researcher",
-      "text": "Research trending editing styles and Lightroom preset aesthetics to inform next product or course module ideas",
-      "subAgentType": "trend-researcher",
-      "subAgentLabel": "Photography Trend Researcher",
-      "teamHint": "cmo",
+      "id": "customize.content.5.content-writer",
+      "text": "Research trending Lightroom editing styles and competitor preset packs to inform next product release positioning",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Preset Market Research",
+      "teamHint": "product-dev",
       "frequency": "monthly",
       "stakes": "low",
-      "tier": "T1",
+      "tier": "T3",
       "autonomy": "eligible-early",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.content.4.launch-copywriter",
-      "text": "Draft promotional content (emails, social posts, landing page copy) for new preset packs or course launches",
-      "subAgentType": "launch-copywriter",
-      "subAgentLabel": "Product Launch Copywriter",
+      "id": "customize.content.6.compliance-monitor",
+      "text": "Flag any sales tax nexus obligations for digital product (preset and course) sales across US states and note that California-specific rules should be verified by a licensed tax professional",
+      "subAgentType": "compliance-monitor",
+      "subAgentLabel": "Digital Product Sales Tax Compliance",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.content.7.compliance-monitor",
+      "text": "Review wedding photography client contracts for red-flag clauses (liability, usage rights, cancellation terms) and flag for attorney review",
+      "subAgentType": "compliance-monitor",
+      "subAgentLabel": "Wedding Contract Risk Review",
+      "teamHint": "compliance",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.content.8.email-marketing",
+      "text": "Draft and schedule promotional email campaigns for preset pack and course launches, including discount codes and urgency sequences",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Product Launch Email Campaign",
       "teamHint": "cmo",
       "frequency": "adhoc",
       "stakes": "medium",
@@ -717,65 +726,25 @@
       "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
-    },
-    {
-      "id": "customize.content.5.digital-product-support",
-      "text": "Handle inbound support tickets about preset downloads, course access issues, or license questions — draft resolution replies for human review",
-      "subAgentType": "digital-product-support",
-      "subAgentLabel": "Digital Product Support Agent",
-      "teamHint": "support",
-      "frequency": "daily",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.content.6.contract-risk-flagger",
-      "text": "Review business contracts (photography client agreements, preset license terms, course terms of service) and flag potentially risky clauses for a legal professional",
-      "subAgentType": "contract-risk-flagger",
-      "subAgentLabel": "Contract Risk Flagger",
-      "teamHint": "compliance",
-      "frequency": "adhoc",
-      "stakes": "high",
-      "tier": "T3",
-      "autonomy": "locked",
-      "handsTool": null,
-      "requiresProfessionalVerification": true,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.content.7.tax-compliance-monitor",
-      "text": "Flag upcoming CA sales-tax nexus obligations on digital product (preset and course) sales and remind founder to verify with a tax professional",
-      "subAgentType": "tax-compliance-monitor",
-      "subAgentLabel": "Digital Sales Tax Monitor",
-      "teamHint": "compliance",
-      "frequency": "monthly",
-      "stakes": "high",
-      "tier": "T3",
-      "autonomy": "locked",
-      "handsTool": null,
-      "requiresProfessionalVerification": true,
-      "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
-      "customize.content.1.client-communication",
-      "customize.content.2.revenue-monitor",
-      "customize.content.3.trend-researcher",
-      "customize.content.4.launch-copywriter",
-      "customize.content.5.digital-product-support",
-      "customize.content.6.contract-risk-flagger",
-      "customize.content.7.tax-compliance-monitor"
+      "customize.content.1.tier1-triage",
+      "customize.content.2.outreach-drafter",
+      "customize.content.3.invoicing",
+      "customize.content.4.expense-categorization",
+      "customize.content.5.content-writer",
+      "customize.content.6.compliance-monitor",
+      "customize.content.7.compliance-monitor",
+      "customize.content.8.email-marketing"
     ],
     "removed": [
-      "cmo.ad.sponsorcopy",
       "cfo.invoicing.sponsors",
       "cfo.invoicing.remind",
-      "sales.outreach.brand",
-      "sales.crm.sponsors"
+      "cmo.ad.sponsorcopy",
+      "sales.crm.sponsors",
+      "sales.outreach.brand"
     ],
     "frequencyAdjustments": [
       {
@@ -784,116 +753,118 @@
         "to": "weekly"
       },
       {
-        "taskId": "cmo.social.clips",
+        "taskId": "support.triage.inbound",
         "from": "daily",
         "to": "weekly"
-      },
-      {
-        "taskId": "support.community.onboarding",
-        "from": "weekly",
-        "to": "monthly"
       }
     ],
     "categoryCorrections": [
       {
-        "taskId": "customize.content.1.client-communication",
-        "from": "delivery",
-        "to": "support",
-        "reason": "Client-facing communication about order status, timelines, and reminders is support, not delivery — the paid work is the photography shoot itself, not the follow-up emails."
+        "taskId": "customize.content.4.expense-categorization",
+        "from": "cfo",
+        "to": "delivery",
+        "reason": "Reconciling client revenue against bank deposits is bookkeeping-style work the business sells as a service (the paid deliverable), not the business's own internal finance operations."
       },
       {
-        "taskId": "customize.content.2.revenue-monitor",
-        "from": "cfo",
-        "to": "founder",
-        "reason": "Monitoring dashboards and flagging revenue anomalies for the founder to synthesize into business decisions is meta-level founder work (synthesizing data for weekly planning), not cfo financial operations."
+        "taskId": "customize.content.5.content-writer",
+        "from": "cmo",
+        "to": "product-dev",
+        "reason": "Researching competitor products and market trends to inform product release decisions belongs to the team building the product, not marketing; this is input to product strategy, not audience-growth work."
       }
-    ],
-    "notes": "Removed sponsor/brand-deal tasks (no ad/sponsorship revenue model here); scaled back daily content cadence to weekly (solo creator juggling shoots and admin); added wedding client delivery lifecycle, digital product revenue monitoring, preset/course trend research, launch copy, digital product support queue, contract risk flagging, and CA digital sales-tax compliance monitoring."
+    ]
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Clara",
-        "subAgentId": "launch-copywriter",
+        "agentName": "Sarah",
+        "subAgentId": "content-writer",
         "roleTitle": "CMO",
-        "summary": "drafted a 3-email launch sequence for your new 'Golden Hour' preset pack, including a teaser, launch-day, and last-chance email — ready for your review"
+        "summary": "Researched trending Lightroom editing styles and reviewed 3 competitor preset packs to inform your next product release positioning."
+      },
+      {
+        "agentName": "Marcus",
+        "subAgentId": "invoicing",
+        "roleTitle": "CFO",
+        "summary": "Created 2 invoices for wedding photography bookings (deposits due next week) and flagged 1 overdue payment from last month."
+      },
+      {
+        "agentName": "Jamie",
+        "subAgentId": "social-manager",
+        "roleTitle": "CMO",
+        "summary": "Drafted 4 Instagram Reels clips from your recent wedding content and scheduled a TikTok series promoting your Lightroom presets."
+      },
+      {
+        "agentName": "Lee",
+        "subAgentId": "tier1-triage",
+        "roleTitle": "Support Lead",
+        "summary": "Triaged 5 customer inquiries: 3 preset download issues (drafted template replies), 1 course module access question, and 1 refund request flagged for escalation."
       },
       {
         "agentName": "Alex",
-        "subAgentId": "invoicing",
-        "roleTitle": "CFO",
-        "summary": "generated 4 invoices for this week's wedding photography bookings and flagged one client whose deposit is 5 days overdue"
-      },
-      {
-        "agentName": "Maya",
-        "subAgentId": "client-communication",
-        "roleTitle": "Support Lead",
-        "summary": "drafted gallery delivery confirmation emails for 2 recent wedding clients, including their estimated delivery timeline and a link to the shot-list checklist"
-      },
-      {
-        "agentName": "Jordan",
-        "subAgentId": "trend-researcher",
+        "subAgentId": "email-marketing",
         "roleTitle": "CMO",
-        "summary": "identified 3 trending editing aesthetics on Instagram and Pinterest this week (muted film tones, warm moody shadows, and airy pastel highlights) and compiled a brief for your next preset pack or course module"
-      },
-      {
-        "agentName": "Sam",
-        "subAgentId": "tax-compliance-monitor",
-        "roleTitle": "CFO",
-        "summary": "detected that digital product sales may be approaching a new state sales-tax nexus threshold and drafted a reminder for you to verify your obligations with a tax professional before next quarter"
+        "summary": "Drafted a promotional email sequence for next month's new preset pack launch with urgency messaging and early-bird discount code."
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A wedding photography business that also generates recurring digital revenue by selling Lightroom presets and online editing courses — one creator, three income streams.",
-      "mvpDefinition": "Version 1 is fully launchable today: book and deliver wedding photography clients with professional communication workflows, sell an existing set of Lightroom presets through a marketplace or simple storefront, and offer at least one online editing course. The AI team handles day-to-day content drafting, client follow-ups, financial tracking, and support ticket replies — so the founder spends time behind the camera and in Lightroom, not in inboxes and spreadsheets.",
+      "sharpenedIdea": "A wedding photography business that generates revenue from photography bookings, Lightroom preset sales, and online editing courses.",
+      "mvpDefinition": "You shoot weddings, sell 2–3 foundational Lightroom preset packs (warm, cool, vintage) via your website or Gumroad, and deliver one flagship online course teaching your editing workflow. Initial focus is on wedding couples who become repeat customers for editing training, plus photographers searching for presets online. You handle all photography work yourself; digital products (presets and course) are self-serve, low-touch delivery.",
       "roleTasks": [
+        {
+          "roleTitle": "Chief of Staff",
+          "tasks": [
+            "Draft the weekly plan mapping shoots, content shoots, product launches, and admin work",
+            "Flag any cross-team conflicts (e.g., new course launch overlapping wedding season) and surface trade-offs to you"
+          ]
+        },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Content Writer: Draft long-form content in the founder's voice — YouTube scripts, newsletter issues, and blog posts that teach editing and attract couples searching for photographers.",
-            "Social Manager: Resize and adapt each piece of content into platform-native posts for Instagram, Pinterest, and TikTok, and draft shop-promoting social content for preset and course sales.",
-            "SEO Agent: Research keywords and content gaps to grow organic search traffic, and optimize marketplace listing titles for preset and course discoverability.",
-            "Email Marketing: Draft newsletter sends, promotional campaign copy, and list-hygiene recommendations to keep the subscriber list healthy and engaged.",
-            "Photography Trend Researcher: Monitor trending editing styles and Lightroom aesthetics across social platforms and surface ideas for the next preset pack or course module.",
-            "Product Launch Copywriter: Write all promotional copy for new preset or course launches — emails, social posts, and landing page copy — whenever a new digital product goes live."
+            "Content writer: Draft long-form content (YouTube scripts, newsletter issues, blog posts) in your voice; research trending Lightroom styles and competitor presets to inform your next product release",
+            "Social manager: Create clips and short-form posts for Instagram, TikTok, and Pinterest promoting your content and preset packs; tailor sizing and tone per platform",
+            "SEO agent: Research keywords and content gaps to grow organic search traffic to your preset shop and course landing page; optimize marketplace listings (Gumroad, Etsy) for discoverability",
+            "Email marketing: Draft and schedule promotional campaigns for preset pack and course launches with discount codes and urgency sequences; manage newsletter sends and list hygiene"
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Expense Categorization: Tag all business expenses (equipment, software subscriptions, contractor payments) and flag anything that looks unusual.",
-            "Cash-Flow Forecast: Project revenue across photography bookings, preset sales, and course income to give the founder a running financial picture.",
-            "Invoicing: Generate invoices and receipts for wedding photography clients and flag any overdue deposits.",
-            "Tax-Deadline Tracker: Monitor upcoming federal and state tax deadlines and prepare a document checklist so the founder is never caught off guard.",
-            "Contract Risk Flagger: Review photography client agreements, preset license terms, and course terms of service — flag risky clauses for a legal professional to confirm.",
-            "Digital Sales Tax Monitor: Track digital product sales by state, flag when nexus thresholds may be approaching, and remind the founder to verify obligations with a tax professional."
+            "Expense categorization: Tag all expenses (camera gear, software subscriptions, contractor payments) and flag unusual spending",
+            "Cash-flow forecast: Project revenue from wedding bookings, preset sales, course sales, and any sponsorships or affiliate income",
+            "Invoicing: Create and send invoices for wedding bookings (deposits and final balances); track overdue payments; create receipts for digital product orders",
+            "Tax-deadline tracker: Monitor quarterly and annual tax deadlines; prepare document checklists for filing",
+            "Compliance monitor: Flag any sales tax nexus obligations for preset and course sales across US states (verify California rules with a licensed tax professional); review wedding photography contracts for liability, usage rights, and cancellation terms and flag legal red flags"
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Tier-1 Triage: Read all inbound messages and comments, tag by urgency, and draft replies to common or known questions for founder approval.",
-            "Onboarding: Draft welcome messages and check-in sequences for new course students or community members.",
-            "Escalation: Detect frustrated or complex customer situations, compile the full context, and package it clearly for the founder to handle personally.",
-            "Wedding Client Communicator: Draft all client-facing follow-up emails — shot lists, gallery delivery timelines, contract reminders — so every couple feels professionally cared for.",
-            "Digital Product Support Agent: Handle inbound tickets about preset downloads, course access issues, or license questions and draft resolution replies for the founder to send."
+            "Tier-1 triage: Read and tag inbound messages and comments by urgency; draft replies to common questions about presets (download issues, license questions) and course access; create and refine reply templates",
+            "Onboarding: Draft welcome messages and check-in sequences for new preset and course customers",
+            "Escalation: Identify angry or complex cases (e.g., unhappy clients, refund disputes) and escalate with full context to you"
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Inventory: Track stock levels for any physical products or SKUs (e.g., physical preset USB packs, print products) and flag reorder points.",
-            "Fulfillment / Logistics: Post order status and shipping updates to customers and draft delay or backorder communications if needed.",
-            "Vendor Manager: Track supplier orders for any physical materials and draft reorder communications to vendors."
+            "Inventory: Track stock levels for any physical preset packaging or merchandise; flag reorder points",
+            "Fulfillment/logistics: Send order status and shipping updates to customers; draft any delay or backorder communications",
+            "Vendor manager: Track supplier orders for packaging and physical materials; send reorder communications to vendors"
+          ]
+        },
+        {
+          "roleTitle": "Sales Lead",
+          "tasks": [
+            "Wedding leads outreach: Draft follow-up email sequences for wedding inquiries (initial contact, pricing guide delivery, booking reminder) to move leads through your sales funnel"
           ]
         }
       ],
       "monthOneGoals": [
-        "Deliver a polished, on-brand client communication workflow for all active wedding photography bookings — every couple receives timely shot-list, contract, and gallery-delivery messages.",
-        "Publish at least 2 pieces of long-form content (a YouTube script or blog post) and the accompanying social posts to begin building organic reach for presets and courses.",
-        "Launch or re-promote one existing Lightroom preset pack with a full email sequence and social campaign drafted by the AI team.",
-        "Get a clean financial baseline: all current expenses categorized, a simple cash-flow forecast in place, and all outstanding invoices generated and tracked.",
-        "Resolve 100% of inbound preset and course support tickets within 24 hours using AI-drafted replies reviewed by the founder."
+        "Finalize and publish your flagship editing course (video modules, workbooks, landing page).",
+        "Launch your first preset pack (2–3 presets) and set up automated delivery on Gumroad or your website.",
+        "Establish email list and send your first promotional campaign for preset sales.",
+        "Document your standard wedding photography contract and have a lawyer review key clauses.",
+        "Book at least 2 wedding shoots and deliver editing + preset/course cross-sell email to each couple."
       ],
       "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
     }
