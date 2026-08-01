@@ -26,7 +26,7 @@ const fixtureFiles = readdirSync(fixturesDir).filter((f) => f.endsWith(".json"))
 
 async function main() {
   let totalCost = 0;
-  const summary: { fixture: string; costUsd: number; template: string }[] = [];
+  const summary: { fixture: string; costUsd: number; template: string; status: "ok" | "failed"; error?: string }[] = [];
 
   for (const file of fixtureFiles) {
     const fixture = JSON.parse(readFileSync(join(fixturesDir, file), "utf-8")) as {
@@ -35,19 +35,29 @@ async function main() {
     };
 
     console.error(`Running: ${fixture.idea}`);
-    const chart = await extractOrgChart(fixture.idea, fixture.answers, { apiKey: apiKey! });
 
-    const outName = basename(file, ".json") + ".json";
-    writeFileSync(join(resultsDir, outName), JSON.stringify(chart, null, 2));
+    // One fixture's failure (e.g. a Hands-scope-separation violation) must
+    // not abort the whole batch — record it and keep going, so the report
+    // still covers every fixture that DID succeed.
+    try {
+      const chart = await extractOrgChart(fixture.idea, fixture.answers, { apiKey: apiKey! });
 
-    totalCost += chart.meta.costUsd;
-    summary.push({ fixture: file, costUsd: chart.meta.costUsd, template: chart.meta.templateSelection.primary });
-    console.error(`  -> ${outName} | template=${chart.meta.templateSelection.primary} | $${chart.meta.costUsd.toFixed(4)}`);
+      const outName = basename(file, ".json") + ".json";
+      writeFileSync(join(resultsDir, outName), JSON.stringify(chart, null, 2));
+
+      totalCost += chart.meta.costUsd;
+      summary.push({ fixture: file, costUsd: chart.meta.costUsd, template: chart.meta.templateSelection.primary, status: "ok" });
+      console.error(`  -> ${outName} | template=${chart.meta.templateSelection.primary} | $${chart.meta.costUsd.toFixed(4)}`);
+    } catch (err) {
+      const message = (err as Error).message;
+      summary.push({ fixture: file, costUsd: 0, template: "", status: "failed", error: message });
+      console.error(`  -> FAILED: ${message}`);
+    }
   }
 
   console.error("\n=== Differentiation test run summary ===");
   for (const s of summary) {
-    console.error(`${s.fixture}: template=${s.template}, cost=$${s.costUsd.toFixed(4)}`);
+    console.error(s.status === "ok" ? `${s.fixture}: template=${s.template}, cost=$${s.costUsd.toFixed(4)}` : `${s.fixture}: FAILED — ${s.error}`);
   }
   console.error(`Total API cost: $${totalCost.toFixed(4)}`);
 

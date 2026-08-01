@@ -14,6 +14,14 @@ export type AutonomyDefault = "locked" | "earnable" | "eligible-early";
 
 // One team per role lead in the catalog. "founder" is special: its role lead
 // is the human user, not an agent (see Part 2, FOUNDER/CEO).
+//
+// "delivery" is not in the original catalog — it exists for businesses whose
+// paid deliverable overlaps a back-office category (e.g. a bookkeeping
+// service whose product IS finance work). Rule: tasks that ARE the
+// customer-facing paid work cluster into "delivery"; "cfo" holds ONLY the
+// business's OWN finance tasks (its own invoices, its own expenses, its own
+// taxes). See packages/agents/extraction/src/assemble.ts for the Hands-scope
+// separation this enables.
 export type TeamHint =
   | "founder"
   | "cfo"
@@ -21,9 +29,18 @@ export type TeamHint =
   | "support"
   | "sales"
   | "ops"
+  | "delivery"
   | "compliance"
   | "people"
   | "product-dev";
+
+// Only meaningful when handsTool is set. Distinguishes access to the
+// business's OWN systems (its own bank/books) from access scoped to a
+// CLIENT's systems (their books, their accounts) — these must never be the
+// same literal Hands tool identifier, even when the underlying provider is
+// the same (e.g. QuickBooks), because one is the business's own credential
+// and the other is a per-client, just-in-time credential (ADR-002).
+export type HandsScope = "own-backoffice" | "client-facing";
 
 export interface TemplateTask {
   /** Stable id within the template, e.g. "cfo.invoicing.create". */
@@ -44,6 +61,10 @@ export interface TemplateTask {
   autonomyNote?: string;
   /** Hands tool this task will eventually need (service API), or null if none. */
   handsTool: string | null;
+  /** Required whenever handsTool is set AND the tool could plausibly serve
+   *  either scope (e.g. an accounting API) — omit only when handsTool is
+   *  unambiguous (e.g. "GitHub" is never a back-office/client-facing split). */
+  handsScope?: HandsScope;
 }
 
 export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local";

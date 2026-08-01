@@ -1,4 +1,4 @@
-import type { AutonomyDefault, BusinessTemplateId, Frequency, Stakes, TeamHint, Tier } from "@byok/templates";
+import type { AutonomyDefault, BusinessTemplateId, Frequency, HandsScope, Stakes, TeamHint, Tier } from "@byok/templates";
 
 // Interview answers per docs/product/roles-and-api-key-guide.md Part 1,
 // Screen 2 (the 6-question guided interview).
@@ -23,6 +23,7 @@ export interface OrgChartTask {
   autonomy: AutonomyDefault;
   autonomyNote?: string;
   handsTool: string | null;
+  handsScope?: HandsScope;
   origin: "template" | "customize-added";
 }
 
@@ -49,11 +50,27 @@ export interface TemplateSelection {
   scores: Record<BusinessTemplateId, number>;
 }
 
+export interface CategoryCorrection {
+  taskId: string;
+  from: TeamHint;
+  to: TeamHint;
+  reason: string;
+}
+
 export interface CustomizationLog {
   added: string[];
   removed: string[];
   frequencyAdjustments: { taskId: string; from: Frequency; to: Frequency }[];
+  categoryCorrections: CategoryCorrection[];
   notes?: string;
+}
+
+export interface ApiCallUsage {
+  step: "customize" | "category-validate";
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
 }
 
 export interface OrgChart {
@@ -61,10 +78,8 @@ export interface OrgChart {
     idea: string;
     generatedAt: string;
     templateSelection: TemplateSelection;
-    model: string;
-    costUsd: number;
-    inputTokens: number;
-    outputTokens: number;
+    calls: ApiCallUsage[];
+    costUsd: number; // sum of calls[].costUsd
   };
   teams: OrgChartTeam[];
   subAgents: OrgChartSubAgent[];
@@ -83,6 +98,7 @@ export interface CustomizeAddition {
   tier: Tier;
   autonomy: AutonomyDefault;
   handsTool: string | null;
+  handsScope?: HandsScope;
   rationale: string;
 }
 

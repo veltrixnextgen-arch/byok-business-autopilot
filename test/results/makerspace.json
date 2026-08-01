@@ -1,0 +1,742 @@
+{
+  "meta": {
+    "idea": "I want to run a community makerspace with paid memberships, equipment rentals, and weekend classes.",
+    "generatedAt": "2026-08-01T07:08:39.343Z",
+    "templateSelection": {
+      "primary": "ecommerce",
+      "blendedWith": "local",
+      "scores": {
+        "ecommerce": 1,
+        "service": 0,
+        "saas": 0.5,
+        "content": 0,
+        "local": 1
+      }
+    },
+    "calls": [
+      {
+        "step": "customize",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 3421,
+        "outputTokens": 1342,
+        "costUsd": 0.030393000000000003
+      },
+      {
+        "step": "category-validate",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2096,
+        "outputTokens": 239,
+        "costUsd": 0.0026328000000000002
+      }
+    ],
+    "costUsd": 0.0330258
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "subAgentIds": [
+        "chief-of-staff",
+        "equipment-scheduler"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "invoicing",
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker",
+        "payroll-prep",
+        "maintenance-monitor",
+        "safety-compliance-monitor"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "subAgentIds": [
+        "social-manager",
+        "content-writer",
+        "email-marketing",
+        "seo-agent",
+        "local-promo"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "tier1-triage",
+        "escalation"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "scheduling",
+        "membership-manager",
+        "class-scheduler"
+      ]
+    },
+    {
+      "id": "people",
+      "roleTitle": "People Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "job-post-writer",
+        "applicant-summarizer"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "chief-of-staff",
+      "label": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.create",
+        "cfo.invoicing.remind",
+        "customize.ecommerce.7.invoicing"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Stripe",
+        "Stripe (own books)"
+      ]
+    },
+    {
+      "id": "expense-categorization",
+      "label": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "cashflow-forecast",
+      "label": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "label": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "social-manager",
+      "label": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.posts",
+        "cmo.social.local"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Instagram/Meta",
+        "Instagram/Facebook"
+      ]
+    },
+    {
+      "id": "content-writer",
+      "label": "Content writer",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.content.blog"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "email-marketing",
+      "label": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.campaigns",
+        "cmo.email.promos"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Resend"
+      ]
+    },
+    {
+      "id": "tier1-triage",
+      "label": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shared inbox"
+      ]
+    },
+    {
+      "id": "escalation",
+      "label": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "payroll-prep",
+      "label": "Payroll prep",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.payroll.prep"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "Payroll provider"
+      ]
+    },
+    {
+      "id": "seo-agent",
+      "label": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.googlebusiness"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "Google Business"
+      ]
+    },
+    {
+      "id": "scheduling",
+      "label": "Scheduling",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.scheduling.shifts"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Calendar"
+      ]
+    },
+    {
+      "id": "job-post-writer",
+      "label": "Job-post writer",
+      "teamId": "people",
+      "taskIds": [
+        "people.jobpost.write"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "applicant-summarizer",
+      "label": "Applicant summarizer",
+      "teamId": "people",
+      "taskIds": [
+        "people.applicant.summarize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "membership-manager",
+      "label": "Membership Tracker",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.ecommerce.1.membership-manager"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "equipment-scheduler",
+      "label": "Equipment Reservation Monitor",
+      "teamId": "founder",
+      "taskIds": [
+        "customize.ecommerce.2.equipment-scheduler"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Google Calendar"
+      ]
+    },
+    {
+      "id": "class-scheduler",
+      "label": "Weekend Class Coordinator",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.ecommerce.3.class-scheduler"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Google Calendar"
+      ]
+    },
+    {
+      "id": "local-promo",
+      "label": "Local Events Promoter",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.4.local-promo"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "maintenance-monitor",
+      "label": "Equipment Maintenance Monitor",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.ecommerce.5.maintenance-monitor"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "safety-compliance-monitor",
+      "label": "Safety & Liability Flag Agent",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.ecommerce.6.safety-compliance-monitor"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "subAgentType": "chief-of-staff",
+      "subAgentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices/receipts for orders",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.remind",
+      "text": "Draft payment reminders matched to customer history",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag every transaction and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "subAgentType": "cashflow-forecast",
+      "subAgentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and prep the document checklist",
+      "subAgentType": "tax-deadline-tracker",
+      "subAgentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.posts",
+      "text": "Draft platform-sized social posts for the shop (Instagram, Pinterest, TikTok)",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "posting stays locked",
+      "handsTool": "Instagram/Meta",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.blog",
+      "text": "Write occasional blog/newsletter content in brand voice",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.campaigns",
+      "text": "Draft email marketing sequences and campaign copy",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound customer messages, tag urgency/topic, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect angry or complex cases and package context for the human",
+      "subAgentType": "escalation",
+      "subAgentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.payroll.prep",
+      "text": "Summarize staff hours and prep the payroll-run checklist",
+      "subAgentType": "payroll-prep",
+      "subAgentLabel": "Payroll prep",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": "Payroll provider",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.local",
+      "text": "Draft local social posts (offers, events, new arrivals)",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Instagram/Facebook",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.googlebusiness",
+      "text": "Keep the Google Business listing and local SEO fresh",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": "Google Business",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.promos",
+      "text": "Draft email/SMS promos for regulars",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "ops.scheduling.shifts",
+      "text": "Manage staff shift calendar and appointment bookings",
+      "subAgentType": "scheduling",
+      "subAgentLabel": "Scheduling",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Calendar",
+      "origin": "template"
+    },
+    {
+      "id": "people.jobpost.write",
+      "text": "Draft job posts when hiring signals appear",
+      "subAgentType": "job-post-writer",
+      "subAgentLabel": "Job-post writer",
+      "teamHint": "people",
+      "frequency": "adhoc",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "people.applicant.summarize",
+      "text": "Summarize applicants for human screening",
+      "subAgentType": "applicant-summarizer",
+      "subAgentLabel": "Applicant summarizer",
+      "teamHint": "people",
+      "frequency": "adhoc",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "assists screening, never auto-rejects — the human decides",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "customize.ecommerce.1.membership-manager",
+      "text": "Track active memberships, upcoming renewals, and lapsed members — flag anyone due for renewal within 7 days",
+      "subAgentType": "membership-manager",
+      "subAgentLabel": "Membership Tracker",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.2.equipment-scheduler",
+      "text": "Check equipment reservation calendar for conflicts, double-bookings, or back-to-back gaps that don't allow cleaning time — flag issues for the founder",
+      "subAgentType": "equipment-scheduler",
+      "subAgentLabel": "Equipment Reservation Monitor",
+      "teamHint": "founder",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Google Calendar",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.3.class-scheduler",
+      "text": "Compile and publish the weekend class schedule — confirm instructor availability, room/equipment allocation, and send reminder emails to registered attendees",
+      "subAgentType": "class-scheduler",
+      "subAgentLabel": "Weekend Class Coordinator",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Google Calendar",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.4.local-promo",
+      "text": "Draft social posts and local-community-board announcements promoting upcoming weekend classes and available equipment rental slots",
+      "subAgentType": "local-promo",
+      "subAgentLabel": "Local Events Promoter",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.5.maintenance-monitor",
+      "text": "Monitor equipment condition log and flag any reported faults or overdue maintenance items to the founder",
+      "subAgentType": "maintenance-monitor",
+      "subAgentLabel": "Equipment Maintenance Monitor",
+      "teamHint": "compliance",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.6.safety-compliance-monitor",
+      "text": "Flag any liability, waiver, or safety-regulation concerns related to equipment use or class activities for human legal/insurance review",
+      "subAgentType": "safety-compliance-monitor",
+      "subAgentLabel": "Safety & Liability Flag Agent",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T3",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.7.invoicing",
+      "text": "Process membership sign-up payments and equipment rental charges; create corresponding receipts",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Membership & Rental Invoicer",
+      "teamHint": "cfo",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe (own books)",
+      "handsScope": "own-backoffice",
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.ecommerce.1.membership-manager",
+      "customize.ecommerce.2.equipment-scheduler",
+      "customize.ecommerce.3.class-scheduler",
+      "customize.ecommerce.4.local-promo",
+      "customize.ecommerce.5.maintenance-monitor",
+      "customize.ecommerce.6.safety-compliance-monitor",
+      "customize.ecommerce.7.invoicing"
+    ],
+    "removed": [
+      "cmo.seo.listings",
+      "ops.inventory.levels",
+      "ops.inventory.reorder",
+      "ops.fulfillment.status",
+      "ops.fulfillment.delay",
+      "ops.vendor.tracking",
+      "ops.vendor.comms"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "cfo.invoicing.create",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "cmo.social.posts",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "categoryCorrections": [
+      {
+        "taskId": "customize.ecommerce.2.equipment-scheduler",
+        "from": "ops",
+        "to": "founder",
+        "reason": "Task explicitly flags issues for the founder to resolve — this is a Chief-of-Staff-style operational-conflict flagging that synthesizes a constraint (calendar conflicts/cleaning gaps) across the business's day-to-day, making it a founder meta-task rather than routine ops scheduling."
+      },
+      {
+        "taskId": "customize.ecommerce.5.maintenance-monitor",
+        "from": "ops",
+        "to": "compliance",
+        "reason": "Flagging equipment faults and maintenance overages is a risk/liability flagging task for human review, not a routine inventory/logistics task — it belongs in compliance (regulatory/safety risk review) rather than ops (day-to-day scheduling/vendor management)."
+      }
+    ],
+    "notes": "Removed ecommerce-specific fulfillment, inventory, vendor, and SEO tasks — irrelevant to a local makerspace. Added membership tracking, equipment scheduling, class coordination, local promotion, maintenance monitoring, safety compliance, and membership/rental invoicing. Dialed back daily social cadence to weekly to match a local, event-driven audience."
+  }
+}

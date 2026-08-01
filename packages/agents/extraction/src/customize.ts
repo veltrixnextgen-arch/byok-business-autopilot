@@ -2,12 +2,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { BusinessTemplate, TeamHint } from "@byok/templates";
 import type { CustomizeResult, InterviewAnswers } from "./types.js";
 import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
+import { formatCategoryLegend } from "./categoryDefinitions.js";
 
 export const CLAUDE_MODEL = "claude-sonnet-4-6";
 const MAX_OUTPUT_TOKENS = 1500;
 
 const TEAM_HINTS: TeamHint[] = [
-  "founder", "cfo", "cmo", "support", "sales", "ops", "compliance", "people", "product-dev",
+  "founder", "cfo", "cmo", "support", "sales", "ops", "delivery", "compliance", "people", "product-dev",
 ];
 
 const CUSTOMIZE_TOOL = {
@@ -40,6 +41,17 @@ const CUSTOMIZE_TOOL = {
             handsTool: {
               type: ["string", "null"],
               description: "Service API this task will eventually need, or null.",
+            },
+            handsScope: {
+              type: "string",
+              enum: ["own-backoffice", "client-facing"],
+              description:
+                "Required whenever handsTool is set AND the tool could plausibly serve either the business's " +
+                "own systems or a client's (e.g. an accounting API). 'own-backoffice' = the business's own " +
+                "bank/books/accounts. 'client-facing' = scoped, per-client access to a CUSTOMER's systems — " +
+                "use a distinct handsTool string for this scope, never the same string as an own-backoffice tool " +
+                "(e.g. \"QuickBooks (client-scoped, per-client OAuth)\" vs \"QuickBooks (own books)\"). " +
+                "Omit when handsTool is unambiguous (e.g. GitHub, Calendar) or null.",
             },
             rationale: { type: "string", description: "One line: why this idea specifically needs this task." },
           },
@@ -89,6 +101,10 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
     ``,
     `Selected template: "${template.name}" (${template.id}) — ${template.description}`,
     ``,
+    `Category definitions (use these to pick teamHint for any task you add — read carefully, these ` +
+      `distinctions are easy to get wrong):`,
+    formatCategoryLegend(),
+    ``,
     `Template tasks (id | subAgentType | teamHint | frequency | text):`,
     taskLines,
     ``,
@@ -98,6 +114,18 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
     `3. Remove template tasks that clearly don't apply to this idea.`,
     `4. Adjust frequency only where this idea's cadence is clearly different from the template default.`,
     `5. Keep additions minimal and concrete — this is a lean MVP-0 differentiation test, not a wishlist.`,
+    `6. If this idea's paid deliverable is itself finance-shaped (e.g. bookkeeping, tax prep, financial ` +
+      `advice), tag those tasks "delivery", NOT "cfo" — "cfo" is only ever the business's own back-office ` +
+      `finance. Give delivery tasks a distinct, client-scoped handsTool identifier from any cfo task's ` +
+      `own-backoffice handsTool, even if the underlying service is the same.`,
+    `7. Only use "product-dev" for actual software work (specs/code/QA/deploy). Market research, new-` +
+      `product-idea research, and trend-spotting belong under "cmo" or "delivery", never "product-dev".`,
+    `8. HARD RULE on handsTool strings: never reuse the exact same handsTool identifier across two tasks ` +
+      `that have different handsScope values (own-backoffice vs client-facing), even by accident, even if ` +
+      `the underlying service is genuinely the same product. This is validated and the whole run fails if ` +
+      `violated. If unsure whether a handsTool needs scoping, make the scope explicit in the string itself ` +
+      `(e.g. "QuickBooks (own books)" vs "QuickBooks (client, per-client OAuth)") rather than reusing a bare ` +
+      `name like "QuickBooks" for both.`,
   ].join("\n");
 }
 
@@ -118,7 +146,7 @@ export async function runCustomizePass(
   const prompt = buildPrompt(idea, answers, template);
 
   // Pre-flight guard, before spending anything.
-  guardEstimatedCost(prompt, MAX_OUTPUT_TOKENS, opts.maxCostUsd);
+  guardEstimatedCost(CLAUDE_MODEL, prompt, MAX_OUTPUT_TOKENS, opts.maxCostUsd);
 
   const client = new Anthropic({ apiKey: opts.apiKey });
 
@@ -132,7 +160,7 @@ export async function runCustomizePass(
 
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;
-  const costUsd = actualCostUsd(inputTokens, outputTokens);
+  const costUsd = actualCostUsd(CLAUDE_MODEL, inputTokens, outputTokens);
 
   const toolUse = response.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {

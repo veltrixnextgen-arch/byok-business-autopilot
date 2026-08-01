@@ -15,6 +15,7 @@ const KEYWORDS: Record<BusinessTemplateId, string[]> = {
   service: [
     "service", "services", "consulting", "consultant", "freelance", "agency",
     "bookkeeping", "bookkeeper", "client", "clients", "hire me", "contractor",
+    "broker", "brokerage", "advisor", "advisory", "mortgage", "loan", "firm",
   ],
   saas: [
     "saas", "software", "app", "platform", "tool", "subscription", "web app",

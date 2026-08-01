@@ -1,5 +1,5 @@
 import type { AutonomyDefault, TeamHint, Tier } from "@byok/templates";
-import type { CustomizationLog, OrgChart, OrgChartSubAgent, OrgChartTask, OrgChartTeam, TemplateSelection } from "./types.js";
+import type { ApiCallUsage, CustomizationLog, OrgChart, OrgChartSubAgent, OrgChartTask, OrgChartTeam, TemplateSelection } from "./types.js";
 
 // ADR-001: assembly order is strict — tasks -> sub-agents -> teams -> roles.
 // Clustering here is "emergent" in the sense that clusters are computed from
@@ -14,6 +14,7 @@ const ROLE_TITLES: Record<TeamHint, string> = {
   support: "Support Lead",
   sales: "Sales Lead",
   ops: "Ops Lead",
+  delivery: "Delivery Lead",
   compliance: "Compliance",
   people: "People Lead",
   "product-dev": "Product/Dev Lead",
@@ -36,12 +37,35 @@ function mostRestrictiveAutonomy(tasks: OrgChartTask[]): AutonomyDefault {
   );
 }
 
+export class HandsScopeViolationError extends Error {}
+
+// Hard invariant, not a lint warning: a Hands tool identifier used for the
+// business's OWN back-office access (cfo team) must never be the same
+// identifier used for CLIENT-scoped access (delivery team). Sharing a
+// literal handsTool string across those two teams would mean the same
+// credential/connection covers both the business's own books and a
+// client's — exactly the cross-tenant leak the vault's per-sub-agent,
+// just-in-time Hands scoping (ADR-002) exists to prevent.
+function validateHandsScopeSeparation(subAgents: OrgChartSubAgent[]): void {
+  const cfoTools = new Set(subAgents.filter((s) => s.teamId === "cfo").flatMap((s) => s.handsTools));
+  const deliveryTools = new Set(subAgents.filter((s) => s.teamId === "delivery").flatMap((s) => s.handsTools));
+
+  const shared = [...cfoTools].filter((tool) => deliveryTools.has(tool));
+  if (shared.length > 0) {
+    throw new HandsScopeViolationError(
+      `Hands tool(s) shared between CFO (own-backoffice) and Delivery (client-facing) sub-agents: ` +
+        `${shared.join(", ")}. Give the delivery-scoped task a distinct handsTool identifier ` +
+        `(e.g. "X (client-scoped, per-client OAuth)") — these scopes must never overlap.`,
+    );
+  }
+}
+
 export function assembleOrgChart(
   idea: string,
   templateSelection: TemplateSelection,
   tasks: OrgChartTask[],
   customization: CustomizationLog,
-  usage: { model: string; inputTokens: number; outputTokens: number; costUsd: number },
+  calls: ApiCallUsage[],
 ): OrgChart {
   // 1. Cluster tasks into sub-agents by subAgentType (one sub-agent per task type).
   const bySubAgent = new Map<string, OrgChartTask[]>();
@@ -99,15 +123,15 @@ export function assembleOrgChart(
     subAgentIds: teamSubAgents.map((s) => s.id),
   }));
 
+  validateHandsScopeSeparation(subAgents);
+
   return {
     meta: {
       idea,
       generatedAt: new Date().toISOString(),
       templateSelection,
-      model: usage.model,
-      costUsd: usage.costUsd,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
+      calls,
+      costUsd: calls.reduce((sum, c) => sum + c.costUsd, 0),
     },
     teams,
     subAgents,

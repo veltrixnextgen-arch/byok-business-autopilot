@@ -9,12 +9,14 @@ export function printTree(chart: OrgChart): string {
   lines.push(`Org chart for: "${meta.idea}"`);
   const blend = meta.templateSelection.blendedWith ? ` + blend of ${meta.templateSelection.blendedWith}` : "";
   lines.push(`Template: ${meta.templateSelection.primary}${blend}`);
-  lines.push(
-    `Cost: $${meta.costUsd.toFixed(4)} (${meta.inputTokens} in / ${meta.outputTokens} out tokens, ${meta.model})`,
-  );
+  lines.push(`Cost: $${meta.costUsd.toFixed(4)} total`);
+  for (const call of meta.calls) {
+    lines.push(`  - ${call.step}: $${call.costUsd.toFixed(4)} (${call.inputTokens} in / ${call.outputTokens} out, ${call.model})`);
+  }
   lines.push(
     `Customization: +${chart.customization.added.length} added, -${chart.customization.removed.length} removed, ` +
-      `${chart.customization.frequencyAdjustments.length} frequency change(s)`,
+      `${chart.customization.frequencyAdjustments.length} frequency change(s), ` +
+      `${chart.customization.categoryCorrections.length} category correction(s)`,
   );
   lines.push("");
 

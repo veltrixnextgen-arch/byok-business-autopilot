@@ -6,6 +6,15 @@ import { chiefOfStaffTask } from "./common.js";
 // the heart of the org (qualifier/outreach/proposals) + Support that's
 // onboarding-heavy + a Compliance sub-agent, with NO fulfillment and only
 // minimal marketing.
+//
+// Delivery vs. CFO: this template's CFO tasks are strictly the business's
+// OWN finance (its own invoices, its own expenses, its own taxes) using
+// "own-backoffice" Hands scope. The paid work itself — the actual service
+// being delivered to clients — belongs to "delivery" instead, scoped
+// "client-facing". For a finance-adjacent service (bookkeeping, tax prep,
+// financial consulting) this split matters most, since without it the
+// paid deliverable would otherwise clump into the same categoryHint as
+// back-office bookkeeping and inflate CFO's apparent size.
 const tasks: TemplateTask[] = [
   chiefOfStaffTask,
 
@@ -21,6 +30,7 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Stripe",
+    handsScope: "own-backoffice",
   },
   {
     id: "cfo.invoicing.remind",
@@ -34,6 +44,7 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Stripe",
+    handsScope: "own-backoffice",
   },
   {
     id: "cfo.expenses.categorize",
@@ -72,6 +83,51 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "locked",
     handsTool: null,
+  },
+
+  // Delivery — the paid work itself, distinct from CFO's own back-office
+  // finance. Generic scaffold; the customize pass fills in what the paid
+  // work actually is for this specific idea (e.g. bookkeeping reconciliation
+  // for a bookkeeping service) and MUST tag those additions "delivery", not
+  // "cfo" — even when the paid work happens to be finance-shaped.
+  {
+    id: "delivery.core.execute",
+    text: "Do the core paid work for each client",
+    subAgentType: "core-service-delivery",
+    subAgentLabel: "Service delivery",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "high",
+    tier: "T2",
+    autonomy: "locked",
+    autonomyNote: "this is the paid deliverable — never autonomous at MVP-0",
+    handsTool: "Client-facing systems (per-client, scoped access)",
+    handsScope: "client-facing",
+  },
+  {
+    id: "delivery.core.qa",
+    text: "Check completed client work for accuracy before it goes out",
+    subAgentType: "delivery-qa",
+    subAgentLabel: "Delivery QA",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "high",
+    tier: "T2",
+    autonomy: "locked",
+    handsTool: null,
+  },
+  {
+    id: "delivery.core.handoff",
+    text: "Package and send finished work to the client",
+    subAgentType: "delivery-handoff",
+    subAgentLabel: "Delivery handoff",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T1",
+    autonomy: "earnable",
+    handsTool: "Client-facing systems (per-client, scoped access)",
+    handsScope: "client-facing",
   },
 
   // Sales — the heart

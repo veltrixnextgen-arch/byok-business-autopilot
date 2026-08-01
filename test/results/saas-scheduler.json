@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I have an idea for a SaaS tool that schedules social media posts — nothing is built yet",
-    "generatedAt": "2026-08-01T06:13:43.347Z",
+    "generatedAt": "2026-08-01T07:09:31.273Z",
     "templateSelection": {
       "primary": "saas",
       "blendedWith": null,
@@ -13,10 +13,23 @@
         "local": 0
       }
     },
-    "model": "claude-sonnet-4-6",
-    "costUsd": 0.01779,
-    "inputTokens": 1905,
-    "outputTokens": 805
+    "calls": [
+      {
+        "step": "customize",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 3321,
+        "outputTokens": 1094,
+        "costUsd": 0.026372999999999997
+      },
+      {
+        "step": "category-validate",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2015,
+        "outputTokens": 380,
+        "costUsd": 0.0031320000000000002
+      }
+    ],
+    "costUsd": 0.029504999999999997
   },
   "teams": [
     {
@@ -46,7 +59,9 @@
         "content-writer",
         "social-manager",
         "seo-agent",
-        "competitive-intel"
+        "api-health-monitor",
+        "market-research",
+        "competitor-content"
       ]
     },
     {
@@ -55,7 +70,8 @@
       "isHuman": false,
       "subAgentIds": [
         "expense-categorization",
-        "cashflow-forecast"
+        "cashflow-forecast",
+        "compliance-review"
       ]
     },
     {
@@ -65,14 +81,6 @@
       "subAgentIds": [
         "onboarding",
         "tier1-triage"
-      ]
-    },
-    {
-      "id": "ops",
-      "roleTitle": "Ops Lead",
-      "isHuman": false,
-      "subAgentIds": [
-        "api-health-monitor"
       ]
     }
   ],
@@ -94,10 +102,10 @@
       "teamId": "product-dev",
       "taskIds": [
         "productdev.spec.write",
-        "customize.saas.3.spec-writer"
+        "customize.saas.4.spec-writer"
       ],
       "suggestedTier": "T3",
-      "autonomyDefault": "earnable",
+      "autonomyDefault": "locked",
       "handsTools": []
     },
     {
@@ -225,8 +233,8 @@
     },
     {
       "id": "api-health-monitor",
-      "label": "Social API Health Monitor",
-      "teamId": "ops",
+      "label": "Social API Monitor",
+      "teamId": "cmo",
       "taskIds": [
         "customize.saas.1.api-health-monitor"
       ],
@@ -235,14 +243,36 @@
       "handsTools": []
     },
     {
-      "id": "competitive-intel",
-      "label": "Competitive Intelligence Agent",
+      "id": "market-research",
+      "label": "Platform Research Agent",
       "teamId": "cmo",
       "taskIds": [
-        "customize.saas.2.competitive-intel"
+        "customize.saas.2.market-research"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "competitor-content",
+      "label": "Competitor Content Writer",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.saas.3.competitor-content"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "compliance-review",
+      "label": "Platform ToS & Privacy Flagger",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.saas.5.compliance-review"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
       "handsTools": []
     }
   ],
@@ -424,11 +454,11 @@
     },
     {
       "id": "customize.saas.1.api-health-monitor",
-      "text": "Monitor connected social platform API health (Twitter/X, Instagram, LinkedIn, Facebook) and flag any auth token expirations, rate-limit changes, or deprecation notices that could break scheduling",
+      "text": "Monitor social media platform API status pages and flag any breaking changes or deprecations that could affect the scheduling product",
       "subAgentType": "api-health-monitor",
-      "subAgentLabel": "Social API Health Monitor",
-      "teamHint": "ops",
-      "frequency": "daily",
+      "subAgentLabel": "Social API Monitor",
+      "teamHint": "cmo",
+      "frequency": "weekly",
       "stakes": "high",
       "tier": "T1",
       "autonomy": "locked",
@@ -436,10 +466,10 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.saas.2.competitive-intel",
-      "text": "Research competitor social-scheduling tools (pricing tiers, feature gaps, positioning) and summarise findings for founder",
-      "subAgentType": "competitive-intel",
-      "subAgentLabel": "Competitive Intelligence Agent",
+      "id": "customize.saas.2.market-research",
+      "text": "Research which social media platforms early adopters most want supported and draft a prioritized integration roadmap",
+      "subAgentType": "market-research",
+      "subAgentLabel": "Platform Research Agent",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -449,15 +479,41 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.saas.3.spec-writer",
-      "text": "Draft a platform-by-platform comparison of supported social networks and their scheduling constraints (character limits, media specs, posting windows) to keep the product spec current",
-      "subAgentType": "spec-writer",
-      "subAgentLabel": "Platform Constraints Spec Writer",
-      "teamHint": "product-dev",
+      "id": "customize.saas.3.competitor-content",
+      "text": "Draft competitor comparison content (vs Buffer, Hootsuite, Later, etc.) for the landing page and social channels",
+      "subAgentType": "competitor-content",
+      "subAgentLabel": "Competitor Content Writer",
+      "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.4.spec-writer",
+      "text": "Write the OAuth connection flow spec for each social platform integration (auth scopes, token storage, refresh logic)",
+      "subAgentType": "spec-writer",
+      "subAgentLabel": "OAuth Spec Writer",
+      "teamHint": "product-dev",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.5.compliance-review",
+      "text": "Flag any data-privacy or platform-ToS compliance risks in the scheduling product (e.g. storing user OAuth tokens, cross-posting rules per platform ToS)",
+      "subAgentType": "compliance-review",
+      "subAgentLabel": "Platform ToS & Privacy Flagger",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
       "handsTool": null,
       "origin": "customize-added"
     }
@@ -465,8 +521,10 @@
   "customization": {
     "added": [
       "customize.saas.1.api-health-monitor",
-      "customize.saas.2.competitive-intel",
-      "customize.saas.3.spec-writer"
+      "customize.saas.2.market-research",
+      "customize.saas.3.competitor-content",
+      "customize.saas.4.spec-writer",
+      "customize.saas.5.compliance-review"
     ],
     "removed": [
       "cfo.invoicing.create"
@@ -493,6 +551,14 @@
         "to": "weekly"
       }
     ],
-    "notes": "Nothing is built yet (MVP-0): daily build/QA/deploy cadence is premature, so those drop to weekly; invoicing is irrelevant with zero paying users; added three idea-specific tasks covering the core risk (social API fragility), the core dread (marketing/positioning in a crowded market), and the core technical constraint surface (per-platform scheduling rules)."
+    "categoryCorrections": [
+      {
+        "taskId": "customize.saas.1.api-health-monitor",
+        "from": "product-dev",
+        "to": "cmo",
+        "reason": "Monitoring API deprecations to inform product roadmap prioritization is market/competitive research work that feeds product strategy, not building software code/specs/QA."
+      }
+    ],
+    "notes": "Nothing is built yet (MVP-0): daily build/QA/deploy cadence is premature — drop to weekly. Invoicing removed (no paying subscribers yet). Added platform API monitoring, OAuth spec, competitor content, platform prioritization research, and ToS/privacy compliance flagging as core differentiators for a social scheduling SaaS in a crowded market."
   }
 }

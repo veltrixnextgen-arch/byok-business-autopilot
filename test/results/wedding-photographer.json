@@ -1,0 +1,794 @@
+{
+  "meta": {
+    "idea": "I'm a wedding photographer who also sells Lightroom presets and online editing courses.",
+    "generatedAt": "2026-08-01T07:09:59.171Z",
+    "templateSelection": {
+      "primary": "ecommerce",
+      "blendedWith": "content",
+      "scores": {
+        "ecommerce": 1,
+        "service": 0,
+        "saas": 0,
+        "content": 1,
+        "local": 0
+      }
+    },
+    "calls": [
+      {
+        "step": "customize",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 3414,
+        "outputTokens": 1416,
+        "costUsd": 0.031481999999999996
+      },
+      {
+        "step": "category-validate",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2114,
+        "outputTokens": 209,
+        "costUsd": 0.0025272000000000003
+      }
+    ],
+    "costUsd": 0.034009199999999996
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "subAgentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "invoicing",
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "subAgentIds": [
+        "social-manager",
+        "content-writer",
+        "email-marketing",
+        "seo-agent",
+        "ad-creative",
+        "visual-content-manager",
+        "lead-nurture-email",
+        "trend-research"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "tier1-triage",
+        "escalation",
+        "onboarding",
+        "course-student-support"
+      ]
+    },
+    {
+      "id": "sales",
+      "roleTitle": "Sales Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "outreach-drafter",
+        "crm-hygiene",
+        "booking-inquiry-sales"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "sales-dashboard-monitor"
+      ]
+    },
+    {
+      "id": "delivery",
+      "roleTitle": "Delivery Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "photo-delivery"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "chief-of-staff",
+      "label": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.create",
+        "cfo.invoicing.sponsors"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "expense-categorization",
+      "label": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "cashflow-forecast",
+      "label": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "label": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "social-manager",
+      "label": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.posts",
+        "cmo.social.clips"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Instagram/Meta",
+        "Instagram/TikTok"
+      ]
+    },
+    {
+      "id": "content-writer",
+      "label": "Content writer",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.content.blog",
+        "cmo.content.longform"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "email-marketing",
+      "label": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.campaigns",
+        "cmo.email.newsletter"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Resend",
+        "Resend/ConvertKit"
+      ]
+    },
+    {
+      "id": "seo-agent",
+      "label": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.listings",
+        "cmo.seo.growth"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "tier1-triage",
+      "label": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shared inbox"
+      ]
+    },
+    {
+      "id": "escalation",
+      "label": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "ad-creative",
+      "label": "Ad-creative",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.ad.sponsorcopy"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "onboarding",
+      "label": "Onboarding",
+      "teamId": "support",
+      "taskIds": [
+        "support.community.onboarding"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Discord"
+      ]
+    },
+    {
+      "id": "outreach-drafter",
+      "label": "Outreach drafter",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.outreach.brand"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "Email"
+      ]
+    },
+    {
+      "id": "crm-hygiene",
+      "label": "CRM hygiene",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.crm.sponsors"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "CRM"
+      ]
+    },
+    {
+      "id": "sales-dashboard-monitor",
+      "label": "Digital Product Sales Monitor",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.ecommerce.1.sales-dashboard-monitor"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Gumroad (own books)"
+      ]
+    },
+    {
+      "id": "visual-content-manager",
+      "label": "Before/After Visual Content Agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.2.visual-content-manager"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "lead-nurture-email",
+      "label": "Free-Sample Lead Nurture Agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.3.lead-nurture-email"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "course-student-support",
+      "label": "Course Student Support Agent",
+      "teamId": "support",
+      "taskIds": [
+        "customize.ecommerce.4.course-student-support"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Teachable"
+      ]
+    },
+    {
+      "id": "trend-research",
+      "label": "Preset Trend Research Agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.5.trend-research"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "booking-inquiry-sales",
+      "label": "Wedding Booking Sales Agent",
+      "teamId": "sales",
+      "taskIds": [
+        "customize.ecommerce.6.booking-inquiry-sales"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "photo-delivery",
+      "label": "Client Gallery Delivery Agent",
+      "teamId": "delivery",
+      "taskIds": [
+        "customize.ecommerce.7.photo-delivery"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "Pixieset"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "subAgentType": "chief-of-staff",
+      "subAgentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices/receipts for orders",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "adhoc",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag every transaction and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "subAgentType": "cashflow-forecast",
+      "subAgentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and prep the document checklist",
+      "subAgentType": "tax-deadline-tracker",
+      "subAgentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.posts",
+      "text": "Draft platform-sized social posts for the shop (Instagram, Pinterest, TikTok)",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "posting stays locked",
+      "handsTool": "Instagram/Meta",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.blog",
+      "text": "Write occasional blog/newsletter content in brand voice",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.campaigns",
+      "text": "Draft email marketing sequences and campaign copy",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.listings",
+      "text": "Light keyword and listing-title research for marketplace SEO",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "reports",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound customer messages, tag urgency/topic, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect angry or complex cases and package context for the human",
+      "subAgentType": "escalation",
+      "subAgentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.longform",
+      "text": "Draft long-form content in the creator's voice (scripts, newsletter issues, articles)",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.clips",
+      "text": "Draft platform-sized clips/posts promoting each piece of content",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Instagram/TikTok",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.growth",
+      "text": "Keyword and content-gap research to grow organic reach",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "recommendations",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.newsletter",
+      "text": "Draft newsletter sends and list-hygiene flags",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend/ConvertKit",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.ad.sponsorcopy",
+      "text": "Draft sponsorship/ad-read copy variants",
+      "subAgentType": "ad-creative",
+      "subAgentLabel": "Ad-creative",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "spend",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.sponsors",
+      "text": "Create invoices for sponsorships/brand deals",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "support.community.onboarding",
+      "text": "Draft community onboarding and check-in messages",
+      "subAgentType": "onboarding",
+      "subAgentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Discord",
+      "origin": "template"
+    },
+    {
+      "id": "sales.outreach.brand",
+      "text": "Draft personalized brand-partnership outreach and follow-ups",
+      "subAgentType": "outreach-drafter",
+      "subAgentLabel": "Outreach drafter",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending, always",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "sales.crm.sponsors",
+      "text": "Log sponsor interactions and flag stale deals",
+      "subAgentType": "crm-hygiene",
+      "subAgentLabel": "CRM hygiene",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "customize.ecommerce.1.sales-dashboard-monitor",
+      "text": "Monitor preset and course sales dashboards (Shopify, Gumroad, or similar) and flag revenue spikes or drops",
+      "subAgentType": "sales-dashboard-monitor",
+      "subAgentLabel": "Digital Product Sales Monitor",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Gumroad (own books)",
+      "handsScope": "own-backoffice",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.2.visual-content-manager",
+      "text": "Draft Pinterest and Instagram posts showcasing before/after edits using the presets, timed around wedding season peaks",
+      "subAgentType": "visual-content-manager",
+      "subAgentLabel": "Before/After Visual Content Agent",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.3.lead-nurture-email",
+      "text": "Draft nurture email sequence for leads who downloaded a free preset sample but haven't purchased a full pack or course",
+      "subAgentType": "lead-nurture-email",
+      "subAgentLabel": "Free-Sample Lead Nurture Agent",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.4.course-student-support",
+      "text": "Check course platform (e.g. Teachable/Kajabi) for new student questions or stuck progress and draft instructor replies",
+      "subAgentType": "course-student-support",
+      "subAgentLabel": "Course Student Support Agent",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Teachable",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.5.trend-research",
+      "text": "Research trending Lightroom preset styles and editing aesthetics (e.g. film, moody, airy) to brief the next preset pack launch",
+      "subAgentType": "trend-research",
+      "subAgentLabel": "Preset Trend Research Agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "eligible-early",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.6.booking-inquiry-sales",
+      "text": "Draft inquiry response and booking follow-up emails for prospective wedding photography clients",
+      "subAgentType": "booking-inquiry-sales",
+      "subAgentLabel": "Wedding Booking Sales Agent",
+      "teamHint": "sales",
+      "frequency": "daily",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.7.photo-delivery",
+      "text": "Prepare and deliver edited wedding photo gallery to client (export, watermark check, upload to client gallery platform)",
+      "subAgentType": "photo-delivery",
+      "subAgentLabel": "Client Gallery Delivery Agent",
+      "teamHint": "delivery",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": "Pixieset",
+      "handsScope": "client-facing",
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.ecommerce.1.sales-dashboard-monitor",
+      "customize.ecommerce.2.visual-content-manager",
+      "customize.ecommerce.3.lead-nurture-email",
+      "customize.ecommerce.4.course-student-support",
+      "customize.ecommerce.5.trend-research",
+      "customize.ecommerce.6.booking-inquiry-sales",
+      "customize.ecommerce.7.photo-delivery"
+    ],
+    "removed": [
+      "ops.inventory.levels",
+      "ops.inventory.reorder",
+      "ops.fulfillment.status",
+      "ops.fulfillment.delay",
+      "ops.vendor.tracking",
+      "ops.vendor.comms",
+      "cfo.invoicing.remind"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "cfo.invoicing.create",
+        "from": "daily",
+        "to": "adhoc"
+      },
+      {
+        "taskId": "cmo.social.posts",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "categoryCorrections": [
+      {
+        "taskId": "customize.ecommerce.1.sales-dashboard-monitor",
+        "from": "cfo",
+        "to": "ops",
+        "reason": "Monitoring dashboards and flagging data patterns is internal business logistics, not finance operations — CFO owns the company's own finances (invoices, expenses, taxes), not revenue tracking dashboards."
+      },
+      {
+        "taskId": "customize.ecommerce.3.lead-nurture-email",
+        "from": "sales",
+        "to": "cmo",
+        "reason": "Drafting nurture email sequences is audience-growth and marketing work promoting the business's products, not sales development (which focuses on finding and qualifying new prospects, not nurturing existing leads)."
+      }
+    ],
+    "notes": "Stripped all physical-inventory and vendor tasks (presets/courses are digital); removed payment reminders (digital purchases are instant-pay); slowed daily social cadence to weekly (a solo photographer can't sustain daily posts); added before/after visual content, preset trend research, course student support, free-sample lead nurture, wedding booking sales follow-up, and client gallery delivery as the idea's genuine differentiators."
+  }
+}
