@@ -5,3 +5,6 @@ export * from "./ledger.js";
 export * from "./executor.js";
 export { OpenMultiAgentExecutor } from "./openMultiAgentExecutor.js";
 export { Router } from "./router.js";
+export * from "./durable/dedupStore.js";
+export * from "./durable/ledgerStore.js";
+export * from "./durable/queries.js";

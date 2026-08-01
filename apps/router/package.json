@@ -7,11 +7,13 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:integration": "tsx --test \"src/**/*.itest.ts\""
   },
   "dependencies": {
     "@byok/approval-queue": "*",
     "@byok/cost-gate": "*",
+    "@byok/db": "*",
     "@byok/vault": "*",
     "@open-multi-agent/core": "1.14.0"
   },

@@ -12,6 +12,7 @@ A user describes their business idea once. On the platform's own dime (a capped 
 | 4 | [docs/architecture/system-architecture-v5-conceptual.mermaid](docs/architecture/system-architecture-v5-conceptual.mermaid) | Conceptual bottom-up-teams architecture |
 | 5 | [docs/architecture/security-architecture.md](docs/architecture/security-architecture.md) | Security architecture (vault, key handling, trust core) |
 | 6 | [docs/product/roles-and-api-key-guide.md](docs/product/roles-and-api-key-guide.md) | Role catalog and per-role API key guides |
+| 7 | [docs/architecture/dashboard-data-contract.md](docs/architecture/dashboard-data-contract.md) | Read-side query API the Phase B dashboard UI consumes |
 | — | [docs/archive/master-plan-v1.md](docs/archive/master-plan-v1.md) | *Superseded* — v1 master plan, kept for history |
 | — | [docs/archive/deployment-safety-and-cost-routing.md](docs/archive/deployment-safety-and-cost-routing.md) | *Superseded* — earlier deployment/cost-routing draft |
 | — | [docs/archive/system-architecture-v4-bottomup-teams.mermaid](docs/archive/system-architecture-v4-bottomup-teams.mermaid) | *Superseded* — v4 architecture diagram |
@@ -40,7 +41,8 @@ Then, from repo root:
 cp .env.example .env        # fill in DATABASE_URL/REDIS_URL if you changed the defaults
 npm install
 npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL
-npm test                    # every package's test suite
+npm test                    # every package's test suite (in-memory fakes, no Docker needed)
+npm run test:integration    # atomicity/durability proofs against the REAL Postgres above
 npm run typecheck           # tsc across every workspace
 npm run lint                # ESLint — includes the trust-core boundary rule, ADR-009
 ```

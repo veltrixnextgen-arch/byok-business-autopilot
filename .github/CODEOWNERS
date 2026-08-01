@@ -5,6 +5,14 @@ packages/cost-gate/ @veltrixnextgen-arch
 packages/approval-queue/ @veltrixnextgen-arch
 docs/architecture/security-architecture.md @veltrixnextgen-arch
 
+# packages/db is now load-bearing for trust-core: cost-gate's atomic
+# reservation fix, approval-queue's durable state, and router's dedup all
+# depend on its schema/RLS/withTenantScope for correctness, not just
+# convenience. A change here can undermine the same guarantees a change to
+# cost-gate or approval-queue directly would — same review bar (ADR-005's
+# intent extended to the persistence layer trust-core now depends on).
+packages/db/ @veltrixnextgen-arch
+
 # ADR-009: the ESLint boundary rule and the CI gates that enforce it are
 # part of the security posture, not shell code — a change here can
 # silently disable the trust-core import boundary or the secret/audit
