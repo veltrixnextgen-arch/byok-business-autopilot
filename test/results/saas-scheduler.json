@@ -1,0 +1,498 @@
+{
+  "meta": {
+    "idea": "I have an idea for a SaaS tool that schedules social media posts — nothing is built yet",
+    "generatedAt": "2026-08-01T06:13:43.347Z",
+    "templateSelection": {
+      "primary": "saas",
+      "blendedWith": null,
+      "scores": {
+        "ecommerce": 0,
+        "service": 0,
+        "saas": 2.5,
+        "content": 0,
+        "local": 0
+      }
+    },
+    "model": "claude-sonnet-4-6",
+    "costUsd": 0.01779,
+    "inputTokens": 1905,
+    "outputTokens": 805
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "subAgentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "product-dev",
+      "roleTitle": "Product/Dev Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "spec-writer",
+        "build-agent",
+        "qa-smoke-test",
+        "deploy-coordinator"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "subAgentIds": [
+        "content-writer",
+        "social-manager",
+        "seo-agent",
+        "competitive-intel"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "expense-categorization",
+        "cashflow-forecast"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "onboarding",
+        "tier1-triage"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "api-health-monitor"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "chief-of-staff",
+      "label": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "spec-writer",
+      "label": "Spec writer",
+      "teamId": "product-dev",
+      "taskIds": [
+        "productdev.spec.write",
+        "customize.saas.3.spec-writer"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "build-agent",
+      "label": "Build agent",
+      "teamId": "product-dev",
+      "taskIds": [
+        "productdev.build.propose"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "GitHub"
+      ]
+    },
+    {
+      "id": "qa-smoke-test",
+      "label": "QA/smoke-test agent",
+      "teamId": "product-dev",
+      "taskIds": [
+        "productdev.qa.smoketest"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "GitHub"
+      ]
+    },
+    {
+      "id": "deploy-coordinator",
+      "label": "Deploy coordinator",
+      "teamId": "product-dev",
+      "taskIds": [
+        "productdev.deploy.coordinate"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "GitHub"
+      ]
+    },
+    {
+      "id": "content-writer",
+      "label": "Content writer",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.content.buildinpublic",
+        "cmo.content.landing"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Twitter/X"
+      ]
+    },
+    {
+      "id": "social-manager",
+      "label": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.waitlist"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "seo-agent",
+      "label": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.landing"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "expense-categorization",
+      "label": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "cashflow-forecast",
+      "label": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.runway"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "onboarding",
+      "label": "Onboarding",
+      "teamId": "support",
+      "taskIds": [
+        "support.waitlist.updates"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Email"
+      ]
+    },
+    {
+      "id": "tier1-triage",
+      "label": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shared inbox"
+      ]
+    },
+    {
+      "id": "api-health-monitor",
+      "label": "Social API Health Monitor",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.saas.1.api-health-monitor"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "competitive-intel",
+      "label": "Competitive Intelligence Agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.saas.2.competitive-intel"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "subAgentType": "chief-of-staff",
+      "subAgentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "productdev.spec.write",
+      "text": "Write feature specs from the founder's goals",
+      "subAgentType": "spec-writer",
+      "subAgentLabel": "Spec writer",
+      "teamHint": "product-dev",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "productdev.build.propose",
+      "text": "Propose code changes through the sandboxed build pipeline",
+      "subAgentType": "build-agent",
+      "subAgentLabel": "Build agent",
+      "teamHint": "product-dev",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "code proposals only, zero production credentials",
+      "handsTool": "GitHub",
+      "origin": "template"
+    },
+    {
+      "id": "productdev.qa.smoketest",
+      "text": "Run automated smoke-tests on proposed changes",
+      "subAgentType": "qa-smoke-test",
+      "subAgentLabel": "QA/smoke-test agent",
+      "teamHint": "product-dev",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": "GitHub",
+      "origin": "template"
+    },
+    {
+      "id": "productdev.deploy.coordinate",
+      "text": "Coordinate the staging preview and deploy pipeline",
+      "subAgentType": "deploy-coordinator",
+      "subAgentLabel": "Deploy coordinator",
+      "teamHint": "product-dev",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "autonomyNote": "the human approves every production deploy, always",
+      "handsTool": "GitHub",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.buildinpublic",
+      "text": "Draft build-in-public progress updates",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Twitter/X",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.landing",
+      "text": "Write landing-page and launch copy in brand voice",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.waitlist",
+      "text": "Draft platform-sized posts promoting the waitlist",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.landing",
+      "text": "Light keyword research and meta drafts for the landing page",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "reports",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag expenses (hosting, tooling) and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.runway",
+      "text": "Project runway against current burn",
+      "subAgentType": "cashflow-forecast",
+      "subAgentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "support.waitlist.updates",
+      "text": "Draft waitlist confirmation and update messages",
+      "subAgentType": "onboarding",
+      "subAgentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound questions from the waitlist/early users, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "customize.saas.1.api-health-monitor",
+      "text": "Monitor connected social platform API health (Twitter/X, Instagram, LinkedIn, Facebook) and flag any auth token expirations, rate-limit changes, or deprecation notices that could break scheduling",
+      "subAgentType": "api-health-monitor",
+      "subAgentLabel": "Social API Health Monitor",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.2.competitive-intel",
+      "text": "Research competitor social-scheduling tools (pricing tiers, feature gaps, positioning) and summarise findings for founder",
+      "subAgentType": "competitive-intel",
+      "subAgentLabel": "Competitive Intelligence Agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "eligible-early",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.3.spec-writer",
+      "text": "Draft a platform-by-platform comparison of supported social networks and their scheduling constraints (character limits, media specs, posting windows) to keep the product spec current",
+      "subAgentType": "spec-writer",
+      "subAgentLabel": "Platform Constraints Spec Writer",
+      "teamHint": "product-dev",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.saas.1.api-health-monitor",
+      "customize.saas.2.competitive-intel",
+      "customize.saas.3.spec-writer"
+    ],
+    "removed": [
+      "cfo.invoicing.create"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "productdev.build.propose",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "productdev.qa.smoketest",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "productdev.deploy.coordinate",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "support.triage.inbound",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "notes": "Nothing is built yet (MVP-0): daily build/QA/deploy cadence is premature, so those drop to weekly; invoicing is irrelevant with zero paying users; added three idea-specific tasks covering the core risk (social API fragility), the core dread (marketing/positioning in a crowded market), and the core technical constraint surface (per-platform scheduling rules)."
+  }
+}

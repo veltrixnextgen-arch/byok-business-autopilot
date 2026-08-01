@@ -1,0 +1,24 @@
+{
+  "name": "@byok/extraction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "extract": "src/cli.ts"
+  },
+  "scripts": {
+    "extract": "tsx src/cli.ts",
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "@byok/templates": "*",
+    "@anthropic-ai/sdk": "^0.32.1",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

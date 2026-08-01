@@ -1,0 +1,565 @@
+{
+  "meta": {
+    "idea": "I'm starting a freelance bookkeeping service for local restaurants",
+    "generatedAt": "2026-08-01T06:13:27.878Z",
+    "templateSelection": {
+      "primary": "service",
+      "blendedWith": null,
+      "scores": {
+        "ecommerce": 0,
+        "service": 3,
+        "saas": 0.5,
+        "content": 0,
+        "local": 1
+      }
+    },
+    "model": "claude-sonnet-4-6",
+    "costUsd": 0.019194,
+    "inputTokens": 1968,
+    "outputTokens": 886
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "subAgentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "invoicing",
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker",
+        "compliance-review",
+        "bookkeeping-reconciliation",
+        "sales-tax-tracker",
+        "client-report-builder"
+      ]
+    },
+    {
+      "id": "sales",
+      "roleTitle": "Sales Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "outreach-drafter",
+        "crm-hygiene",
+        "proposal-builder",
+        "referral-outreach"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "onboarding",
+        "tier1-triage",
+        "escalation"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "scheduling"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "chief-of-staff",
+      "label": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.create",
+        "cfo.invoicing.remind"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "expense-categorization",
+      "label": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "cashflow-forecast",
+      "label": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "label": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "outreach-drafter",
+      "label": "Outreach drafter",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.outreach.draft"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "Email"
+      ]
+    },
+    {
+      "id": "crm-hygiene",
+      "label": "CRM hygiene",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.crm.hygiene"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "CRM"
+      ]
+    },
+    {
+      "id": "proposal-builder",
+      "label": "Proposal builder",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.proposal.build"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "CRM"
+      ]
+    },
+    {
+      "id": "onboarding",
+      "label": "Onboarding",
+      "teamId": "support",
+      "taskIds": [
+        "support.onboarding.welcome",
+        "support.onboarding.setup"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Email"
+      ]
+    },
+    {
+      "id": "tier1-triage",
+      "label": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shared inbox"
+      ]
+    },
+    {
+      "id": "escalation",
+      "label": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "compliance-review",
+      "label": "Compliance sub-agent",
+      "teamId": "cfo",
+      "taskIds": [
+        "compliance.review"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "scheduling",
+      "label": "Scheduling",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.scheduling.calls"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Calendar"
+      ]
+    },
+    {
+      "id": "bookkeeping-reconciliation",
+      "label": "Bookkeeping Reconciler",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.service.1.bookkeeping-reconciliation"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": [
+        "QuickBooks API / Xero API"
+      ]
+    },
+    {
+      "id": "sales-tax-tracker",
+      "label": "Sales Tax Monitor",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.service.2.sales-tax-tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "client-report-builder",
+      "label": "Client Report Builder",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.service.3.client-report-builder"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "referral-outreach",
+      "label": "Referral Outreach Drafter",
+      "teamId": "sales",
+      "taskIds": [
+        "customize.service.4.referral-outreach"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "subAgentType": "chief-of-staff",
+      "subAgentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices for client retainers/projects",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.remind",
+      "text": "Draft payment reminders matched to client history",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag business expenses and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection and runway alerts",
+      "subAgentType": "cashflow-forecast",
+      "subAgentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and prep the accountant handoff packet",
+      "subAgentType": "tax-deadline-tracker",
+      "subAgentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "sales.outreach.draft",
+      "text": "Draft personalized first-touch and follow-up outreach",
+      "subAgentType": "outreach-drafter",
+      "subAgentLabel": "Outreach drafter",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending, always",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "sales.crm.hygiene",
+      "text": "Log interactions, update deal stages, flag stale deals",
+      "subAgentType": "crm-hygiene",
+      "subAgentLabel": "CRM hygiene",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "sales.proposal.build",
+      "text": "Build quotes/proposals from templates and deal context",
+      "subAgentType": "proposal-builder",
+      "subAgentLabel": "Proposal builder",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "support.onboarding.welcome",
+      "text": "Draft welcome sequences for new clients",
+      "subAgentType": "onboarding",
+      "subAgentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "support.onboarding.setup",
+      "text": "Draft setup guides and check-in messages for new clients",
+      "subAgentType": "onboarding",
+      "subAgentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound client messages, tag urgency, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect complex or upset cases and package context for the human",
+      "subAgentType": "escalation",
+      "subAgentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "compliance.review",
+      "text": "Flag contract red-flags and track regulation deadlines",
+      "subAgentType": "compliance-review",
+      "subAgentLabel": "Compliance sub-agent",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T3",
+      "autonomy": "locked",
+      "autonomyNote": "flags for human + user's own lawyer/accountant, never advises autonomously",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "ops.scheduling.calls",
+      "text": "Manage calendar, booking confirmations and reminders for client calls",
+      "subAgentType": "scheduling",
+      "subAgentLabel": "Scheduling",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Calendar",
+      "origin": "template"
+    },
+    {
+      "id": "customize.service.1.bookkeeping-reconciliation",
+      "text": "Pull each restaurant client's raw transaction data (POS, bank feeds, card statements) and flag missing or unreconciled items for the founder to resolve",
+      "subAgentType": "bookkeeping-reconciliation",
+      "subAgentLabel": "Bookkeeping Reconciler",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": "QuickBooks API / Xero API",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.2.sales-tax-tracker",
+      "text": "Track sales tax collected vs. owed for each restaurant client and flag upcoming remittance deadlines",
+      "subAgentType": "sales-tax-tracker",
+      "subAgentLabel": "Sales Tax Monitor",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.3.client-report-builder",
+      "text": "Draft a short monthly P&L summary in plain language for each restaurant client, highlighting food cost %, labor cost %, and net margin vs. prior month",
+      "subAgentType": "client-report-builder",
+      "subAgentLabel": "Client Report Builder",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.4.referral-outreach",
+      "text": "Identify 3–5 warm referral targets (other local restaurants) from existing clients' networks and draft a short ask the founder can send",
+      "subAgentType": "referral-outreach",
+      "subAgentLabel": "Referral Outreach Drafter",
+      "teamHint": "sales",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.service.1.bookkeeping-reconciliation",
+      "customize.service.2.sales-tax-tracker",
+      "customize.service.3.client-report-builder",
+      "customize.service.4.referral-outreach"
+    ],
+    "removed": [
+      "sales.qualifier.score",
+      "cmo.social.expertise"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "sales.outreach.draft",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "sales.crm.hygiene",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "notes": "Added restaurant-specific reconciliation, sales tax compliance, plain-language P&L reporting, and referral outreach. Removed inbound lead scoring (no inbound channel exists yet) and social posting (founder dreads marketing, referrals-only strategy at MVP-0). Dialed outreach and CRM hygiene back to weekly — a solo freelancer with a handful of local clients has no daily lead volume to justify daily cadence."
+  }
+}

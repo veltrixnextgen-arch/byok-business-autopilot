@@ -1,0 +1,627 @@
+{
+  "meta": {
+    "idea": "I want to sell handmade candles online through Etsy",
+    "generatedAt": "2026-08-01T06:13:12.140Z",
+    "templateSelection": {
+      "primary": "ecommerce",
+      "blendedWith": null,
+      "scores": {
+        "ecommerce": 5,
+        "service": 0,
+        "saas": 0.5,
+        "content": 0,
+        "local": 0
+      }
+    },
+    "model": "claude-sonnet-4-6",
+    "costUsd": 0.021285,
+    "inputTokens": 1995,
+    "outputTokens": 1020
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "subAgentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "invoicing",
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker",
+        "marketplace-compliance"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "subAgentIds": [
+        "social-manager",
+        "content-writer",
+        "email-marketing",
+        "seo-agent",
+        "marketplace-analytics"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "inventory",
+        "fulfillment",
+        "vendor-manager",
+        "production-scheduler"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "tier1-triage",
+        "escalation",
+        "review-manager"
+      ]
+    },
+    {
+      "id": "product-dev",
+      "roleTitle": "Product/Dev Lead",
+      "isHuman": false,
+      "subAgentIds": [
+        "product-trend-researcher"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "chief-of-staff",
+      "label": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.create"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "expense-categorization",
+      "label": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
+      "id": "cashflow-forecast",
+      "label": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "label": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "social-manager",
+      "label": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.posts"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Instagram/Meta"
+      ]
+    },
+    {
+      "id": "content-writer",
+      "label": "Content writer",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.content.blog"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "email-marketing",
+      "label": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.campaigns"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Resend"
+      ]
+    },
+    {
+      "id": "seo-agent",
+      "label": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.listings"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.inventory.levels",
+        "ops.inventory.reorder"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": [
+        "Shopify/Etsy"
+      ]
+    },
+    {
+      "id": "fulfillment",
+      "label": "Fulfillment/logistics",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.fulfillment.status"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shipping carrier"
+      ]
+    },
+    {
+      "id": "vendor-manager",
+      "label": "Vendor manager",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.vendor.tracking",
+        "ops.vendor.comms"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "tier1-triage",
+      "label": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Shared inbox"
+      ]
+    },
+    {
+      "id": "escalation",
+      "label": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "marketplace-analytics",
+      "label": "Etsy Analytics Monitor",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.1.marketplace-analytics"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Etsy API"
+      ]
+    },
+    {
+      "id": "marketplace-compliance",
+      "label": "Etsy Policy Watcher",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.ecommerce.2.marketplace-compliance"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "review-manager",
+      "label": "Review Reply Agent",
+      "teamId": "support",
+      "taskIds": [
+        "customize.ecommerce.3.review-manager"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Etsy API"
+      ]
+    },
+    {
+      "id": "production-scheduler",
+      "label": "Candle Production Scheduler",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.ecommerce.4.production-scheduler"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "product-trend-researcher",
+      "label": "Candle Trend Researcher",
+      "teamId": "product-dev",
+      "taskIds": [
+        "customize.ecommerce.5.product-trend-researcher"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "subAgentType": "chief-of-staff",
+      "subAgentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices/receipts for orders",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag every transaction and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "subAgentType": "cashflow-forecast",
+      "subAgentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and prep the document checklist",
+      "subAgentType": "tax-deadline-tracker",
+      "subAgentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.posts",
+      "text": "Draft platform-sized social posts for the shop (Instagram, Pinterest, TikTok)",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "posting stays locked",
+      "handsTool": "Instagram/Meta",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.content.blog",
+      "text": "Write occasional blog/newsletter content in brand voice",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.campaigns",
+      "text": "Draft email marketing sequences and campaign copy",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.listings",
+      "text": "Light keyword and listing-title research for marketplace SEO",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "reports",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "ops.inventory.levels",
+      "text": "Track stock levels per product/SKU",
+      "subAgentType": "inventory",
+      "subAgentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "Shopify/Etsy",
+      "origin": "template"
+    },
+    {
+      "id": "ops.inventory.reorder",
+      "text": "Flag reorder points for raw materials and packaging",
+      "subAgentType": "inventory",
+      "subAgentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "Shopify/Etsy",
+      "origin": "template"
+    },
+    {
+      "id": "ops.fulfillment.status",
+      "text": "Post order status and shipping updates to customers",
+      "subAgentType": "fulfillment",
+      "subAgentLabel": "Fulfillment/logistics",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "status updates",
+      "handsTool": "Shipping carrier",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.tracking",
+      "text": "Track supplier orders for raw materials",
+      "subAgentType": "vendor-manager",
+      "subAgentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.comms",
+      "text": "Draft reorder communications to vendors",
+      "subAgentType": "vendor-manager",
+      "subAgentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "ordering never autonomous",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound customer messages, tag urgency/topic, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect angry or complex cases and package context for the human",
+      "subAgentType": "escalation",
+      "subAgentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "customize.ecommerce.1.marketplace-analytics",
+      "text": "Monitor Etsy shop stats (views, favorites, conversion rate) and flag listings that are underperforming",
+      "subAgentType": "marketplace-analytics",
+      "subAgentLabel": "Etsy Analytics Monitor",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Etsy API",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.2.marketplace-compliance",
+      "text": "Check Etsy seller dashboard for new policy changes, fee updates, or seller notices and summarise what action (if any) is needed",
+      "subAgentType": "marketplace-compliance",
+      "subAgentLabel": "Etsy Policy Watcher",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.3.review-manager",
+      "text": "Compile and review incoming Etsy reviews; draft a personalised thank-you or resolution reply for each new review",
+      "subAgentType": "review-manager",
+      "subAgentLabel": "Review Reply Agent",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Etsy API",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.4.production-scheduler",
+      "text": "Draft batch production schedule based on current orders, low stock alerts, and upcoming seasonal demand",
+      "subAgentType": "production-scheduler",
+      "subAgentLabel": "Candle Production Scheduler",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.5.product-trend-researcher",
+      "text": "Research trending candle scents, seasonal themes, and bestseller tags on Etsy to suggest new product or listing ideas",
+      "subAgentType": "product-trend-researcher",
+      "subAgentLabel": "Candle Trend Researcher",
+      "teamHint": "product-dev",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T3",
+      "autonomy": "eligible-early",
+      "handsTool": null,
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.ecommerce.1.marketplace-analytics",
+      "customize.ecommerce.2.marketplace-compliance",
+      "customize.ecommerce.3.review-manager",
+      "customize.ecommerce.4.production-scheduler",
+      "customize.ecommerce.5.product-trend-researcher"
+    ],
+    "removed": [
+      "cfo.invoicing.remind",
+      "ops.fulfillment.delay"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "cfo.invoicing.create",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "ops.inventory.levels",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "notes": "Removed payment-reminder and backorder-comms tasks (Etsy handles payments and has its own buyer messaging conventions). Downgraded daily invoice creation and daily inventory checks to weekly (low solo order volume at MVP-0). Added Etsy-specific marketplace analytics, policy watching, review replies, handmade production scheduling, and seasonal trend research."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "byok-business-autopilot",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/templates",
+    "packages/agents/extraction"
+  ],
+  "scripts": {
+    "extract": "npm run extract --workspace @byok/extraction --"
+  }
+}

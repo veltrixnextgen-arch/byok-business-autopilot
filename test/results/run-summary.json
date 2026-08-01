@@ -1,0 +1,21 @@
+{
+  "runs": [
+    {
+      "fixture": "candle-shop.json",
+      "costUsd": 0.021285,
+      "template": "ecommerce"
+    },
+    {
+      "fixture": "freelance-bookkeeping.json",
+      "costUsd": 0.019194,
+      "template": "service"
+    },
+    {
+      "fixture": "saas-scheduler.json",
+      "costUsd": 0.01779,
+      "template": "saas"
+    }
+  ],
+  "totalCostUsd": 0.058269,
+  "generatedAt": "2026-08-01T06:13:43.350Z"
+}
