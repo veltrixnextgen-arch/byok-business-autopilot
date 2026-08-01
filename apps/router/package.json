@@ -8,7 +8,7 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@open-multi-agent/core": "^1.14.0"
+    "@open-multi-agent/core": "1.14.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

@@ -20,7 +20,7 @@ A user describes their business idea once. On the platform's own dime (a capped 
 
 Full detail lives in [docs/strategy/master-plan-v2.md](docs/strategy/master-plan-v2.md) — summarized here, not duplicated.
 
-- **Phase A** (Claude Code, wk 1–4): shell + router service + trust core (key vault, cost gate, approval queue, Task Extraction Engine).
+- **Phase A** (Claude Code, wk 1–4): shell + router service (wraps [`@open-multi-agent/core`](https://www.npmjs.com/package/@open-multi-agent/core) — ⚠️ not the unrelated bare `open-multi-agent` npm package) + trust core (key vault, cost gate, approval queue, Task Extraction Engine).
 - **Phase B** (Emergent, wk 3–6): commodity UI surface — onboarding, org-chart animation, approval-queue UI, Charter editor, dashboard, billing. CODEOWNERS-locked out of the trust core.
 - **Phase C** (wk 6–10): staging/deploy pipeline, mobile wrap, push-notification approvals.
 

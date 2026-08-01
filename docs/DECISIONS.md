@@ -24,3 +24,8 @@
 **Date:** 2026-07-31
 **Context:** The router, vault, cost gate, and approval queue are the security-critical trust core of the system.
 **Decision:** Trust core (router, vault, cost gate, approval queue) is CODEOWNERS-locked; no AI-generated merges without human review.
+
+## ADR-006 — Trust-core dependencies are pinned; the orchestration library is accessed only through our executor interface
+**Date:** 2026-08-01
+**Context:** `apps/router/` depends on the third-party `@open-multi-agent/core` package. A bare `open-multi-agent` name collision on npm (an unrelated project by a different author) already showed how easy it is to pull in the wrong thing; an unpinned version or a direct import scattered through business logic would make both a supply-chain compromise and a future swap-out far more dangerous and expensive.
+**Decision:** Trust-core dependencies (starting with `@open-multi-agent/core`) are pinned to exact versions with a committed lockfile — no `^`/`~` ranges, no floating updates. Business logic never imports the orchestration library directly; it only ever goes through our own `AgentExecutor` interface (`apps/router/src/executor.ts`), so the library can be upgraded, patched, or replaced behind that interface without touching callers.
