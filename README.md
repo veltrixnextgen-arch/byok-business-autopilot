@@ -26,6 +26,33 @@ Full detail lives in [docs/strategy/master-plan-v2.md](docs/strategy/master-plan
 
 **MVP ladder:** MVP-0 (chart + simulated day, no keys/execution) → MVP-1 (BYOK + spend walls + Charter handoff + first executing role) → MVP-2 (multi-role, CEO recommendation loop, earned autonomy, Agency workspaces) → MVP-3 (parallel build branch into the user's own GitHub repo, staged deploys).
 
-## Scaffolding
+## Local development
 
-`/apps` and `/packages` are empty scaffolding for Phase A — each currently holds only a `.gitkeep` placeholder.
+The shell (`apps/api`) needs Postgres and Redis. One command starts both:
+
+```bash
+docker compose up -d
+```
+
+Then, from repo root:
+
+```bash
+cp .env.example .env        # fill in DATABASE_URL/REDIS_URL if you changed the defaults
+npm install
+npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL
+npm test                    # every package's test suite
+npm run typecheck           # tsc across every workspace
+npm run lint                # ESLint — includes the trust-core boundary rule, ADR-009
+```
+
+`apps/api` itself isn't started by a script yet — trust-core (`Router`/`CostGate`/`ApprovalQueue`) construction is a deployment-level decision (pricing table, ceilings) that hasn't been made yet; see `apps/api/src/server.ts`'s `startServer()` for the seam it's meant to be wired through.
+
+### Repo layout
+
+- `apps/router` — the router service (trust core, CODEOWNERS-locked, ADR-005)
+- `packages/vault`, `packages/cost-gate`, `packages/approval-queue` — trust core (CODEOWNERS-locked)
+- `packages/db` — Drizzle schema + Postgres RLS tenant isolation (Ring 1, security-architecture.md §4)
+- `packages/auth` — Better Auth config (multi-tenancy via the organization plugin, MFA, the step-up permission concept for T6)
+- `packages/jobs` — BullMQ queues/workers with a required, typed `tenantId` on every payload
+- `apps/api` — the shell's typed API boundary; talks to trust-core only through each package's public `index.ts` (ADR-009, enforced by `eslint.config.js`)
+- `apps/web` — Phase B UI surface, not yet built

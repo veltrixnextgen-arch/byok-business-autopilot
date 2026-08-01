@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Install, typecheck, test, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: npm audit (high and critical)
+        run: npm audit --audit-level=high
+
+      # ADR-006: trust-core dependencies are pinned to exact versions on
+      # purpose. This doesn't block the merge (CODEOWNERS review on those
+      # paths — see .github/CODEOWNERS and ADR-005 — is the actual gate);
+      # it just makes the change visible on the PR so the reviewer knows to
+      # check the pin is still exact and the bump was intentional.
+      - name: Flag trust-core package.json / lockfile changes (ADR-006)
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE_REF" ]; then
+            BASE_REF="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE_REF" HEAD -- \
+            apps/router/package.json \
+            packages/vault/package.json \
+            packages/cost-gate/package.json \
+            packages/approval-queue/package.json \
+            package-lock.json || true)
+          if [ -n "$CHANGED" ]; then
+            echo "::warning::Trust-core dependency files changed — verify pins are still exact per ADR-006:"
+            echo "$CHANGED"
+          fi

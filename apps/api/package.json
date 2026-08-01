@@ -1,5 +1,5 @@
 {
-  "name": "@byok/router",
+  "name": "@byok/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,9 +11,16 @@
   },
   "dependencies": {
     "@byok/approval-queue": "*",
+    "@byok/auth": "*",
     "@byok/cost-gate": "*",
+    "@byok/db": "*",
+    "@byok/jobs": "*",
+    "@byok/router": "*",
     "@byok/vault": "*",
-    "@open-multi-agent/core": "1.14.0"
+    "@hono/node-server": "2.0.12",
+    "@hono/zod-validator": "0.9.0",
+    "hono": "4.12.33",
+    "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

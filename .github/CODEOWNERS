@@ -4,3 +4,11 @@ packages/vault/ @veltrixnextgen-arch
 packages/cost-gate/ @veltrixnextgen-arch
 packages/approval-queue/ @veltrixnextgen-arch
 docs/architecture/security-architecture.md @veltrixnextgen-arch
+
+# ADR-009: the ESLint boundary rule and the CI gates that enforce it are
+# part of the security posture, not shell code — a change here can
+# silently disable the trust-core import boundary or the secret/audit
+# gates, so it needs the same review as trust-core itself.
+eslint.config.js @veltrixnextgen-arch
+.github/workflows/ @veltrixnextgen-arch
+.github/CODEOWNERS @veltrixnextgen-arch

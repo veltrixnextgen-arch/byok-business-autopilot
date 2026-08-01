@@ -1,5 +1,5 @@
 {
-  "name": "@byok/router",
+  "name": "@byok/jobs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,8 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@byok/approval-queue": "*",
-    "@byok/cost-gate": "*",
-    "@byok/vault": "*",
-    "@open-multi-agent/core": "1.14.0"
+    "bullmq": "6.0.5",
+    "ioredis": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

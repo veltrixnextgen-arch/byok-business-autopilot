@@ -2,19 +2,36 @@
   "name": "byok-business-autopilot",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "workspaces": [
     "packages/templates",
     "packages/agents/extraction",
     "packages/vault",
     "packages/cost-gate",
     "packages/approval-queue",
-    "apps/router"
+    "packages/db",
+    "packages/auth",
+    "packages/jobs",
+    "apps/router",
+    "apps/api"
   ],
   "scripts": {
     "extract": "npm run extract --workspace @byok/extraction --",
     "router:test": "npm run test --workspace @byok/router",
     "vault:test": "npm run test --workspace @byok/vault",
     "cost-gate:test": "npm run test --workspace @byok/cost-gate",
-    "approval-queue:test": "npm run test --workspace @byok/approval-queue"
+    "approval-queue:test": "npm run test --workspace @byok/approval-queue",
+    "db:test": "npm run test --workspace @byok/db",
+    "db:migrate": "npm run migrate --workspace @byok/db",
+    "auth:test": "npm run test --workspace @byok/auth",
+    "jobs:test": "npm run test --workspace @byok/jobs",
+    "api:test": "npm run test --workspace @byok/api",
+    "typecheck": "npm run build --workspaces --if-present",
+    "test": "npm run db:test && npm run auth:test && npm run jobs:test && npm run api:test && npm run router:test && npm run vault:test && npm run cost-gate:test && npm run approval-queue:test",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "8.65.0",
+    "eslint": "10.8.0"
   }
 }
