@@ -7,3 +7,6 @@ dist/
 !.env.example
 coverage/
 .DS_Store
+
+# LocalKms dev master key — see packages/vault/src/kms.ts. Never commit this.
+.local-kms/
