@@ -1,4 +1,5 @@
 export * from "./crypto.js";
+export * from "./env.js";
 export * from "./kms.js";
 export * from "./dekStore.js";
 export * from "./fingerprint.js";

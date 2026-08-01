@@ -6,11 +6,13 @@
     "packages/templates",
     "packages/agents/extraction",
     "packages/vault",
+    "packages/cost-gate",
     "apps/router"
   ],
   "scripts": {
     "extract": "npm run extract --workspace @byok/extraction --",
     "router:test": "npm run test --workspace @byok/router",
-    "vault:test": "npm run test --workspace @byok/vault"
+    "vault:test": "npm run test --workspace @byok/vault",
+    "cost-gate:test": "npm run test --workspace @byok/cost-gate"
   }
 }

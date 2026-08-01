@@ -3,7 +3,9 @@
 // domain object, tagged/deduped/ledgered by the router BEFORE it's ever
 // translated into a library Task and executed. ADR-001: the router only
 // ever dispatches at this granularity, one sub-agent's task at a time.
-export type RouterTaskStatus = "pending" | "in_progress" | "completed" | "failed";
+// "queued" and "skipped" are cost-gate verdicts (QUEUE/SKIP) — the task
+// never reached the executor at all.
+export type RouterTaskStatus = "pending" | "queued" | "in_progress" | "completed" | "failed" | "skipped";
 
 export interface RouterTask {
   id: string;
@@ -12,6 +14,10 @@ export interface RouterTask {
   title: string;
   payload: string;
   tags: string[];
+  /** The model to execute with. Set from RouterTaskInput.model, and
+   *  possibly REWRITTEN by the cost gate on a DOWNGRADE verdict before
+   *  the executor ever sees the task. */
+  model?: string;
   /** Idempotency key. Resubmitting the same key returns the existing task
    *  instead of re-executing — this is the dedup mechanism. */
   dedupKey: string;
@@ -34,6 +40,14 @@ export interface RouterTaskInput {
   sourceOrgChartTaskId?: string;
   /** Caller-supplied tags, merged with auto-derived ones from TaggingHints. */
   tags?: string[];
+  /** Requested starting model (from tier routing upstream). Required for
+   *  the cost gate to evaluate this task — omit only when no CostGate is
+   *  configured on this Router instance. */
+  model?: string;
+  outputClass?: "short-structured" | "prose";
+  /** Whether this task type tolerates being queued for later/batch
+   *  processing if it doesn't fit the budget right now. Defaults to true. */
+  batchable?: boolean;
 }
 
 export interface LedgerEntry {

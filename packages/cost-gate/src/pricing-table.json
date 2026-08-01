@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "lastVerified": "2026-08-01",
+  "prices": {
+    "claude-opus-4-6": { "provider": "anthropic", "tier": "T3", "inputPerMTok": 15.0, "outputPerMTok": 75.0 },
+    "claude-sonnet-4-6": { "provider": "anthropic", "tier": "T2", "inputPerMTok": 3.0, "outputPerMTok": 15.0 },
+    "claude-haiku-4-5-20251001": { "provider": "anthropic", "tier": "T1", "inputPerMTok": 0.8, "outputPerMTok": 4.0 }
+  }
+}

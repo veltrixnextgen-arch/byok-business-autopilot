@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { decrypt, encrypt, generateKey, type EncryptedBlob } from "./crypto.js";
+import { isProductionEnvironment } from "./env.js";
+
+export class ProductionKmsGuardError extends Error {}
 
 // The KMS holds ONE master key that encrypts per-tenant DEKs (envelope
 // encryption's outer layer). Swappable by design: LocalKms for dev, a real
@@ -20,6 +23,15 @@ export class LocalKms implements Kms {
   private readonly masterKey: Buffer;
 
   constructor(keyFilePath: string) {
+    // ADR-007: never in production. A locally-generated file-backed master
+    // key has no rotation, no HSM, no access audit — acceptable for dev,
+    // a T1 (key theft) incident waiting to happen in production.
+    if (isProductionEnvironment()) {
+      throw new ProductionKmsGuardError(
+        "LocalKms cannot be constructed in production (NODE_ENV=production or PRODUCTION=true). " +
+          "Construct a CloudKms (or another real Kms implementation) instead.",
+      );
+    }
     this.masterKey = LocalKms.loadOrCreate(keyFilePath);
   }
 
