@@ -1,0 +1,118 @@
+flowchart TD
+
+%% ============================================================
+%% SYSTEM ARCHITECTURE v6 - TECHNICAL COMPONENT VIEW
+%% Matches Userflow v2 + Master Plan v2. The v5 diagram remains
+%% the logical/conceptual view; this is the service map builders use.
+%% ============================================================
+
+subgraph CLIENT["CLIENT LAYER"]
+    W["Web app (TanStack Start)<br/>homepage animation is pre-rendered - zero inference"]
+    MOB["iOS / Android (Capacitor wrap)<br/>push notifications = approval requests"]
+end
+
+subgraph EDGE["API EDGE"]
+    GW["API gateway (Hono + oRPC)<br/>every request tenant-scoped via Better Auth session"]
+end
+
+W --> GW
+MOB --> GW
+
+subgraph ONBOARD["ONBOARDING SERVICES - the ONLY consumers of PLATFORM AI keys<br/>(one capped batch per signup, ~cents, booked as CAC)"]
+    INT["Interview service<br/>6 questions, answers shape extraction"]
+    TEE["Task Extraction Engine<br/>business-type template + customize pass<br/>ALSO emits: simulated-day script + Charter draft<br/>(same batch - no extra calls)"]
+    CLU["Clustering + bottom-up assembler<br/>tasks -> sub-agents -> teams -> role leads"]
+    SIM["Simulated-day renderer<br/>plays the pre-generated script - zero live inference"]
+    CHA["Charter compiler/editor<br/>idea -> MVP definition -> role tasks -> goals -> ceilings<br/>versioned artifact"]
+end
+
+GW --> INT --> TEE --> CLU
+CLU --> SIM
+CLU --> CHA
+
+subgraph VAULT["KEY VAULT (trust core - CODEOWNERS locked)"]
+    KMS["KMS master key"]
+    DEK["Per-tenant data keys<br/>envelope encryption"]
+    BK["BRAIN keys - LLM providers<br/>chosen per role, usually one per company"]
+    HK["HANDS keys - service APIs<br/>collected just-in-time, scoped per sub-agent"]
+    KMS --> DEK --> BK
+    DEK --> HK
+end
+
+subgraph ORCH["ORCHESTRATION CORE (trust core - CODEOWNERS locked)"]
+    RTR["Central Task Router<br/>tags role + sub-agent before dispatch,<br/>dedup check, task-object handoffs,<br/>per-sub-agent cost ledger"]
+    Q["BullMQ job queue + Redis"]
+    ART["Agent runtime<br/>per agent: own system prompt, isolated memory,<br/>scoped Hands permissions, assigned Brain + tier<br/>ingested content treated as DATA, never instructions"]
+    FH["Failure handler<br/>typed retries, timeouts, circuit breaker,<br/>escalation agent -> role lead -> human"]
+    AQ["Approval queue service<br/>EVERY action lands here first"]
+    AUT["Autonomy engine<br/>earned per task type after N approvals,<br/>permanent spot-check sampler,<br/>never for money / sending / deploys"]
+end
+
+subgraph COST["COST LAYER (trust core - CODEOWNERS locked)"]
+    EST["Pre-call cost estimator"]
+    GATE["FAIL-CLOSED spend gate<br/>over ceiling -> downgrade tier / queue for batch / skip+notify<br/>estimator down -> calls QUEUE, never proceed"]
+    TIER["Tier router - cheap by default,<br/>escalate only on failed deterministic checks"]
+    BATCH["Batcher - non-urgent work to Batch API<br/>(concentrates calls so caching actually hits)"]
+end
+
+subgraph CEO["CEO LOOP"]
+    CEOA["CEO agent (named by user)<br/>master prompt = the Charter<br/>synthesizes all teams' updates, flags conflicts,<br/>proposes actions"]
+    REC["Recommendations<br/>HARD RULE: can only enter the approval queue -<br/>the CEO never dispatches, spends, sends, or deploys"]
+    CEOA --> REC --> AQ
+end
+
+subgraph DATA["DATA LAYER"]
+    PG["Postgres (Drizzle)<br/>row-level tenant isolation by construction"]
+    MEM["Per-agent memory stores<br/>never shared across agents -<br/>merges/splits get archived + summarized digest only"]
+    AUD["Append-only audit log<br/>every dispatch, call, approval, key event, deploy"]
+end
+
+subgraph EXT["EXTERNAL - USER-PAID (BYOK boundary: everything below this line is the user's money)"]
+    LLM["Brain providers<br/>Anthropic / OpenAI / Google / DeepSeek..."]
+    HANDS["Hands services<br/>Resend (email) / Stripe read (payments) /<br/>Higgsfield (creative) / GitHub / calendar..."]
+end
+
+subgraph DEPLOY["PARALLEL BUILD BRANCH (MVP-3, triggered by Charter's MVP definition)"]
+    SBX["Sandboxed build agent<br/>ZERO production credentials - proposals only"]
+    CI["Automated checks<br/>build, smoke tests, secret scan, dependency audit"]
+    STG["Staging preview URL"]
+    SUM["Plain-language change summary -> user approval"]
+    PROD["Production deploy<br/>auto-rollback armed, hard resource ceilings,<br/>tested backups"]
+    GH["USER-OWNED GitHub repo<br/>every change auto-committed"]
+    SBX --> CI --> STG --> SUM --> PROD
+    SBX --> GH
+    PROD --> GH
+end
+
+subgraph SURFACE["USER SURFACE (post-launch daily home)"]
+    DIG["Morning digest - by agent name<br/>'Alex closed 3 invoices'"]
+    DASH["Dashboard: cost per role AND named sub-agent,<br/>autonomy status, skip-the-call suggestions,<br/>monthly payroll report vs credit competitors"]
+end
+
+%% ---- Wiring ----
+CHA -->|"Charter approved + handoff ceremony"| CEOA
+CHA -->|"goals cascade"| RTR
+GW --> RTR
+RTR --> Q --> ART
+RTR --> FH
+ART --> EST --> GATE --> TIER --> BATCH
+ART -->|"decrypt in memory only, per-call TTL"| BK
+ART -->|"scoped, just-in-time"| HK
+TIER --> LLM
+BATCH --> LLM
+HK --> HANDS
+ART --> AQ
+AQ --> AUT
+AQ -->|"rejected + feedback"| FH
+AQ -->|"approved"| DIG
+RTR --> AUD
+AQ --> AUD
+GATE --> AUD
+ART --> MEM
+RTR --> PG
+DASH --> W
+DIG --> MOB
+AUD --> DASH
+DASH -->|"usage data feeds templates"| TEE
+CHA -->|"MVP needs software"| SBX
+ONBOARD -.->|"platform keys, capped per signup"| LLM

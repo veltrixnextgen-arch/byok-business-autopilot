@@ -1,0 +1,38 @@
+flowchart TD
+    A["User describes their business idea in plain language"] --> B["Task Extraction Engine<br/>lists every granular task the business actually needs done"]
+
+    B --> C["Task Clustering Engine<br/>groups related granular tasks into functional clusters"]
+
+    C --> D1["Finance cluster<br/>invoicing, expense tracking, cash flow"]
+    C --> D2["Marketing cluster<br/>content, social, ads, SEO"]
+    C --> D3["Support cluster<br/>tickets, FAQs, onboarding"]
+    C --> D4["Ops/Dev cluster<br/>scheduling, build, deploy"]
+
+    D1 --> E1["CFO role assembled from the Finance cluster"]
+    D2 --> E2["CMO role assembled from the Marketing cluster"]
+    D3 --> E3["Support Lead role assembled from the Support cluster"]
+    D4 --> E4["Ops/Dev Lead role assembled from the Ops cluster"]
+
+    E1 --> F1["CFO's team, one sub-agent per task type:<br/>Invoicing sub-agent, Expense sub-agent, Cash-flow sub-agent"]
+    E2 --> F2["CMO's team:<br/>Content sub-agent, Social sub-agent, Ad-creative sub-agent (routes to Higgsfield)"]
+    E3 --> F3["Support Lead's team:<br/>Tier-1 triage sub-agent, Escalation sub-agent"]
+    E4 --> F4["Ops Lead's team:<br/>Scheduling sub-agent, Build/deploy sub-agent"]
+
+    F1 --> G["Full org chart assembled bottom-up from real tasks,<br/>not guessed top-down"]
+    F2 --> G
+    F3 --> G
+    F4 --> G
+
+    G --> H{"User reviews and approves<br/>can merge/split roles, add/remove tasks"}
+    H -->|"Edit"| C
+    H -->|"Approve"| I["Central Task Router / Dispatcher created<br/>this is what keeps every agent isolated"]
+
+    I --> J["Every role and every sub-agent gets:<br/>its own system prompt, its own isolated context/memory,<br/>scoped tool permissions, an assigned AI provider"]
+
+    J --> K["User connects AI provider keys<br/>same provider can safely power multiple agents -<br/>isolation happens in the router, not the model"]
+
+    K --> L["Founder/CEO master prompt cascades goals<br/>through the router to each role and sub-agent"]
+
+    L --> M["Automation running:<br/>router tags every task by role + sub-agent,<br/>dispatches, dedupes overlapping work, logs cost separately"]
+
+    M --> N["Dashboard: cost and activity broken out<br/>per role AND per sub-agent - not one blended number"]

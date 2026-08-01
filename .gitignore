@@ -1,0 +1,8 @@
+# NEVER commit API keys or .env files — see docs/architecture/security-architecture.md
+
+node_modules/
+dist/
+.env
+.env.*
+coverage/
+.DS_Store

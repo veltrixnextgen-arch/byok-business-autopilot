@@ -1,0 +1,81 @@
+flowchart TD
+
+%% ============================================================
+%% PHASE 1 - REVERSE-ENGINEER THE COMPANY FROM THE IDEA, BOTTOM-UP
+%% Order is strict: idea -> tasks -> sub-agents -> teams -> roles -> org chart
+%% ============================================================
+
+A["User describes their business idea<br/>in plain language"] --> A2["Guided intake interview<br/>a few targeted questions: business type, customers,<br/>sales channels, constraints, budget"]
+
+A2 --> B["Task Extraction Engine<br/>loads a curated task template for that business type,<br/>then customizes it to this specific idea -<br/>outputs every granular task the business needs done<br/>(template + customize, never pure generation)"]
+
+B --> C["Task Clustering Engine<br/>groups granular tasks into functional clusters -<br/>clusters EMERGE from the tasks,<br/>they are not a preset departmental org chart"]
+
+%% Clusters emerge from this idea's tasks (examples - actual clusters vary per idea)
+C --> D1["Finance cluster<br/>invoicing, expenses, cash flow, tax deadlines"]
+C --> D2["Marketing cluster<br/>content, social, ads, SEO"]
+C --> D3["Support cluster<br/>tickets, FAQs, onboarding"]
+C --> D4["Ops cluster<br/>scheduling, vendors, fulfillment"]
+
+%% BOTTOM-UP: sub-agents are assembled FIRST, one per task type - this is the team
+D1 --> F1["Finance TEAM - one sub-agent per task type:<br/>Invoicing sub-agent, Expense sub-agent,<br/>Cash-flow sub-agent, Tax-deadline sub-agent"]
+D2 --> F2["Marketing TEAM:<br/>Content sub-agent, Social sub-agent,<br/>Ad-creative sub-agent, SEO sub-agent"]
+D3 --> F3["Support TEAM:<br/>Tier-1 triage sub-agent, Escalation sub-agent,<br/>Onboarding sub-agent"]
+D4 --> F4["Ops TEAM:<br/>Scheduling sub-agent, Vendor sub-agent,<br/>Fulfillment sub-agent"]
+
+%% Roles are assembled LAST, to lead the team the tasks demanded
+F1 --> E1["CFO role - assembled to lead the Finance team"]
+F2 --> E2["CMO role - assembled to lead the Marketing team"]
+F3 --> E3["Support Lead role - assembled to lead the Support team"]
+F4 --> E4["Ops Lead role - assembled to lead the Ops team"]
+
+E1 --> G["Full org chart assembled bottom-up:<br/>tasks -> sub-agents -> teams -> role leads -><br/>every role the company needs, derived from the idea itself"]
+E2 --> G
+E3 --> G
+E4 --> G
+
+%% ============================================================
+%% APPROVAL GATE + MEMORY MIGRATION RULE
+%% ============================================================
+
+G --> H{"User reviews and approves the org chart<br/>can merge/split roles, add/remove tasks or sub-agents"}
+H -->|"Edit"| C
+H -->|"Edit AFTER launch"| H2["Memory migration rule:<br/>old agent memories are archived,<br/>merged/split roles start from a summarized digest -<br/>no raw memory ever crosses agent boundaries"]
+H2 --> C
+H -->|"Approve"| I
+
+%% ============================================================
+%% PHASE 2 - ORCHESTRATION LAYER (the actual product)
+%% ============================================================
+
+I["Central Task Router / Dispatcher<br/>tags every task with role + sub-agent BEFORE dispatch,<br/>dedupes overlapping work,<br/>logs cost per sub-agent - isolation lives HERE, not in the model"]
+
+I --> I2["Handoff protocol:<br/>cross-team tasks travel as a shared TASK OBJECT<br/>(structured state that moves with the task) -<br/>agents never share memory, only the task object"]
+
+I --> I3["Failure handling:<br/>retry policy per task type, timeouts,<br/>circuit-breaker on a misbehaving agent,<br/>escalate agent -> role lead -> human"]
+
+I --> J["Every role and sub-agent gets:<br/>own system prompt, own isolated context/memory,<br/>scoped tool permissions, assigned AI provider + tier"]
+
+%% ============================================================
+%% PHASE 3 - KEYS AND COST (BYOK with a trial bridge)
+%% ============================================================
+
+J --> K1["Trial bridge: managed keys for first N tasks<br/>user sees value BEFORE touching an API console"]
+K1 --> K2["Graduate to BYOK: user connects own provider keys<br/>same provider safely powers many agents -<br/>framed as 'stop paying our markup'"]
+
+K2 --> K3["Fail-closed cost gate:<br/>pre-call cost estimate on every non-trivial call,<br/>tiered routing (cheap by default, escalate on failed checks),<br/>batch non-urgent work - if the gate is down, calls QUEUE"]
+
+%% ============================================================
+%% PHASE 4 - RUNNING + OUTPUT QUALITY LOOP
+%% ============================================================
+
+K3 --> L["Founder/CEO master prompt cascades goals<br/>through the router to each role lead and team"]
+
+L --> M["Automation running:<br/>router tags, dispatches, dedupes,<br/>logs cost separately per sub-agent"]
+
+M --> Q["Output approval queue:<br/>EVERY agent action starts human-approved -<br/>autonomy is EARNED per task type after N approved outputs,<br/>with ongoing random spot-checks even after autonomy"]
+
+Q -->|"Rejected output"| I3
+Q -->|"Approved"| N["Dashboard: cost and activity per role AND per sub-agent,<br/>autonomy status per task type,<br/>'skip the call' suggestions from usage patterns"]
+
+N -->|"Usage data feeds back"| B
