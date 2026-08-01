@@ -97,9 +97,14 @@ export class PostgresDurableAuditLog implements DurableAuditLog {
 
   async recentForTenant(tenantId: string, limit = 50): Promise<StoredAuditEvent[]> {
     return withTenantScope(this.pool, tenantId, async (client) => {
+      // ORDER BY seq, not `at`: now() is transaction-start time in
+      // Postgres, so two events appended within the same transaction (e.g.
+      // a reservation and its audit row, committed together) would
+      // otherwise tie on `at` with no defined order between them. seq is a
+      // real monotonic sequence regardless of transaction boundaries.
       const result = (await client.query(
         `SELECT id, tenant_id, source, kind, ref_id, detail, at
-         FROM audit_log WHERE tenant_id = $1::uuid ORDER BY at DESC LIMIT $2`,
+         FROM audit_log WHERE tenant_id = $1::uuid ORDER BY seq DESC LIMIT $2`,
         [tenantId, limit],
       )) as unknown as { rows: AuditLogRow[] };
       return result.rows.map(rowToEvent);

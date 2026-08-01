@@ -185,8 +185,17 @@ CREATE POLICY tenant_isolation ON paused_batches
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 
 -- Unified audit log — see header comment.
+--
+-- seq (not `at`) is what ordering queries actually sort by: `now()` inside
+-- Postgres returns the SAME value for every statement in one transaction
+-- (it's transaction-start time, not statement-execution time), so two
+-- events appended in the same transaction — routine, e.g. a reservation
+-- and its audit row committed together — would otherwise tie on `at` with
+-- no defined order between them. A BIGSERIAL is a real monotonic sequence
+-- regardless of transaction boundaries or clock resolution.
 CREATE TABLE IF NOT EXISTS audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seq BIGSERIAL,
   tenant_id UUID NOT NULL,
   source TEXT NOT NULL CHECK (source IN ('cost-gate', 'approval-queue')),
   kind TEXT NOT NULL,
@@ -207,4 +216,4 @@ CREATE POLICY tenant_isolation ON audit_log
 CREATE INDEX IF NOT EXISTS idx_cost_reservations_tenant_role ON cost_reservations (tenant_id, role_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_cost_reservations_tenant_tasktype ON cost_reservations (tenant_id, task_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_task_ledger_tenant_subagent ON task_ledger_entries (tenant_id, sub_agent_id, at);
-CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_at ON audit_log (tenant_id, at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_seq ON audit_log (tenant_id, seq DESC);

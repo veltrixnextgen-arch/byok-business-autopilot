@@ -81,7 +81,9 @@ export class PostgresCostActivityQueries implements CostActivityQueries {
   async recentActivity(tenantId: string, limit = 50): Promise<StoredAuditEvent[]> {
     return withTenantScope(this.pool, tenantId, async (client) => {
       const result = (await client.query(
-        `SELECT id, tenant_id, source, kind, ref_id, detail, at FROM audit_log WHERE tenant_id = $1::uuid ORDER BY at DESC LIMIT $2`,
+        // ORDER BY seq, not `at` — see durableAuditLog.ts's recentForTenant
+        // for why (now() ties within one transaction).
+        `SELECT id, tenant_id, source, kind, ref_id, detail, at FROM audit_log WHERE tenant_id = $1::uuid ORDER BY seq DESC LIMIT $2`,
         [tenantId, limit],
       )) as unknown as {
         rows: Array<{ id: string; tenant_id: string; source: "cost-gate" | "approval-queue"; kind: string; ref_id: string | null; detail: Record<string, unknown> | null; at: string }>;
