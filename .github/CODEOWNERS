@@ -1,3 +1,4 @@
 apps/router/ @veltrixnextgen-arch
 packages/agents/ @veltrixnextgen-arch
+packages/vault/ @veltrixnextgen-arch
 docs/architecture/security-architecture.md @veltrixnextgen-arch
