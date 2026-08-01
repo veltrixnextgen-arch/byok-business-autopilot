@@ -6,6 +6,7 @@
     "channels": "not-sure",
     "status": "nothing-yet",
     "dread": "marketing",
-    "budget": "50+"
+    "budget": "50+",
+    "jurisdiction": { "country": "US", "stateOrProvince": "DE" }
   }
 }

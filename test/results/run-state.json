@@ -1,0 +1,42 @@
+{
+  "startedAt": "2026-08-01T09:47:13.661Z",
+  "updatedAt": "2026-08-01T09:48:33.274Z",
+  "runs": {
+    "candle-shop.json": {
+      "status": "ok",
+      "costUsd": 0.055704,
+      "template": "ecommerce",
+      "completedAt": "2026-08-01T09:33:57.596Z"
+    },
+    "freelance-bookkeeping.json": {
+      "status": "ok",
+      "costUsd": 0.0610336,
+      "template": "service",
+      "completedAt": "2026-08-01T09:34:46.492Z"
+    },
+    "makerspace.json": {
+      "status": "ok",
+      "costUsd": 0.059077000000000005,
+      "template": "physical-space",
+      "completedAt": "2026-08-01T09:35:35.030Z"
+    },
+    "mortgage-brokerage.json": {
+      "status": "ok",
+      "costUsd": 0.0653492,
+      "template": "service",
+      "completedAt": "2026-08-01T09:36:23.758Z"
+    },
+    "saas-scheduler.json": {
+      "status": "ok",
+      "costUsd": 0.06404699999999999,
+      "template": "saas",
+      "completedAt": "2026-08-01T09:37:20.492Z"
+    },
+    "wedding-photographer.json": {
+      "status": "ok",
+      "costUsd": 0.06453880000000001,
+      "template": "content",
+      "completedAt": "2026-08-01T09:48:33.274Z"
+    }
+  }
+}

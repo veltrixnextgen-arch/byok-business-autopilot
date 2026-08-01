@@ -6,6 +6,7 @@
     "channels": "referrals",
     "status": "nothing-yet",
     "dread": "marketing",
-    "budget": "25"
+    "budget": "25",
+    "jurisdiction": { "country": "US", "stateOrProvince": "OH" }
   }
 }

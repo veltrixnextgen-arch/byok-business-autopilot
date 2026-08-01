@@ -65,9 +65,16 @@ export interface TemplateTask {
    *  either scope (e.g. an accounting API) — omit only when handsTool is
    *  unambiguous (e.g. "GitHub" is never a back-office/client-facing split). */
   handsScope?: HandsScope;
+  /** MANDATORY (must be true) whenever teamHint is "compliance" — enforced
+   *  as a hard invariant in packages/agents/extraction/src/assemble.ts.
+   *  Compliance sub-agents flag for a human professional and never advise
+   *  autonomously (Part 2); this field is the machine-checkable version of
+   *  that rule, and it's how the UI knows to show the "review with your
+   *  professional" banner. Must be omitted/false for non-compliance tasks. */
+  requiresProfessionalVerification?: boolean;
 }
 
-export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local";
+export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local" | "physical-space";
 
 export interface BusinessTemplate {
   id: BusinessTemplateId;

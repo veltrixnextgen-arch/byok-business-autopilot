@@ -1,67 +1,74 @@
-# MVP-0 Differentiation Test — Report (v2, six fixtures)
+# MVP-0 Differentiation Test — Report (v3, six fixtures + onboarding batch)
 
-Run against the three canonical prompts from `docs/product/roles-and-api-key-guide.md` Part 2, plus three additional fixtures chosen to stress-test the delivery-team concept, the compliance path, and template blending, per `docs/strategy/master-plan-v2.md` §5's MVP-0 kill criterion. This run also exercises two engine changes made since the v1 report: the **delivery-team concept** (paid-deliverable tasks cluster separately from back-office CFO tasks, with Hands-scope isolation enforced as a hard invariant) and a **category-tagging validation pass** (a cheap batched haiku-class call that re-checks every customize-added task's category).
+Run against the three canonical prompts from `docs/product/roles-and-api-key-guide.md` Part 2, plus three additional fixtures, per `docs/strategy/master-plan-v2.md` §5's MVP-0 kill criterion. This run exercises every engine change made since the v2 report: the **template-selection tiebreak fix**, the **physical-space membership template** (6th template, closes issue #2), **jurisdiction-aware compliance** (never guesses named regulations for an unverified jurisdiction), and the **onboarding batch** — the same per-signup run now also emits a simulated-day script and a Company Charter draft (closes issues #3 and #4).
 
-Raw org charts: [`candle-shop.json`](candle-shop.json) · [`freelance-bookkeeping.json`](freelance-bookkeeping.json) · [`mortgage-brokerage.json`](mortgage-brokerage.json) · [`makerspace.json`](makerspace.json) · [`saas-scheduler.json`](saas-scheduler.json) · [`wedding-photographer.json`](wedding-photographer.json). Customize model: `claude-sonnet-4-6`. Validation model: `claude-haiku-4-5-20251001`. **Total API cost: $0.1964** (6 runs, all under the $0.25/run cap; see cost notes at the end).
+## Per-signup cost — the real CAC number
+
+**$0.0616 average per signup** (range $0.0557–$0.0653), **$0.3697 total across all six fixtures**, well under the $0.25/run cap on every single run. Each signup is now 2–3 API calls: `customize` (sonnet) + `category-validate` (haiku, skipped when there's nothing to validate) + `onboarding-batch` (sonnet). Adding the onboarding batch roughly tripled per-signup cost versus the v2 report's customize-only-plus-validation number (~$0.02–0.03) — see the cost experiment below for whether that third call can move to haiku.
+
+Raw org charts: [`candle-shop.json`](candle-shop.json) · [`freelance-bookkeeping.json`](freelance-bookkeeping.json) · [`mortgage-brokerage.json`](mortgage-brokerage.json) · [`makerspace.json`](makerspace.json) · [`saas-scheduler.json`](saas-scheduler.json) · [`wedding-photographer.json`](wedding-photographer.json). Run state (resumable): [`run-state.json`](run-state.json).
 
 ## Summary table
 
-| | Candles (ecommerce) | Bookkeeping (service) | Mortgage brokerage (service) | Makerspace (ecommerce+local blend) | SaaS scheduler (saas) | Wedding photographer (ecommerce+content blend) |
+| | Candles | Bookkeeping | Mortgage (BC) | Makerspace (AU) | SaaS scheduler | Wedding photographer |
 |---|---|---|---|---|---|---|
-| Template | `ecommerce` | `service` | `service` | `ecommerce` + blend `local` | `saas` | `ecommerce` + blend `content` |
-| Teams | founder, cfo, cmo, ops, support, **delivery** | founder, cfo, **delivery**, sales, support, cmo, ops | founder, cfo, **delivery**, **sales**, support, cmo, ops | founder, cfo, cmo, support, ops, **people** | founder, **product-dev**, cmo, cfo, support | founder, cfo, cmo, support, **sales**, ops, **delivery** |
-| Largest team | CFO (6 sub-agents) | **Delivery (6)** | CFO = Delivery (6 each) | CFO (7) | CMO (6) | CMO (8) |
-| Sales team? | No | Yes — 2 sub-agents | Yes — 5 sub-agents | No | No | Yes — 3 sub-agents |
-| Fulfillment/Inventory? | Yes | No | No | No (removed by customize) | No | No |
-| Delivery team? | Yes — 1 sub-agent (Etsy listing copy) | **Yes — 6 sub-agents, largest team** | Yes — 6 sub-agents | **No** | No | Yes — 1 sub-agent (gallery delivery) |
-| Compliance sub-agent? | Yes (attaches to CFO) | Yes (attaches to CFO) | **Yes, x2** (generic + mortgage-specific licensing) | Yes (attaches to CFO) | No | No |
-| Category corrections logged | 2 | 0 (3 proposed, reverted — see below) | 3 | 2 | 1 | 2 |
+| Template | `ecommerce` (score 5, decisive) | `service` (score 3) | `service` (score 3) | **`physical-space`** (score 7, decisive) | `saas` (score 2.5) | `content` + blend `ecommerce` (**tie**, 1-1) |
+| Jurisdiction | US/TX | US/OH | **CA/BC** | **Australia/Victoria** (uncovered) | US/DE | US/CA |
+| Teams | 5 | 7 | 6 | 6 | 5 | 5 |
+| Compliance tasks | 0 | 1 (generic) | **3** (generic + BCFSA + FINTRAC) | **3** (generic + 2 AU-generic-fallback) | 0 | 2 (generic + CA sales-tax) |
+| Per-signup cost | $0.0557 | $0.0610 | $0.0653 | $0.0591 | $0.0640 | $0.0645 |
 
-## Which roles/teams appear in one chart but not the others?
+## Jurisdiction-aware compliance: the core fix, verified
 
-- **Delivery** — present in candles, bookkeeping, mortgage, and wedding photographer; **absent from makerspace and SaaS**. For makerspace this is a legitimate finding, not a bug (see the dedicated section below). For SaaS it's expected: the paid product is software, which already has its own correct category (`product-dev`) — delivery exists specifically to rescue tasks that would otherwise wrongly cluster into `cfo`/`ops`/`cmo`, not to relabel a team that's already correctly named.
-- **Sales** — present in bookkeeping, mortgage, and wedding photographer; **absent from candles, makerspace, and SaaS**. Consistent with the original catalog prediction (marketplace/creator/pre-revenue businesses don't need active deal-closing) plus the two new client-acquisition-heavy businesses (bookkeeping referrals, mortgage realtor partnerships) correctly getting one.
-- **Product/Dev** — only in the SaaS chart, as before.
-- **People** — only in makerspace (hiring signals for weekend-class instructors/maintenance staff).
-- **Compliance** (as a sub-agent, always attached rather than a standalone team) — present in every chart except SaaS. Mortgage brokerage is the standout: it has *two* distinct compliance sub-agents — the generic contract/regulation tracker every service-template chart gets, plus an idea-specific "Mortgage Licensing & Disclosure Compliance Tracker" (NMLS renewal, state license CE credits, RESPA/TILA disclosure deadlines) that the customize pass added specifically for this idea.
+This was the headline regression from the v2 report: the mortgage fixture had produced US-specific NMLS/RESPA/TILA tasks for a business whose country was never specified. With jurisdiction now a required interview field:
 
-## Checking the predicted outcomes
+- **Mortgage brokerage, switched to Canada/British Columbia**, now produces `BCFSA Licence Monitor` (BC Financial Services Authority, Mortgage Brokers Act) and `FINTRAC AML/KYC Flagger` — real, correct BC/Canadian frameworks, not the old US ones. Both carry `requiresProfessionalVerification: true`, same as every other compliance task.
+- **Makerspace, deliberately set to Victoria, Australia** — a jurisdiction with zero coverage in the policy table — to prove the fallback path. It produced exactly what the policy demands: `Insurance & Liability Compliance Tracker` and `Makerspace Licensing & Regulatory Tracker`, both phrased as "identify and track ... requirements in Victoria, Australia" with **no named regulation or regulator invented**. This is the fallback working correctly, not a gap.
+- **Every compliance task across all six charts** — 9 total — carries `requiresProfessionalVerification: true`. The hard invariant added to `assembleOrgChart` (would throw `ComplianceMetadataError` otherwise) never fired, meaning the customize pass complied with the rule on every run without needing a correction.
 
-**Candles: lacks a Sales team, has heavy fulfillment.** ✅ Confirmed, same as the v1 report.
+## Physical-space template: makerspace now selects decisively
 
-**Bookkeeping: updated prediction — Delivery team largest, Sales second, CFO small.** ⚠️ Partially confirmed. Delivery *is* the largest team (6 sub-agents / 7 tasks: reconciliation, POS-to-bank matching, client P&L reporting, plus the 3 generic delivery-scaffold tasks) — this is the core fix working as intended, and a clear improvement over the v1 report where the paid deliverable inflated CFO instead. But Sales did **not** land second — it shrank to 2 sub-agents (proposal builder + a customize-added referral-outreach agent) because this run's customize pass judged lead-scoring and cold-outreach unnecessary for a referrals-only local strategy, leaving CFO (5 sub-agents: the business's own invoicing/expenses/taxes/cashflow + the generic compliance sub-agent) as the second-largest team instead. This is explainable, idea-driven customize behavior, not the engine converging charts — but it means the exact ranking the fixture description predicted didn't hold this run.
+The v2 report's makerspace fixture picked `ecommerce` over `local` on a 1-1 tie broken by object-key order — a real gap, tracked in issue #2. With the new `physical-space` template (memberships, bookings, facility ops, safety/waivers) and its keyword coverage:
 
-One more finding here worth flagging on its own: the category-validation pass tried, three times, to move the reconciliation/expense/reporting tasks *back* from `delivery` into `cfo` — directly against its own category definitions — with reasoning like "it's the paid deliverable but it's finance-shaped, so it should be cfo." Applying those corrections recreated a real Hands-scope violation (a `cfo`-tagged task and a `delivery`-tagged task both ended up using the identical `handsTool` string, which is exactly the cross-tenant-credential mistake the scope guard exists to catch). The pipeline now handles this by discarding corrections that would break that hard invariant and falling back to the customize pass's original, already-safe categorization — which is why 0 corrections show as applied above despite 3 being proposed. Both halves worked as designed (the guard caught a real violation; the pipeline recovered instead of crashing), but the haiku validator's persistent bias toward "finance-shaped work = cfo" regardless of who it's for is a real, not-fully-resolved limitation — see Known limitations.
+**Makerspace now scores `physical-space: 7` vs. `ecommerce: 1` / `local: 1` — a decisive, non-tied win`, `tie: false`.** The resulting chart has a rich Ops team (6 sub-agents: booking scheduler, membership tracking, facility maintenance, vendor manager, event coordinator, plus a customize-added class-registration task later corrected to Support) and CFO correctly holds membership/rental billing as the business's own revenue — no `delivery` team needed, confirming the v2 report's finding that this business's paid work genuinely fits the existing back-office categories once there's a template that describes it. The one remaining rough edge from the v2 report — no team cleanly owning "the physical space itself" — is substantially addressed: Ops now has 5 dedicated facility/booking/event sub-agents where before it had 1.
 
-**Mortgage brokerage: Compliance attaches, compliance-adjacent tasks default to locked, licensing/disclosure tasks appear.** ✅ Confirmed on all three counts. Compliance attaches to CFO (no standalone team). 5 of the Delivery team's 6 sub-agents are `locked` (never-autonomous) by default — the one exception (document-checklist-and-chase) is explicitly the kind of routine reminder work that's safe to earn autonomy. And the customize pass added an idea-specific compliance sub-agent naming NMLS renewal, state-license CE credits, and RESPA/TILA disclosure deadlines — real regulatory specifics for this exact business, not generic filler — tagged `locked`.
+One new tie did surface this run, though: **wedding photographer, `content` vs. `ecommerce`, 1-1**, resolved by the new explicit `TIEBREAK_PRIORITY` (content ranks above ecommerce) rather than object-key order. The `tie: true` flag is now visible in `meta.templateSelection`, so this is a documented, surfaced ambiguity rather than a silent accident — this idea genuinely is a photography *service* wrapped around *digital products*, so a tie between those two template families is the honest answer, not a selector bug.
 
-**SaaS: centers on Product/Dev.** ✅ Confirmed, consistent with the v1 report. Product/Dev remains the only team with build/deploy machinery and a `GitHub` Hands tool.
+## Onboarding batch: samples
 
-## Makerspace: what the blend logic actually did
+**Simulated day** (mortgage brokerage, 5 of 5 cards, spread across Support/Sales/Delivery/CFO):
+> Maya · Support Lead: Sent document checklists to 3 new first-time-buyer clients, confirmed 2 complete files, and flagged 1 client missing an employment letter — packaged for your review
+> Cleo · Delivery Lead: Checked status across 4 submitted mortgage applications, sent 2 clients a progress update, and flagged 1 lender response requesting additional documentation that needs your sign-off
 
-This fixture ("paid memberships, equipment rentals, and weekend classes") was chosen as a deliberate template-breaker, and it behaved like one:
+**Charter draft** (makerspace, sharpened idea + MVP definition):
+> "A community makerspace in Victoria, Australia offering paid memberships, equipment rentals, and weekend classes — giving hobbyists, DIYers, and small creators access to shared tools and skills in a safe, well-run space."
+> MVP: "Launch with a single membership tier, a small suite of bookable equipment ..., and a recurring weekend class program of 2–3 classes per month ... The founder handles in-person operations, instructor relationships, and any legal/insurance decisions flagged by agents."
 
-- **Template selection was a near-coin-flip.** `ecommerce` and `local` tied at a score of 1 each (neither template's keyword list contains anything like "makerspace," "membership," or "rental" — the only signal was the `channels: local` answer triggering local's one point of channel bonus). `ecommerce` won only because it's first in iteration order, not because it's a better fit. This is a real gap in the template selector, not a felicitous accident.
-- **No Delivery team emerged — and that's arguably correct, not a miss.** Unlike the finance-adjacent businesses, none of the makerspace's core paid tasks (membership tracking, class scheduling, equipment invoicing) were being wrongly bucketed into cfo/ops in a way that needed rescuing: membership/rental *billing* genuinely is cfo's job, and *scheduling* classes and equipment genuinely is ops's job. The taxonomy held up here even without a dedicated team for "the space business."
-- **Two idea-specific tasks landed somewhere defensible but imperfect:** "Equipment Maintenance Monitor" and "Safety & Liability Flag Agent" were tagged `compliance` (which attaches to CFO), which is reasonable for the liability/waiver angle but means facility/equipment upkeep — arguably an Ops concern — ends up reported under the CFO team's banner purely because compliance has nowhere else to attach.
-- **No team cleanly represents "the physical space itself."** Scheduling is split across Ops (class/equipment calendars) and Founder (a customize-added "Equipment Reservation Monitor" that flags booking conflicts directly to the founder rather than routing through a team). A business built around a shared physical resource doesn't map cleanly onto a taxonomy built for goods/services/software/content.
+Both read as coherent, company-specific narratives rather than generic filler — the charter in particular correctly scopes the MVP down from the full idea and correctly routes legal/insurance judgment calls to the human founder.
 
-**Template-improvement follow-up filed:** GitHub issue "Template improvements from makerspace fixture findings" (MVP-0 milestone) tracks folding these findings back into the templates/selector — specifically, keyword coverage for space/membership businesses and reconsidering whether `local` needs its own generic "facility operations" cluster the way `service` now has `delivery`.
+## Checking the predicted outcomes (carried forward from v1/v2)
 
-## Hybrid stress test: wedding photographer
+**Candles: lacks a Sales team, has heavy fulfillment.** ✅ Still confirmed.
 
-Three distinct revenue lines (photography service, Lightroom presets, editing courses) coexisted without collapsing into each other: CMO carries idea-specific sub-agents for each line separately (trend research for presets, lead-nurture for the free-sample funnel, before/after visual content for photography), Support gained a course-specific sub-agent (Teachable-scoped) distinct from general triage, Sales gained a wedding-booking-specific sub-agent distinct from general outreach, and Delivery holds the one task that's genuinely a paid handoff across all product lines (gallery delivery via Pixieset). No team swallowed another product line's work — the differentiation held up within a single chart, not just across charts.
+**Bookkeeping: Delivery team present and substantial.** ✅ 5 sub-agents in Delivery this run (reconciliation-shaped client work), CFO at 5 — the delivery/cfo split continues to hold up run over run, though the exact size ranking between Delivery/CFO/Sales still varies by run depending on what customize judges necessary (see Known limitations, same caveat as v2).
+
+**Mortgage: compliance attaches, locked defaults, licensing tasks appear — now jurisdiction-correct.** ✅ Confirmed, with the added jurisdiction verification above.
+
+**SaaS: centers on Product/Dev.** ✅ Confirmed. Notably, customize added zero idea-specific tasks this run (the static template was judged sufficient) — category-validation was correctly skipped entirely (no tasks to check), so this run's cost is customize + onboarding-batch only, no haiku call.
+
+**Makerspace: physical-space fit.** ✅ New finding above — decisive template selection, rich facility-ops coverage.
+
+**Wedding photographer: hybrid product lines coexist.** ✅ Still holds — CMO carries photography-trend and product-launch sub-agents separately, CFO carries a digital-sales-tax monitor distinct from the general tax tracker, Support has a dedicated wedding-client-communicator alongside general triage.
 
 ## Known limitations
 
-1. **The category validator has a persistent bias toward re-collapsing finance-shaped delivery work into `cfo`**, even when the categories module explicitly says not to (see the bookkeeping finding above). The Hands-scope guard catches the resulting hard-invariant violations and the pipeline recovers by discarding those specific corrections, so no chart is corrupted — but this means the validator itself is not fully trustworthy on this one distinction and its corrections should be spot-checked, not taken as authoritative, until this is tuned further.
-2. **Template selection has no real signal for space/membership businesses** (see Makerspace section) and resolves ties by object key order rather than any principled tiebreak — worth fixing before the selector is trusted for genuinely ambiguous ideas.
-3. A few other single-task category calls this run are debatable-but-plausible rather than clearly right or wrong (e.g. `api-health-monitor` moved from `product-dev` to `cmo` for the SaaS chart) — normal noise at this batch size, not a pattern.
+1. Delivery/CFO/Sales relative sizing for the bookkeeping-shaped businesses still varies somewhat run to run depending on customize's judgment calls about what's necessary for that specific idea — not a convergence problem, but not perfectly stable either.
+2. The category validator occasionally still proposes corrections that are debatable rather than clearly right (e.g. this run moved a mortgage lender-research task from `delivery` to `support`) — normal noise, spot-check rather than trust blindly, consistent with the v2 report's finding.
 
 ## Verdict: **PASS**
 
-All six charts are structurally distinct in idea-appropriate ways: different team sets, different largest teams, different Hands tools, different idea-specific sub-agents, and (within the wedding photographer chart) different product lines staying visually separate rather than collapsing. The delivery-team concept demonstrably fixed the v1 report's core complaint — bookkeeping's paid deliverable no longer inflates CFO, it has its own team and is that chart's largest. The compliance path performed exactly as specified for a regulated business. The one deliberately-adversarial fixture (makerspace) produced a strained-but-defensible chart with a real, specifically-diagnosed gap rather than either a clean success or a silent failure, which is the useful outcome for a template-breaker. No two charts converged.
+All six charts remain structurally distinct, and every fix from this round is independently verified in this run: jurisdiction switch produces correct BC frameworks and a correct generic fallback for an uncovered jurisdiction, the physical-space template resolves what was previously a coin-flip into a decisive 7-vs-1 win, the tiebreak is now explicit and surfaced rather than an accident, every compliance task carries its mandatory verification flag, and the onboarding batch produces coherent, company-specific simulated-day and Charter content on every run without needing a retry.
 
 ## Cost notes
 
-$0.1964 is the total for this six-fixture run as committed. Getting here took several iterations within this session — two rounds of category-definition tuning (a validator regression where trend-spotting tasks kept getting pulled into `product-dev`) and one pipeline robustness fix (defensive handling of a tool call that omitted a "required" field, and the correction-reversion behavior described above) — each iteration re-ran some or all fixtures. Those intermediate runs are not part of the committed test but did consume additional API budget during development.
+$0.3697 total / $0.0616 average per signup for this six-fixture run, all committed. This is now genuinely the CAC-relevant number (master-plan-v2.md §3's onboarding CAC target range is $0.03–0.10/signup) — the onboarding batch's added cost is accounted for below in a dedicated haiku-vs-sonnet experiment, run separately from this committed test so it doesn't gate the MVP-0 milestone on an unresolved cost question.

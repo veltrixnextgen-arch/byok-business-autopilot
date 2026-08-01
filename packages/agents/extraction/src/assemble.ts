@@ -38,6 +38,22 @@ function mostRestrictiveAutonomy(tasks: OrgChartTask[]): AutonomyDefault {
 }
 
 export class HandsScopeViolationError extends Error {}
+export class ComplianceMetadataError extends Error {}
+
+// Hard invariant: every compliance-category task must carry
+// requiresProfessionalVerification: true. Compliance sub-agents flag for a
+// human professional and never advise autonomously (Part 2) — this field is
+// the machine-checkable version of that rule, and downstream UI relies on
+// it to show the "review with your professional" banner. A missing/false
+// value here is a bug in the template or the customize pass, not a style nit.
+function validateComplianceMetadata(tasks: OrgChartTask[]): void {
+  const violations = tasks.filter((t) => t.teamHint === "compliance" && t.requiresProfessionalVerification !== true);
+  if (violations.length > 0) {
+    throw new ComplianceMetadataError(
+      `Compliance task(s) missing requiresProfessionalVerification: true: ${violations.map((t) => t.id).join(", ")}.`,
+    );
+  }
+}
 
 // Hard invariant, not a lint warning: a Hands tool identifier used for the
 // business's OWN back-office access (cfo team) must never be the same
@@ -124,6 +140,7 @@ export function assembleOrgChart(
   }));
 
   validateHandsScopeSeparation(subAgents);
+  validateComplianceMetadata(tasks);
 
   return {
     meta: {
@@ -137,5 +154,6 @@ export function assembleOrgChart(
     subAgents,
     tasks,
     customization,
+    onboardingBatch: null, // filled in by pipeline.ts once the chart is final
   };
 }

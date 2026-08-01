@@ -1,35 +1,44 @@
 {
   "meta": {
     "idea": "I'm a wedding photographer who also sells Lightroom presets and online editing courses.",
-    "generatedAt": "2026-08-01T07:09:59.171Z",
+    "generatedAt": "2026-08-01T09:47:58.083Z",
     "templateSelection": {
-      "primary": "ecommerce",
-      "blendedWith": "content",
+      "primary": "content",
+      "blendedWith": "ecommerce",
       "scores": {
         "ecommerce": 1,
         "service": 0,
         "saas": 0,
         "content": 1,
-        "local": 0
-      }
+        "local": 0,
+        "physical-space": 0
+      },
+      "tie": true
     },
     "calls": [
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3414,
-        "outputTokens": 1416,
-        "costUsd": 0.031481999999999996
+        "inputTokens": 3578,
+        "outputTokens": 1380,
+        "costUsd": 0.031434000000000004
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2114,
-        "outputTokens": 209,
-        "costUsd": 0.0025272000000000003
+        "inputTokens": 2096,
+        "outputTokens": 195,
+        "costUsd": 0.0024568000000000003
+      },
+      {
+        "step": "onboarding-batch",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 2271,
+        "outputTokens": 1589,
+        "costUsd": 0.030647999999999998
       }
     ],
-    "costUsd": 0.034009199999999996
+    "costUsd": 0.06453880000000001
   },
   "teams": [
     {
@@ -37,18 +46,8 @@
       "roleTitle": "Founder / CEO",
       "isHuman": true,
       "subAgentIds": [
-        "chief-of-staff"
-      ]
-    },
-    {
-      "id": "cfo",
-      "roleTitle": "CFO",
-      "isHuman": false,
-      "subAgentIds": [
-        "invoicing",
-        "expense-categorization",
-        "cashflow-forecast",
-        "tax-deadline-tracker"
+        "chief-of-staff",
+        "revenue-monitor"
       ]
     },
     {
@@ -56,14 +55,25 @@
       "roleTitle": "CMO",
       "isHuman": false,
       "subAgentIds": [
-        "social-manager",
         "content-writer",
-        "email-marketing",
+        "social-manager",
         "seo-agent",
-        "ad-creative",
-        "visual-content-manager",
-        "lead-nurture-email",
-        "trend-research"
+        "email-marketing",
+        "trend-researcher",
+        "launch-copywriter"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "subAgentIds": [
+        "expense-categorization",
+        "cashflow-forecast",
+        "invoicing",
+        "tax-deadline-tracker",
+        "contract-risk-flagger",
+        "tax-compliance-monitor"
       ]
     },
     {
@@ -72,19 +82,10 @@
       "isHuman": false,
       "subAgentIds": [
         "tier1-triage",
-        "escalation",
         "onboarding",
-        "course-student-support"
-      ]
-    },
-    {
-      "id": "sales",
-      "roleTitle": "Sales Lead",
-      "isHuman": false,
-      "subAgentIds": [
-        "outreach-drafter",
-        "crm-hygiene",
-        "booking-inquiry-sales"
+        "escalation",
+        "client-communication",
+        "digital-product-support"
       ]
     },
     {
@@ -92,15 +93,9 @@
       "roleTitle": "Ops Lead",
       "isHuman": false,
       "subAgentIds": [
-        "sales-dashboard-monitor"
-      ]
-    },
-    {
-      "id": "delivery",
-      "roleTitle": "Delivery Lead",
-      "isHuman": false,
-      "subAgentIds": [
-        "photo-delivery"
+        "inventory",
+        "fulfillment",
+        "vendor-manager"
       ]
     }
   ],
@@ -117,17 +112,57 @@
       "handsTools": []
     },
     {
-      "id": "invoicing",
-      "label": "Invoicing",
-      "teamId": "cfo",
+      "id": "content-writer",
+      "label": "Content writer",
+      "teamId": "cmo",
       "taskIds": [
-        "cfo.invoicing.create",
-        "cfo.invoicing.sponsors"
+        "cmo.content.longform",
+        "cmo.content.blog"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "social-manager",
+      "label": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.clips",
+        "cmo.social.posts"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Instagram/TikTok",
+        "Instagram/Meta"
+      ]
+    },
+    {
+      "id": "seo-agent",
+      "label": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.growth",
+        "cmo.seo.listings"
+      ],
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
+      "handsTools": []
+    },
+    {
+      "id": "email-marketing",
+      "label": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.newsletter",
+        "cmo.email.campaigns"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": [
-        "Stripe"
+        "Resend/ConvertKit",
+        "Resend"
       ]
     },
     {
@@ -139,9 +174,7 @@
       ],
       "suggestedTier": "T1",
       "autonomyDefault": "eligible-early",
-      "handsTools": [
-        "Stripe"
-      ]
+      "handsTools": []
     },
     {
       "id": "cashflow-forecast",
@@ -152,71 +185,6 @@
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "tax-deadline-tracker",
-      "label": "Tax-deadline tracker",
-      "teamId": "cfo",
-      "taskIds": [
-        "cfo.tax.tracker"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "social-manager",
-      "label": "Social manager",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.social.posts",
-        "cmo.social.clips"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
-        "Instagram/Meta",
-        "Instagram/TikTok"
-      ]
-    },
-    {
-      "id": "content-writer",
-      "label": "Content writer",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.content.blog",
-        "cmo.content.longform"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "email-marketing",
-      "label": "Email marketing",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.email.campaigns",
-        "cmo.email.newsletter"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
-        "Resend",
-        "Resend/ConvertKit"
-      ]
-    },
-    {
-      "id": "seo-agent",
-      "label": "SEO agent",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.seo.listings",
-        "cmo.seo.growth"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
       "handsTools": []
     },
     {
@@ -233,28 +201,6 @@
       ]
     },
     {
-      "id": "escalation",
-      "label": "Escalation",
-      "teamId": "support",
-      "taskIds": [
-        "support.escalation.detect"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "ad-creative",
-      "label": "Ad-creative",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.ad.sponsorcopy"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
       "id": "onboarding",
       "label": "Onboarding",
       "teamId": "support",
@@ -268,113 +214,156 @@
       ]
     },
     {
-      "id": "outreach-drafter",
-      "label": "Outreach drafter",
-      "teamId": "sales",
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
       "taskIds": [
-        "sales.outreach.brand"
+        "cfo.invoicing.create"
       ],
       "suggestedTier": "T2",
-      "autonomyDefault": "locked",
+      "autonomyDefault": "earnable",
       "handsTools": [
-        "Email"
+        "Stripe"
       ]
     },
     {
-      "id": "crm-hygiene",
-      "label": "CRM hygiene",
-      "teamId": "sales",
+      "id": "tax-deadline-tracker",
+      "label": "Tax-deadline tracker",
+      "teamId": "cfo",
       "taskIds": [
-        "sales.crm.sponsors"
+        "cfo.tax.tracker"
       ],
       "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
-        "CRM"
-      ]
+      "autonomyDefault": "locked",
+      "handsTools": []
     },
     {
-      "id": "sales-dashboard-monitor",
-      "label": "Digital Product Sales Monitor",
+      "id": "inventory",
+      "label": "Inventory",
       "teamId": "ops",
       "taskIds": [
-        "customize.ecommerce.1.sales-dashboard-monitor"
+        "ops.inventory.levels",
+        "ops.inventory.reorder"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
+      "suggestedTier": "T1",
+      "autonomyDefault": "eligible-early",
       "handsTools": [
-        "Gumroad (own books)"
+        "Shopify/Etsy"
       ]
     },
     {
-      "id": "visual-content-manager",
-      "label": "Before/After Visual Content Agent",
-      "teamId": "cmo",
+      "id": "fulfillment",
+      "label": "Fulfillment/logistics",
+      "teamId": "ops",
       "taskIds": [
-        "customize.ecommerce.2.visual-content-manager"
+        "ops.fulfillment.status",
+        "ops.fulfillment.delay"
       ],
       "suggestedTier": "T1",
       "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "lead-nurture-email",
-      "label": "Free-Sample Lead Nurture Agent",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.ecommerce.3.lead-nurture-email"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "course-student-support",
-      "label": "Course Student Support Agent",
-      "teamId": "support",
-      "taskIds": [
-        "customize.ecommerce.4.course-student-support"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
       "handsTools": [
-        "Teachable"
+        "Shipping carrier"
       ]
     },
     {
-      "id": "trend-research",
-      "label": "Preset Trend Research Agent",
-      "teamId": "cmo",
+      "id": "vendor-manager",
+      "label": "Vendor manager",
+      "teamId": "ops",
       "taskIds": [
-        "customize.ecommerce.5.trend-research"
+        "ops.vendor.tracking",
+        "ops.vendor.comms"
       ],
       "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "escalation",
+      "label": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "locked",
+      "handsTools": []
+    },
+    {
+      "id": "client-communication",
+      "label": "Wedding Client Communicator",
+      "teamId": "support",
+      "taskIds": [
+        "customize.content.1.client-communication"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "revenue-monitor",
+      "label": "Digital Product Revenue Monitor",
+      "teamId": "founder",
+      "taskIds": [
+        "customize.content.2.revenue-monitor"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "trend-researcher",
+      "label": "Photography Trend Researcher",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.content.3.trend-researcher"
+      ],
+      "suggestedTier": "T1",
       "autonomyDefault": "eligible-early",
       "handsTools": []
     },
     {
-      "id": "booking-inquiry-sales",
-      "label": "Wedding Booking Sales Agent",
-      "teamId": "sales",
+      "id": "launch-copywriter",
+      "label": "Product Launch Copywriter",
+      "teamId": "cmo",
       "taskIds": [
-        "customize.ecommerce.6.booking-inquiry-sales"
+        "customize.content.4.launch-copywriter"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
-      "id": "photo-delivery",
-      "label": "Client Gallery Delivery Agent",
-      "teamId": "delivery",
+      "id": "digital-product-support",
+      "label": "Digital Product Support Agent",
+      "teamId": "support",
       "taskIds": [
-        "customize.ecommerce.7.photo-delivery"
+        "customize.content.5.digital-product-support"
       ],
       "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": []
+    },
+    {
+      "id": "contract-risk-flagger",
+      "label": "Contract Risk Flagger",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.content.6.contract-risk-flagger"
+      ],
+      "suggestedTier": "T3",
       "autonomyDefault": "locked",
-      "handsTools": [
-        "Pixieset"
-      ]
+      "handsTools": []
+    },
+    {
+      "id": "tax-compliance-monitor",
+      "label": "Digital Sales Tax Monitor",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.content.7.tax-compliance-monitor"
+      ],
+      "suggestedTier": "T3",
+      "autonomyDefault": "locked",
+      "handsTools": []
     }
   ],
   "tasks": [
@@ -392,35 +381,76 @@
       "origin": "template"
     },
     {
-      "id": "cfo.invoicing.create",
-      "text": "Create invoices/receipts for orders",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
-      "teamHint": "cfo",
-      "frequency": "adhoc",
-      "stakes": "low",
+      "id": "cmo.content.longform",
+      "text": "Draft long-form content in the creator's voice (scripts, newsletter issues, articles)",
+      "subAgentType": "content-writer",
+      "subAgentLabel": "Content writer",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": "Stripe",
+      "handsTool": null,
       "origin": "template"
     },
     {
-      "id": "cfo.expenses.categorize",
-      "text": "Tag every transaction and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
-      "teamHint": "cfo",
+      "id": "cmo.social.clips",
+      "text": "Draft platform-sized clips/posts promoting each piece of content",
+      "subAgentType": "social-manager",
+      "subAgentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Instagram/TikTok",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.growth",
+      "text": "Keyword and content-gap research to grow organic reach",
+      "subAgentType": "seo-agent",
+      "subAgentLabel": "SEO agent",
+      "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "eligible-early",
+      "autonomyNote": "recommendations",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.newsletter",
+      "text": "Draft newsletter sends and list-hygiene flags",
+      "subAgentType": "email-marketing",
+      "subAgentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend/ConvertKit",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag expenses (equipment, software, contractors) and flag anomalies",
+      "subAgentType": "expense-categorization",
+      "subAgentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
       "autonomyNote": "after 10 approvals",
-      "handsTool": "Stripe",
+      "handsTool": null,
       "origin": "template"
     },
     {
       "id": "cfo.cashflow.forecast",
-      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "text": "Project revenue across ad/sponsor/subscription income",
       "subAgentType": "cashflow-forecast",
       "subAgentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
@@ -430,6 +460,46 @@
       "autonomy": "earnable",
       "autonomyNote": "reports only",
       "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound audience messages/comments, tag urgency, draft replies to known questions",
+      "subAgentType": "tier1-triage",
+      "subAgentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.community.onboarding",
+      "text": "Draft community onboarding and check-in messages",
+      "subAgentType": "onboarding",
+      "subAgentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Discord",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices/receipts for orders",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
       "origin": "template"
     },
     {
@@ -451,7 +521,7 @@
       "subAgentType": "social-manager",
       "subAgentLabel": "Social manager",
       "teamHint": "cmo",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -501,17 +571,85 @@
       "origin": "template"
     },
     {
-      "id": "support.triage.inbound",
-      "text": "Read inbound customer messages, tag urgency/topic, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
-      "teamHint": "support",
+      "id": "ops.inventory.levels",
+      "text": "Track stock levels per product/SKU",
+      "subAgentType": "inventory",
+      "subAgentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "Shopify/Etsy",
+      "origin": "template"
+    },
+    {
+      "id": "ops.inventory.reorder",
+      "text": "Flag reorder points for raw materials and packaging",
+      "subAgentType": "inventory",
+      "subAgentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "Shopify/Etsy",
+      "origin": "template"
+    },
+    {
+      "id": "ops.fulfillment.status",
+      "text": "Post order status and shipping updates to customers",
+      "subAgentType": "fulfillment",
+      "subAgentLabel": "Fulfillment/logistics",
+      "teamHint": "ops",
       "frequency": "daily",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
-      "autonomyNote": "known-answer replies",
-      "handsTool": "Shared inbox",
+      "autonomyNote": "status updates",
+      "handsTool": "Shipping carrier",
+      "origin": "template"
+    },
+    {
+      "id": "ops.fulfillment.delay",
+      "text": "Draft delay/backorder communications",
+      "subAgentType": "fulfillment",
+      "subAgentLabel": "Fulfillment/logistics",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Shipping carrier",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.tracking",
+      "text": "Track supplier orders for raw materials",
+      "subAgentType": "vendor-manager",
+      "subAgentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.comms",
+      "text": "Draft reorder communications to vendors",
+      "subAgentType": "vendor-manager",
+      "subAgentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "ordering never autonomous",
+      "handsTool": null,
       "origin": "template"
     },
     {
@@ -529,161 +667,51 @@
       "origin": "template"
     },
     {
-      "id": "cmo.content.longform",
-      "text": "Draft long-form content in the creator's voice (scripts, newsletter issues, articles)",
-      "subAgentType": "content-writer",
-      "subAgentLabel": "Content writer",
-      "teamHint": "cmo",
-      "frequency": "daily",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "template"
-    },
-    {
-      "id": "cmo.social.clips",
-      "text": "Draft platform-sized clips/posts promoting each piece of content",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Social manager",
-      "teamHint": "cmo",
-      "frequency": "daily",
-      "stakes": "low",
-      "tier": "T1",
-      "autonomy": "earnable",
-      "handsTool": "Instagram/TikTok",
-      "origin": "template"
-    },
-    {
-      "id": "cmo.seo.growth",
-      "text": "Keyword and content-gap research to grow organic reach",
-      "subAgentType": "seo-agent",
-      "subAgentLabel": "SEO agent",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "low",
-      "tier": "T1",
-      "autonomy": "eligible-early",
-      "autonomyNote": "recommendations",
-      "handsTool": null,
-      "origin": "template"
-    },
-    {
-      "id": "cmo.email.newsletter",
-      "text": "Draft newsletter sends and list-hygiene flags",
-      "subAgentType": "email-marketing",
-      "subAgentLabel": "Email marketing",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "autonomyNote": "drafts only — sending stays locked",
-      "handsTool": "Resend/ConvertKit",
-      "origin": "template"
-    },
-    {
-      "id": "cmo.ad.sponsorcopy",
-      "text": "Draft sponsorship/ad-read copy variants",
-      "subAgentType": "ad-creative",
-      "subAgentLabel": "Ad-creative",
-      "teamHint": "cmo",
-      "frequency": "monthly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "locked",
-      "autonomyNote": "spend",
-      "handsTool": null,
-      "origin": "template"
-    },
-    {
-      "id": "cfo.invoicing.sponsors",
-      "text": "Create invoices for sponsorships/brand deals",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
-      "teamHint": "cfo",
-      "frequency": "monthly",
-      "stakes": "low",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": "Stripe",
-      "origin": "template"
-    },
-    {
-      "id": "support.community.onboarding",
-      "text": "Draft community onboarding and check-in messages",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "id": "customize.content.1.client-communication",
+      "text": "Draft follow-up emails and delivery confirmations for wedding photography clients (shot lists, gallery delivery timelines, contract reminders)",
+      "subAgentType": "client-communication",
+      "subAgentLabel": "Wedding Client Communicator",
       "teamHint": "support",
       "frequency": "weekly",
-      "stakes": "low",
+      "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": "Discord",
-      "origin": "template"
+      "handsTool": null,
+      "origin": "customize-added"
     },
     {
-      "id": "sales.outreach.brand",
-      "text": "Draft personalized brand-partnership outreach and follow-ups",
-      "subAgentType": "outreach-drafter",
-      "subAgentLabel": "Outreach drafter",
-      "teamHint": "sales",
+      "id": "customize.content.2.revenue-monitor",
+      "text": "Monitor Lightroom preset and online course sales dashboards; flag unusual drops or spikes in revenue for the founder",
+      "subAgentType": "revenue-monitor",
+      "subAgentLabel": "Digital Product Revenue Monitor",
+      "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
-      "autonomy": "locked",
-      "autonomyNote": "sending, always",
-      "handsTool": "Email",
-      "origin": "template"
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
     },
     {
-      "id": "sales.crm.sponsors",
-      "text": "Log sponsor interactions and flag stale deals",
-      "subAgentType": "crm-hygiene",
-      "subAgentLabel": "CRM hygiene",
-      "teamHint": "sales",
-      "frequency": "weekly",
+      "id": "customize.content.3.trend-researcher",
+      "text": "Research trending editing styles and Lightroom preset aesthetics to inform next product or course module ideas",
+      "subAgentType": "trend-researcher",
+      "subAgentLabel": "Photography Trend Researcher",
+      "teamHint": "cmo",
+      "frequency": "monthly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "eligible-early",
-      "autonomyNote": "after 10",
-      "handsTool": "CRM",
-      "origin": "template"
-    },
-    {
-      "id": "customize.ecommerce.1.sales-dashboard-monitor",
-      "text": "Monitor preset and course sales dashboards (Shopify, Gumroad, or similar) and flag revenue spikes or drops",
-      "subAgentType": "sales-dashboard-monitor",
-      "subAgentLabel": "Digital Product Sales Monitor",
-      "teamHint": "ops",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": "Gumroad (own books)",
-      "handsScope": "own-backoffice",
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.ecommerce.2.visual-content-manager",
-      "text": "Draft Pinterest and Instagram posts showcasing before/after edits using the presets, timed around wedding season peaks",
-      "subAgentType": "visual-content-manager",
-      "subAgentLabel": "Before/After Visual Content Agent",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "low",
-      "tier": "T1",
-      "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.3.lead-nurture-email",
-      "text": "Draft nurture email sequence for leads who downloaded a free preset sample but haven't purchased a full pack or course",
-      "subAgentType": "lead-nurture-email",
-      "subAgentLabel": "Free-Sample Lead Nurture Agent",
+      "id": "customize.content.4.launch-copywriter",
+      "text": "Draft promotional content (emails, social posts, landing page copy) for new preset packs or course launches",
+      "subAgentType": "launch-copywriter",
+      "subAgentLabel": "Product Launch Copywriter",
       "teamHint": "cmo",
-      "frequency": "weekly",
+      "frequency": "adhoc",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -691,104 +719,183 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.4.course-student-support",
-      "text": "Check course platform (e.g. Teachable/Kajabi) for new student questions or stuck progress and draft instructor replies",
-      "subAgentType": "course-student-support",
-      "subAgentLabel": "Course Student Support Agent",
+      "id": "customize.content.5.digital-product-support",
+      "text": "Handle inbound support tickets about preset downloads, course access issues, or license questions — draft resolution replies for human review",
+      "subAgentType": "digital-product-support",
+      "subAgentLabel": "Digital Product Support Agent",
       "teamHint": "support",
       "frequency": "daily",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": "Teachable",
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.ecommerce.5.trend-research",
-      "text": "Research trending Lightroom preset styles and editing aesthetics (e.g. film, moody, airy) to brief the next preset pack launch",
-      "subAgentType": "trend-research",
-      "subAgentLabel": "Preset Trend Research Agent",
-      "teamHint": "cmo",
-      "frequency": "monthly",
-      "stakes": "low",
-      "tier": "T2",
-      "autonomy": "eligible-early",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.6.booking-inquiry-sales",
-      "text": "Draft inquiry response and booking follow-up emails for prospective wedding photography clients",
-      "subAgentType": "booking-inquiry-sales",
-      "subAgentLabel": "Wedding Booking Sales Agent",
-      "teamHint": "sales",
-      "frequency": "daily",
-      "stakes": "high",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.ecommerce.7.photo-delivery",
-      "text": "Prepare and deliver edited wedding photo gallery to client (export, watermark check, upload to client gallery platform)",
-      "subAgentType": "photo-delivery",
-      "subAgentLabel": "Client Gallery Delivery Agent",
-      "teamHint": "delivery",
+      "id": "customize.content.6.contract-risk-flagger",
+      "text": "Review business contracts (photography client agreements, preset license terms, course terms of service) and flag potentially risky clauses for a legal professional",
+      "subAgentType": "contract-risk-flagger",
+      "subAgentLabel": "Contract Risk Flagger",
+      "teamHint": "compliance",
       "frequency": "adhoc",
       "stakes": "high",
-      "tier": "T2",
+      "tier": "T3",
       "autonomy": "locked",
-      "handsTool": "Pixieset",
-      "handsScope": "client-facing",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.content.7.tax-compliance-monitor",
+      "text": "Flag upcoming CA sales-tax nexus obligations on digital product (preset and course) sales and remind founder to verify with a tax professional",
+      "subAgentType": "tax-compliance-monitor",
+      "subAgentLabel": "Digital Sales Tax Monitor",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T3",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
       "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
-      "customize.ecommerce.1.sales-dashboard-monitor",
-      "customize.ecommerce.2.visual-content-manager",
-      "customize.ecommerce.3.lead-nurture-email",
-      "customize.ecommerce.4.course-student-support",
-      "customize.ecommerce.5.trend-research",
-      "customize.ecommerce.6.booking-inquiry-sales",
-      "customize.ecommerce.7.photo-delivery"
+      "customize.content.1.client-communication",
+      "customize.content.2.revenue-monitor",
+      "customize.content.3.trend-researcher",
+      "customize.content.4.launch-copywriter",
+      "customize.content.5.digital-product-support",
+      "customize.content.6.contract-risk-flagger",
+      "customize.content.7.tax-compliance-monitor"
     ],
     "removed": [
-      "ops.inventory.levels",
-      "ops.inventory.reorder",
-      "ops.fulfillment.status",
-      "ops.fulfillment.delay",
-      "ops.vendor.tracking",
-      "ops.vendor.comms",
-      "cfo.invoicing.remind"
+      "cmo.ad.sponsorcopy",
+      "cfo.invoicing.sponsors",
+      "cfo.invoicing.remind",
+      "sales.outreach.brand",
+      "sales.crm.sponsors"
     ],
     "frequencyAdjustments": [
       {
-        "taskId": "cfo.invoicing.create",
-        "from": "daily",
-        "to": "adhoc"
-      },
-      {
-        "taskId": "cmo.social.posts",
+        "taskId": "cmo.content.longform",
         "from": "daily",
         "to": "weekly"
+      },
+      {
+        "taskId": "cmo.social.clips",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "support.community.onboarding",
+        "from": "weekly",
+        "to": "monthly"
       }
     ],
     "categoryCorrections": [
       {
-        "taskId": "customize.ecommerce.1.sales-dashboard-monitor",
-        "from": "cfo",
-        "to": "ops",
-        "reason": "Monitoring dashboards and flagging data patterns is internal business logistics, not finance operations — CFO owns the company's own finances (invoices, expenses, taxes), not revenue tracking dashboards."
+        "taskId": "customize.content.1.client-communication",
+        "from": "delivery",
+        "to": "support",
+        "reason": "Client-facing communication about order status, timelines, and reminders is support, not delivery — the paid work is the photography shoot itself, not the follow-up emails."
       },
       {
-        "taskId": "customize.ecommerce.3.lead-nurture-email",
-        "from": "sales",
-        "to": "cmo",
-        "reason": "Drafting nurture email sequences is audience-growth and marketing work promoting the business's products, not sales development (which focuses on finding and qualifying new prospects, not nurturing existing leads)."
+        "taskId": "customize.content.2.revenue-monitor",
+        "from": "cfo",
+        "to": "founder",
+        "reason": "Monitoring dashboards and flagging revenue anomalies for the founder to synthesize into business decisions is meta-level founder work (synthesizing data for weekly planning), not cfo financial operations."
       }
     ],
-    "notes": "Stripped all physical-inventory and vendor tasks (presets/courses are digital); removed payment reminders (digital purchases are instant-pay); slowed daily social cadence to weekly (a solo photographer can't sustain daily posts); added before/after visual content, preset trend research, course student support, free-sample lead nurture, wedding booking sales follow-up, and client gallery delivery as the idea's genuine differentiators."
+    "notes": "Removed sponsor/brand-deal tasks (no ad/sponsorship revenue model here); scaled back daily content cadence to weekly (solo creator juggling shoots and admin); added wedding client delivery lifecycle, digital product revenue monitoring, preset/course trend research, launch copy, digital product support queue, contract risk flagging, and CA digital sales-tax compliance monitoring."
+  },
+  "onboardingBatch": {
+    "simulatedDay": [
+      {
+        "agentName": "Clara",
+        "subAgentId": "launch-copywriter",
+        "roleTitle": "CMO",
+        "summary": "drafted a 3-email launch sequence for your new 'Golden Hour' preset pack, including a teaser, launch-day, and last-chance email — ready for your review"
+      },
+      {
+        "agentName": "Alex",
+        "subAgentId": "invoicing",
+        "roleTitle": "CFO",
+        "summary": "generated 4 invoices for this week's wedding photography bookings and flagged one client whose deposit is 5 days overdue"
+      },
+      {
+        "agentName": "Maya",
+        "subAgentId": "client-communication",
+        "roleTitle": "Support Lead",
+        "summary": "drafted gallery delivery confirmation emails for 2 recent wedding clients, including their estimated delivery timeline and a link to the shot-list checklist"
+      },
+      {
+        "agentName": "Jordan",
+        "subAgentId": "trend-researcher",
+        "roleTitle": "CMO",
+        "summary": "identified 3 trending editing aesthetics on Instagram and Pinterest this week (muted film tones, warm moody shadows, and airy pastel highlights) and compiled a brief for your next preset pack or course module"
+      },
+      {
+        "agentName": "Sam",
+        "subAgentId": "tax-compliance-monitor",
+        "roleTitle": "CFO",
+        "summary": "detected that digital product sales may be approaching a new state sales-tax nexus threshold and drafted a reminder for you to verify your obligations with a tax professional before next quarter"
+      }
+    ],
+    "charterDraft": {
+      "sharpenedIdea": "A wedding photography business that also generates recurring digital revenue by selling Lightroom presets and online editing courses — one creator, three income streams.",
+      "mvpDefinition": "Version 1 is fully launchable today: book and deliver wedding photography clients with professional communication workflows, sell an existing set of Lightroom presets through a marketplace or simple storefront, and offer at least one online editing course. The AI team handles day-to-day content drafting, client follow-ups, financial tracking, and support ticket replies — so the founder spends time behind the camera and in Lightroom, not in inboxes and spreadsheets.",
+      "roleTasks": [
+        {
+          "roleTitle": "CMO",
+          "tasks": [
+            "Content Writer: Draft long-form content in the founder's voice — YouTube scripts, newsletter issues, and blog posts that teach editing and attract couples searching for photographers.",
+            "Social Manager: Resize and adapt each piece of content into platform-native posts for Instagram, Pinterest, and TikTok, and draft shop-promoting social content for preset and course sales.",
+            "SEO Agent: Research keywords and content gaps to grow organic search traffic, and optimize marketplace listing titles for preset and course discoverability.",
+            "Email Marketing: Draft newsletter sends, promotional campaign copy, and list-hygiene recommendations to keep the subscriber list healthy and engaged.",
+            "Photography Trend Researcher: Monitor trending editing styles and Lightroom aesthetics across social platforms and surface ideas for the next preset pack or course module.",
+            "Product Launch Copywriter: Write all promotional copy for new preset or course launches — emails, social posts, and landing page copy — whenever a new digital product goes live."
+          ]
+        },
+        {
+          "roleTitle": "CFO",
+          "tasks": [
+            "Expense Categorization: Tag all business expenses (equipment, software subscriptions, contractor payments) and flag anything that looks unusual.",
+            "Cash-Flow Forecast: Project revenue across photography bookings, preset sales, and course income to give the founder a running financial picture.",
+            "Invoicing: Generate invoices and receipts for wedding photography clients and flag any overdue deposits.",
+            "Tax-Deadline Tracker: Monitor upcoming federal and state tax deadlines and prepare a document checklist so the founder is never caught off guard.",
+            "Contract Risk Flagger: Review photography client agreements, preset license terms, and course terms of service — flag risky clauses for a legal professional to confirm.",
+            "Digital Sales Tax Monitor: Track digital product sales by state, flag when nexus thresholds may be approaching, and remind the founder to verify obligations with a tax professional."
+          ]
+        },
+        {
+          "roleTitle": "Support Lead",
+          "tasks": [
+            "Tier-1 Triage: Read all inbound messages and comments, tag by urgency, and draft replies to common or known questions for founder approval.",
+            "Onboarding: Draft welcome messages and check-in sequences for new course students or community members.",
+            "Escalation: Detect frustrated or complex customer situations, compile the full context, and package it clearly for the founder to handle personally.",
+            "Wedding Client Communicator: Draft all client-facing follow-up emails — shot lists, gallery delivery timelines, contract reminders — so every couple feels professionally cared for.",
+            "Digital Product Support Agent: Handle inbound tickets about preset downloads, course access issues, or license questions and draft resolution replies for the founder to send."
+          ]
+        },
+        {
+          "roleTitle": "Ops Lead",
+          "tasks": [
+            "Inventory: Track stock levels for any physical products or SKUs (e.g., physical preset USB packs, print products) and flag reorder points.",
+            "Fulfillment / Logistics: Post order status and shipping updates to customers and draft delay or backorder communications if needed.",
+            "Vendor Manager: Track supplier orders for any physical materials and draft reorder communications to vendors."
+          ]
+        }
+      ],
+      "monthOneGoals": [
+        "Deliver a polished, on-brand client communication workflow for all active wedding photography bookings — every couple receives timely shot-list, contract, and gallery-delivery messages.",
+        "Publish at least 2 pieces of long-form content (a YouTube script or blog post) and the accompanying social posts to begin building organic reach for presets and courses.",
+        "Launch or re-promote one existing Lightroom preset pack with a full email sequence and social campaign drafted by the AI team.",
+        "Get a clean financial baseline: all current expenses categorized, a simple cash-flow forecast in place, and all outstanding invoices generated and tracked.",
+        "Resolve 100% of inbound preset and course support tickets within 24 hours using AI-drafted replies reviewed by the founder."
+      ],
+      "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+    }
   }
 }

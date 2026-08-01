@@ -3,6 +3,7 @@ import type { BusinessTemplate, TeamHint } from "@byok/templates";
 import type { CustomizeResult, InterviewAnswers } from "./types.js";
 import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
 import { formatCategoryLegend } from "./categoryDefinitions.js";
+import { formatJurisdictionPolicy } from "./jurisdictionPolicy.js";
 
 export const CLAUDE_MODEL = "claude-sonnet-4-6";
 const MAX_OUTPUT_TOKENS = 1500;
@@ -53,6 +54,11 @@ const CUSTOMIZE_TOOL = {
                 "(e.g. \"QuickBooks (client-scoped, per-client OAuth)\" vs \"QuickBooks (own books)\"). " +
                 "Omit when handsTool is unambiguous (e.g. GitHub, Calendar) or null.",
             },
+            requiresProfessionalVerification: {
+              type: "boolean",
+              description:
+                "MANDATORY, must be true, whenever teamHint is \"compliance\". Omit/false for every other teamHint.",
+            },
             rationale: { type: "string", description: "One line: why this idea specifically needs this task." },
           },
           required: [
@@ -99,6 +105,8 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
     `- Biggest dread: ${answers.dread}`,
     `- Budget: ${answers.budget}`,
     ``,
+    formatJurisdictionPolicy(answers.jurisdiction),
+    ``,
     `Selected template: "${template.name}" (${template.id}) — ${template.description}`,
     ``,
     `Category definitions (use these to pick teamHint for any task you add — read carefully, these ` +
@@ -126,6 +134,9 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
       `violated. If unsure whether a handsTool needs scoping, make the scope explicit in the string itself ` +
       `(e.g. "QuickBooks (own books)" vs "QuickBooks (client, per-client OAuth)") rather than reusing a bare ` +
       `name like "QuickBooks" for both.`,
+    `9. HARD RULE on jurisdiction: follow the jurisdiction policy above exactly. Every compliance-category ` +
+      `task you add must set requiresProfessionalVerification: true — no exceptions, this is validated and ` +
+      `the run fails if a compliance task is missing it.`,
   ].join("\n");
 }
 

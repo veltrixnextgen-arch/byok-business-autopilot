@@ -6,6 +6,7 @@
     "channels": "referrals",
     "status": "nothing-yet",
     "dread": "admin",
-    "budget": "50+"
+    "budget": "50+",
+    "jurisdiction": { "country": "CA", "stateOrProvince": "BC" }
   }
 }

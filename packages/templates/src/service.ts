@@ -248,6 +248,7 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "flags for human + user's own lawyer/accountant, never advises autonomously",
     handsTool: null,
+    requiresProfessionalVerification: true,
   },
 
   // Minimal marketing

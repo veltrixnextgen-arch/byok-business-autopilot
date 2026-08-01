@@ -38,5 +38,20 @@ export function printTree(chart: OrgChart): string {
 
   lines.push(`${chart.teams.length} teams, ${chart.subAgents.length} sub-agents, ${chart.tasks.length} tasks total.`);
 
+  lines.push("");
+  if (chart.onboardingBatch) {
+    lines.push(`Simulated day (${chart.onboardingBatch.simulatedDay.length} cards):`);
+    for (const card of chart.onboardingBatch.simulatedDay) {
+      lines.push(`  - ${card.agentName} · ${card.roleTitle}: ${card.summary}`);
+    }
+    lines.push("");
+    lines.push(`Charter draft: "${chart.onboardingBatch.charterDraft.sharpenedIdea}"`);
+    lines.push(`  MVP: ${chart.onboardingBatch.charterDraft.mvpDefinition}`);
+    lines.push(`  Month-one goals: ${chart.onboardingBatch.charterDraft.monthOneGoals.join(" · ")}`);
+    lines.push(`  Budget: ${chart.onboardingBatch.charterDraft.budgetCeilingPlaceholder}`);
+  } else {
+    lines.push("Onboarding batch: skipped (see stderr log for why).");
+  }
+
   return lines.join("\n");
 }

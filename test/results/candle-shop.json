@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I want to sell handmade candles online through Etsy",
-    "generatedAt": "2026-08-01T07:07:44.985Z",
+    "generatedAt": "2026-08-01T09:33:57.596Z",
     "templateSelection": {
       "primary": "ecommerce",
       "blendedWith": null,
@@ -10,26 +10,35 @@
         "service": 0,
         "saas": 0.5,
         "content": 0,
-        "local": 0
-      }
+        "local": 0,
+        "physical-space": 0
+      },
+      "tie": false
     },
     "calls": [
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3411,
-        "outputTokens": 1057,
-        "costUsd": 0.026088
+        "inputTokens": 3661,
+        "outputTokens": 1039,
+        "costUsd": 0.026568
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2013,
-        "outputTokens": 197,
-        "costUsd": 0.0023984
+        "inputTokens": 2010,
+        "outputTokens": 33,
+        "costUsd": 0.00174
+      },
+      {
+        "step": "onboarding-batch",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 2082,
+        "outputTokens": 1410,
+        "costUsd": 0.027395999999999997
       }
     ],
-    "costUsd": 0.028486400000000002
+    "costUsd": 0.055704
   },
   "teams": [
     {
@@ -48,9 +57,7 @@
         "invoicing",
         "expense-categorization",
         "cashflow-forecast",
-        "tax-deadline-tracker",
-        "cogs-tracker",
-        "product-compliance-monitor"
+        "tax-deadline-tracker"
       ]
     },
     {
@@ -62,7 +69,9 @@
         "content-writer",
         "email-marketing",
         "seo-agent",
-        "trend-researcher"
+        "trend-researcher",
+        "marketplace-analytics",
+        "listing-copywriter"
       ]
     },
     {
@@ -73,7 +82,7 @@
         "inventory",
         "fulfillment",
         "vendor-manager",
-        "marketplace-analytics"
+        "production-tracker"
       ]
     },
     {
@@ -83,14 +92,6 @@
       "subAgentIds": [
         "tier1-triage",
         "escalation"
-      ]
-    },
-    {
-      "id": "delivery",
-      "roleTitle": "Delivery Lead",
-      "isHuman": false,
-      "subAgentIds": [
-        "listing-copywriter"
       ]
     }
   ],
@@ -148,9 +149,10 @@
       "label": "Tax-deadline tracker",
       "teamId": "cfo",
       "taskIds": [
-        "cfo.tax.tracker"
+        "cfo.tax.tracker",
+        "customize.ecommerce.5.tax-deadline-tracker"
       ],
-      "suggestedTier": "T1",
+      "suggestedTier": "T2",
       "autonomyDefault": "locked",
       "handsTools": []
     },
@@ -272,19 +274,19 @@
       "taskIds": [
         "customize.ecommerce.1.trend-researcher"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "eligible-early",
+      "suggestedTier": "T1",
+      "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
       "id": "marketplace-analytics",
       "label": "Etsy Analytics Monitor",
-      "teamId": "ops",
+      "teamId": "cmo",
       "taskIds": [
         "customize.ecommerce.2.marketplace-analytics"
       ],
       "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
+      "autonomyDefault": "earnable",
       "handsTools": [
         "Etsy API"
       ]
@@ -292,36 +294,25 @@
     {
       "id": "listing-copywriter",
       "label": "Etsy Listing Copywriter",
-      "teamId": "delivery",
+      "teamId": "cmo",
       "taskIds": [
         "customize.ecommerce.3.listing-copywriter"
       ],
       "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
+      "autonomyDefault": "earnable",
       "handsTools": [
         "Etsy API"
       ]
     },
     {
-      "id": "cogs-tracker",
-      "label": "COGS & Materials Tracker",
-      "teamId": "cfo",
+      "id": "production-tracker",
+      "label": "Production Batch Tracker",
+      "teamId": "ops",
       "taskIds": [
-        "customize.ecommerce.4.cogs-tracker"
+        "customize.ecommerce.4.production-tracker"
       ],
       "suggestedTier": "T2",
       "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "product-compliance-monitor",
-      "label": "Candle Safety & Labelling Compliance Monitor",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.ecommerce.5.product-compliance-monitor"
-      ],
-      "suggestedTier": "T3",
-      "autonomyDefault": "locked",
       "handsTools": []
     }
   ],
@@ -440,7 +431,7 @@
       "subAgentType": "seo-agent",
       "subAgentLabel": "SEO agent",
       "teamHint": "cmo",
-      "frequency": "weekly",
+      "frequency": "monthly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "eligible-early",
@@ -482,7 +473,7 @@
       "subAgentType": "fulfillment",
       "subAgentLabel": "Fulfillment/logistics",
       "teamHint": "ops",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -553,44 +544,44 @@
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "low",
-      "tier": "T2",
-      "autonomy": "eligible-early",
+      "tier": "T1",
+      "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
       "id": "customize.ecommerce.2.marketplace-analytics",
-      "text": "Monitor Etsy shop stats (views, favorites, conversion rate) and surface weekly performance insights",
+      "text": "Monitor Etsy shop stats (views, favorites, conversion rate) and surface actionable insights",
       "subAgentType": "marketplace-analytics",
       "subAgentLabel": "Etsy Analytics Monitor",
-      "teamHint": "ops",
+      "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "medium",
       "tier": "T1",
-      "autonomy": "eligible-early",
+      "autonomy": "earnable",
       "handsTool": "Etsy API",
       "origin": "customize-added"
     },
     {
       "id": "customize.ecommerce.3.listing-copywriter",
-      "text": "Draft and schedule Etsy listing copy — titles, descriptions, tags, and pricing — for new candle products",
+      "text": "Draft and optimize Etsy product listing copy (titles, tags, descriptions) for new and existing candles",
       "subAgentType": "listing-copywriter",
       "subAgentLabel": "Etsy Listing Copywriter",
-      "teamHint": "delivery",
+      "teamHint": "cmo",
       "frequency": "adhoc",
       "stakes": "medium",
       "tier": "T1",
-      "autonomy": "eligible-early",
+      "autonomy": "earnable",
       "handsTool": "Etsy API",
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.4.cogs-tracker",
-      "text": "Track raw material supply costs (wax, wicks, fragrance oils, jars) and flag significant price changes",
-      "subAgentType": "cogs-tracker",
-      "subAgentLabel": "COGS & Materials Tracker",
-      "teamHint": "cfo",
-      "frequency": "monthly",
+      "id": "customize.ecommerce.4.production-tracker",
+      "text": "Track batch production runs — wax, fragrance, and wick quantities used — and update finished-goods inventory after each pour session",
+      "subAgentType": "production-tracker",
+      "subAgentLabel": "Production Batch Tracker",
+      "teamHint": "ops",
+      "frequency": "adhoc",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -598,16 +589,17 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.5.product-compliance-monitor",
-      "text": "Flag compliance considerations for candle safety labelling (e.g. fragrance warnings, burn instructions) and packaging regulations for a human to review",
-      "subAgentType": "product-compliance-monitor",
-      "subAgentLabel": "Candle Safety & Labelling Compliance Monitor",
+      "id": "customize.ecommerce.5.tax-deadline-tracker",
+      "text": "Flag Texas sales-tax collection and remittance obligations for Etsy sales, and track quarterly due dates — requires professional verification",
+      "subAgentType": "tax-deadline-tracker",
+      "subAgentLabel": "TX Sales Tax Compliance Tracker",
       "teamHint": "compliance",
-      "frequency": "adhoc",
+      "frequency": "monthly",
       "stakes": "high",
-      "tier": "T3",
+      "tier": "T2",
       "autonomy": "locked",
       "handsTool": null,
+      "requiresProfessionalVerification": true,
       "origin": "customize-added"
     }
   ],
@@ -616,8 +608,8 @@
       "customize.ecommerce.1.trend-researcher",
       "customize.ecommerce.2.marketplace-analytics",
       "customize.ecommerce.3.listing-copywriter",
-      "customize.ecommerce.4.cogs-tracker",
-      "customize.ecommerce.5.product-compliance-monitor"
+      "customize.ecommerce.4.production-tracker",
+      "customize.ecommerce.5.tax-deadline-tracker"
     ],
     "removed": [
       "cfo.invoicing.remind",
@@ -628,32 +620,102 @@
         "taskId": "cfo.invoicing.create",
         "from": "daily",
         "to": "weekly"
-      },
-      {
-        "taskId": "cmo.seo.listings",
-        "from": "monthly",
-        "to": "weekly"
-      },
-      {
-        "taskId": "ops.fulfillment.status",
-        "from": "daily",
-        "to": "weekly"
       }
     ],
-    "categoryCorrections": [
+    "categoryCorrections": [],
+    "notes": "Removed B2B-flavoured tasks (payment reminders, delay comms) that don't fit a consumer Etsy shop; added Etsy-specific analytics, listing copy, batch production tracking, and a TX sales-tax compliance flag; scaled invoicing to weekly since Etsy batches payouts."
+  },
+  "onboardingBatch": {
+    "simulatedDay": [
       {
-        "taskId": "customize.ecommerce.2.marketplace-analytics",
-        "from": "cmo",
-        "to": "ops",
-        "reason": "Monitoring shop stats and surfacing performance insights is internal operational reporting/analytics about the business's own platform performance, not marketing/audience-growth work."
+        "agentName": "Maya",
+        "subAgentId": "listing-copywriter",
+        "roleTitle": "CMO",
+        "summary": "drafted optimized Etsy listing copy for 3 candles — including keyword-rich titles, 13 tags each, and scent-forward descriptions — ready for your review before publishing"
       },
       {
-        "taskId": "customize.ecommerce.3.listing-copywriter",
-        "from": "cmo",
-        "to": "delivery",
-        "reason": "Writing Etsy listing copy is the paid deliverable being sold (custom product listings), not marketing work for the business itself; this would otherwise mistag as cmo despite being customer-facing paid work."
+        "agentName": "Felix",
+        "subAgentId": "invoicing",
+        "roleTitle": "CFO",
+        "summary": "generated receipts for 5 new Etsy orders placed overnight and filed them in the records folder for your approval"
+      },
+      {
+        "agentName": "Cleo",
+        "subAgentId": "social-manager",
+        "roleTitle": "CMO",
+        "summary": "drafted this week's Instagram Reel caption, a Pinterest product pin for the bestselling soy candle, and a TikTok hook script — all queued for your review"
+      },
+      {
+        "agentName": "Rowan",
+        "subAgentId": "production-tracker",
+        "roleTitle": "Ops Lead",
+        "summary": "logged yesterday's pour session — 12 units of Lavender + Vanilla (8 oz), recording wax, fragrance oil, and wick quantities used — and updated finished-goods inventory accordingly"
+      },
+      {
+        "agentName": "Iris",
+        "subAgentId": "tier1-triage",
+        "roleTitle": "Support Lead",
+        "summary": "reviewed 4 inbound Etsy messages: tagged 2 as order-status questions and drafted ready-to-send replies, and flagged 1 as a potential custom order inquiry for your attention"
       }
     ],
-    "notes": "Etsy marketplace handles payments and invoicing automatically, so invoice reminders are irrelevant. Fulfillment status can be weekly for a one-person handmade shop. Listing SEO bumped to weekly given Etsy's algorithm sensitivity. Added Etsy-specific analytics, listing copywriting, trend research, COGS tracking, and candle safety compliance monitoring."
+    "charterDraft": {
+      "sharpenedIdea": "A handmade candle shop selling beautifully crafted soy candles on Etsy, built around a strong brand voice, optimized listings, and a smooth one-person operation.",
+      "mvpDefinition": "Launch an Etsy shop with 5–10 polished candle listings, each with optimized titles, tags, and descriptions. Set up basic financial tracking (invoices, expenses, cash flow), a simple inventory and production log, and a starter social media presence on Instagram and Pinterest. The goal is your first 10 sales — everything else comes after.",
+      "roleTasks": [
+        {
+          "roleTitle": "Chief of Staff",
+          "tasks": [
+            "Draft a prioritized weekly action plan for the founder every Monday",
+            "Flag any conflicts or bottlenecks across teams (e.g., a product launch that needs both new listings and social posts at the same time)",
+            "Surface the most time-sensitive items needing founder decisions"
+          ]
+        },
+        {
+          "roleTitle": "CFO",
+          "tasks": [
+            "Create invoices and receipts for every Etsy order",
+            "Categorize every business transaction (supplies, packaging, Etsy fees) and flag anything unusual",
+            "Maintain a rolling 30/60/90-day cash-flow projection with runway alerts",
+            "Track upcoming tax deadlines, prepare document checklists, and flag Texas sales-tax obligations on Etsy sales — all outputs require professional verification before acting"
+          ]
+        },
+        {
+          "roleTitle": "CMO",
+          "tasks": [
+            "Draft platform-native social posts for Instagram, Pinterest, and TikTok",
+            "Write blog posts or newsletter content in the shop's brand voice",
+            "Draft email marketing sequences — welcome flows, abandoned cart nudges, and seasonal campaigns",
+            "Research keywords and marketplace search trends to sharpen listing titles and tags",
+            "Monitor trending candle scents, aesthetics, and seasonal themes to inspire new products",
+            "Track Etsy shop analytics (views, favorites, conversion rate) and surface actionable insights",
+            "Write and optimize Etsy listing copy — titles, tags, and descriptions — for every candle"
+          ]
+        },
+        {
+          "roleTitle": "Ops Lead",
+          "tasks": [
+            "Track stock levels for every candle SKU and flag when raw materials or packaging need reordering",
+            "Post order status and shipping updates to customers after fulfillment",
+            "Track supplier orders for wax, fragrance oils, wicks, and packaging; draft reorder messages to vendors",
+            "Log every production batch — quantities of wax, fragrance, and wicks used — and update finished-goods inventory after each pour session"
+          ]
+        },
+        {
+          "roleTitle": "Support Lead",
+          "tasks": [
+            "Read all inbound Etsy customer messages, tag them by urgency and topic, and draft replies to common questions (shipping timelines, ingredients, custom orders)",
+            "Detect upset customers or complex situations, summarize the full context, and escalate to the founder with a recommended next step"
+          ]
+        }
+      ],
+      "monthOneGoals": [
+        "Publish 5–10 fully optimized Etsy listings with keyword-rich titles, 13 tags each, and compelling scent descriptions",
+        "Make the first 10 sales and fulfill every order on time with a shipping notification sent to each customer",
+        "Post at least 3 times per week on Instagram and Pinterest to start building an audience before the shop has reviews",
+        "Set up financial tracking so every transaction is categorized and a basic cash-flow picture is visible by end of month",
+        "Complete one production batch log end-to-end — from raw materials in to finished inventory recorded — to establish the ops rhythm"
+      ],
+      "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+    }
   }
 }

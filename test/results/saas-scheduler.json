@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I have an idea for a SaaS tool that schedules social media posts — nothing is built yet",
-    "generatedAt": "2026-08-01T07:09:31.273Z",
+    "generatedAt": "2026-08-01T09:37:20.492Z",
     "templateSelection": {
       "primary": "saas",
       "blendedWith": null,
@@ -10,26 +10,28 @@
         "service": 0,
         "saas": 2.5,
         "content": 0,
-        "local": 0
-      }
+        "local": 0,
+        "physical-space": 0
+      },
+      "tie": false
     },
     "calls": [
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3321,
-        "outputTokens": 1094,
-        "costUsd": 0.026372999999999997
+        "inputTokens": 3571,
+        "outputTokens": 1500,
+        "costUsd": 0.033213
       },
       {
-        "step": "category-validate",
-        "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2015,
-        "outputTokens": 380,
-        "costUsd": 0.0031320000000000002
+        "step": "onboarding-batch",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 1873,
+        "outputTokens": 1681,
+        "costUsd": 0.030834
       }
     ],
-    "costUsd": 0.029504999999999997
+    "costUsd": 0.06404699999999999
   },
   "teams": [
     {
@@ -58,10 +60,7 @@
       "subAgentIds": [
         "content-writer",
         "social-manager",
-        "seo-agent",
-        "api-health-monitor",
-        "market-research",
-        "competitor-content"
+        "seo-agent"
       ]
     },
     {
@@ -69,9 +68,9 @@
       "roleTitle": "CFO",
       "isHuman": false,
       "subAgentIds": [
+        "invoicing",
         "expense-categorization",
-        "cashflow-forecast",
-        "compliance-review"
+        "cashflow-forecast"
       ]
     },
     {
@@ -101,11 +100,10 @@
       "label": "Spec writer",
       "teamId": "product-dev",
       "taskIds": [
-        "productdev.spec.write",
-        "customize.saas.4.spec-writer"
+        "productdev.spec.write"
       ],
       "suggestedTier": "T3",
-      "autonomyDefault": "locked",
+      "autonomyDefault": "earnable",
       "handsTools": []
     },
     {
@@ -184,6 +182,19 @@
       "handsTools": []
     },
     {
+      "id": "invoicing",
+      "label": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.create"
+      ],
+      "suggestedTier": "T2",
+      "autonomyDefault": "earnable",
+      "handsTools": [
+        "Stripe"
+      ]
+    },
+    {
       "id": "expense-categorization",
       "label": "Expense categorization",
       "teamId": "cfo",
@@ -230,50 +241,6 @@
       "handsTools": [
         "Shared inbox"
       ]
-    },
-    {
-      "id": "api-health-monitor",
-      "label": "Social API Monitor",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.saas.1.api-health-monitor"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "market-research",
-      "label": "Platform Research Agent",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.saas.2.market-research"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "eligible-early",
-      "handsTools": []
-    },
-    {
-      "id": "competitor-content",
-      "label": "Competitor Content Writer",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.saas.3.competitor-content"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "compliance-review",
-      "label": "Platform ToS & Privacy Flagger",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.saas.5.compliance-review"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
     }
   ],
   "tasks": [
@@ -309,7 +276,7 @@
       "subAgentType": "build-agent",
       "subAgentLabel": "Build agent",
       "teamHint": "product-dev",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "high",
       "tier": "T2",
       "autonomy": "locked",
@@ -323,7 +290,7 @@
       "subAgentType": "qa-smoke-test",
       "subAgentLabel": "QA/smoke-test agent",
       "teamHint": "product-dev",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "locked",
@@ -336,7 +303,7 @@
       "subAgentType": "deploy-coordinator",
       "subAgentLabel": "Deploy coordinator",
       "teamHint": "product-dev",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "high",
       "tier": "T1",
       "autonomy": "locked",
@@ -398,6 +365,19 @@
       "origin": "template"
     },
     {
+      "id": "cfo.invoicing.create",
+      "text": "Create invoices once paying subscribers exist",
+      "subAgentType": "invoicing",
+      "subAgentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Stripe",
+      "origin": "template"
+    },
+    {
       "id": "cfo.expenses.categorize",
       "text": "Tag expenses (hosting, tooling) and flag anomalies",
       "subAgentType": "expense-categorization",
@@ -444,121 +424,159 @@
       "subAgentType": "tier1-triage",
       "subAgentLabel": "Tier-1 triage",
       "teamHint": "support",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
       "autonomyNote": "known-answer replies",
       "handsTool": "Shared inbox",
       "origin": "template"
-    },
-    {
-      "id": "customize.saas.1.api-health-monitor",
-      "text": "Monitor social media platform API status pages and flag any breaking changes or deprecations that could affect the scheduling product",
-      "subAgentType": "api-health-monitor",
-      "subAgentLabel": "Social API Monitor",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.2.market-research",
-      "text": "Research which social media platforms early adopters most want supported and draft a prioritized integration roadmap",
-      "subAgentType": "market-research",
-      "subAgentLabel": "Platform Research Agent",
-      "teamHint": "cmo",
-      "frequency": "monthly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "eligible-early",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.3.competitor-content",
-      "text": "Draft competitor comparison content (vs Buffer, Hootsuite, Later, etc.) for the landing page and social channels",
-      "subAgentType": "competitor-content",
-      "subAgentLabel": "Competitor Content Writer",
-      "teamHint": "cmo",
-      "frequency": "monthly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.4.spec-writer",
-      "text": "Write the OAuth connection flow spec for each social platform integration (auth scopes, token storage, refresh logic)",
-      "subAgentType": "spec-writer",
-      "subAgentLabel": "OAuth Spec Writer",
-      "teamHint": "product-dev",
-      "frequency": "adhoc",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.5.compliance-review",
-      "text": "Flag any data-privacy or platform-ToS compliance risks in the scheduling product (e.g. storing user OAuth tokens, cross-posting rules per platform ToS)",
-      "subAgentType": "compliance-review",
-      "subAgentLabel": "Platform ToS & Privacy Flagger",
-      "teamHint": "compliance",
-      "frequency": "monthly",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
     }
   ],
   "customization": {
-    "added": [
-      "customize.saas.1.api-health-monitor",
-      "customize.saas.2.market-research",
-      "customize.saas.3.competitor-content",
-      "customize.saas.4.spec-writer",
-      "customize.saas.5.compliance-review"
-    ],
-    "removed": [
-      "cfo.invoicing.create"
-    ],
-    "frequencyAdjustments": [
+    "added": [],
+    "removed": [],
+    "frequencyAdjustments": [],
+    "categoryCorrections": []
+  },
+  "onboardingBatch": {
+    "simulatedDay": [
       {
-        "taskId": "productdev.build.propose",
-        "from": "daily",
-        "to": "weekly"
+        "agentName": "Priya",
+        "subAgentId": "spec-writer",
+        "roleTitle": "Product/Dev Lead",
+        "summary": "drafted a feature spec for the core post-scheduling flow, covering queue management, platform connection (Twitter/X, Instagram, LinkedIn), and scheduled-time selection"
       },
       {
-        "taskId": "productdev.qa.smoketest",
-        "from": "daily",
-        "to": "weekly"
+        "agentName": "Marco",
+        "subAgentId": "content-writer",
+        "roleTitle": "CMO",
+        "summary": "wrote 3 landing-page headline variants and an above-the-fold value proposition focused on 'schedule once, publish everywhere' for the waitlist page"
       },
       {
-        "taskId": "productdev.deploy.coordinate",
-        "from": "daily",
-        "to": "weekly"
+        "agentName": "Dani",
+        "subAgentId": "cashflow-forecast",
+        "roleTitle": "CFO",
+        "summary": "built a 3-month runway projection assuming $50/month tooling spend and 0 revenue, flagging the break-even subscriber count needed at a $15/month price point"
       },
       {
-        "taskId": "support.triage.inbound",
-        "from": "daily",
-        "to": "weekly"
+        "agentName": "Theo",
+        "subAgentId": "onboarding",
+        "roleTitle": "Support Lead",
+        "summary": "drafted a waitlist confirmation email sequence (2 emails: instant confirmation + a 'we're building' update) tailored to early adopters of a social scheduling tool"
+      },
+      {
+        "agentName": "Sofia",
+        "subAgentId": "seo-agent",
+        "roleTitle": "CMO",
+        "summary": "researched 8 low-competition keywords around 'social media scheduler' and 'schedule posts automatically', and drafted meta title + description for the landing page"
       }
     ],
-    "categoryCorrections": [
-      {
-        "taskId": "customize.saas.1.api-health-monitor",
-        "from": "product-dev",
-        "to": "cmo",
-        "reason": "Monitoring API deprecations to inform product roadmap prioritization is market/competitive research work that feeds product strategy, not building software code/specs/QA."
-      }
-    ],
-    "notes": "Nothing is built yet (MVP-0): daily build/QA/deploy cadence is premature — drop to weekly. Invoicing removed (no paying subscribers yet). Added platform API monitoring, OAuth spec, competitor content, platform prioritization research, and ToS/privacy compliance flagging as core differentiators for a social scheduling SaaS in a crowded market."
+    "charterDraft": {
+      "sharpenedIdea": "A SaaS tool that lets creators and small teams schedule and automatically publish social media posts across multiple platforms from a single dashboard. Start lean, launch fast, grow from a waitlist.",
+      "mvpDefinition": "Version 1 is a web app where a user connects at least two social accounts (e.g. Twitter/X and LinkedIn), composes a post, picks a date and time, and has it published automatically. The MVP includes a simple post queue, a basic calendar view, and a waitlist/early-access landing page — nothing more. No analytics dashboard, no team collaboration, no AI writing assistant yet.",
+      "roleTasks": [
+        {
+          "roleTitle": "Chief of Staff",
+          "tasks": [
+            "Draft the weekly cross-team plan and surface it to the founder every Monday",
+            "Flag blockers or conflicts between the Product, Marketing, Finance, and Support tracks",
+            "Keep a running task log so nothing falls through the cracks across teams"
+          ]
+        },
+        {
+          "roleTitle": "Product/Dev Lead — Spec Writer",
+          "tasks": [
+            "Translate founder goals into written feature specs (acceptance criteria, edge cases, scope boundaries)",
+            "Keep specs versioned and linked to the build queue"
+          ]
+        },
+        {
+          "roleTitle": "Product/Dev Lead — Build Agent",
+          "tasks": [
+            "Propose code changes and implementation plans through the sandboxed build pipeline",
+            "Surface diffs and change summaries to the founder before anything is merged"
+          ]
+        },
+        {
+          "roleTitle": "Product/Dev Lead — QA / Smoke-Test Agent",
+          "tasks": [
+            "Run automated smoke tests on every proposed build change",
+            "Report pass/fail results and flag regressions before staging deploy"
+          ]
+        },
+        {
+          "roleTitle": "Product/Dev Lead — Deploy Coordinator",
+          "tasks": [
+            "Coordinate the staging preview environment and manage the deploy pipeline",
+            "Notify the founder when a staging build is ready for review and approval"
+          ]
+        },
+        {
+          "roleTitle": "CMO — Content Writer",
+          "tasks": [
+            "Draft build-in-public updates (tweets, LinkedIn posts, blog snippets) documenting progress milestones",
+            "Write and iterate on landing-page copy: headlines, value proposition, feature bullets, and CTA"
+          ]
+        },
+        {
+          "roleTitle": "CMO — Social Manager",
+          "tasks": [
+            "Draft platform-sized posts (Twitter/X, LinkedIn, Instagram) to promote the waitlist and drive sign-ups",
+            "Suggest a posting cadence and content calendar for pre-launch growth"
+          ]
+        },
+        {
+          "roleTitle": "CMO — SEO Agent",
+          "tasks": [
+            "Research keywords relevant to social media scheduling and surface low-competition opportunities",
+            "Draft meta titles, descriptions, and on-page SEO suggestions for the landing page"
+          ]
+        },
+        {
+          "roleTitle": "CFO — Invoicing",
+          "tasks": [
+            "Create and send invoices once paying subscribers are onboarded",
+            "Track invoice status (sent, paid, overdue)"
+          ]
+        },
+        {
+          "roleTitle": "CFO — Expense Categorization",
+          "tasks": [
+            "Tag all incoming expenses (hosting, API costs, SaaS tooling) into categories",
+            "Flag any anomalies or unexpected charges for founder review"
+          ]
+        },
+        {
+          "roleTitle": "CFO — Cash-Flow Forecast",
+          "tasks": [
+            "Maintain a rolling runway projection against current monthly burn",
+            "Model subscriber growth scenarios and surface the break-even point"
+          ]
+        },
+        {
+          "roleTitle": "Support Lead — Onboarding",
+          "tasks": [
+            "Draft waitlist confirmation emails and progress-update messages for early sign-ups",
+            "Write the in-app onboarding flow copy (tooltips, empty states, first-run prompts) ahead of launch"
+          ]
+        },
+        {
+          "roleTitle": "Support Lead — Tier-1 Triage",
+          "tasks": [
+            "Monitor inbound questions from waitlist members and early users",
+            "Draft replies to common questions (platform support, pricing, launch timeline) for founder approval"
+          ]
+        }
+      ],
+      "monthOneGoals": [
+        "Launch a public waitlist landing page with clear value proposition and at least one working sign-up form",
+        "Complete and review the MVP feature spec covering post scheduling, platform connections (2+ networks), and the post queue",
+        "Publish at least 3 build-in-public updates across social channels to grow waitlist awareness",
+        "Get a staging-environment build of the core scheduling flow deployed and smoke-tested",
+        "Establish baseline financial tracking: categorize all tooling expenses and confirm monthly burn is within budget"
+      ],
+      "budgetCeilingPlaceholder": "$50+/month (from your interview answer — adjust anytime)"
+    }
   }
 }

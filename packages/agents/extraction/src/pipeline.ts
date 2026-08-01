@@ -4,6 +4,7 @@ import { selectTemplate } from "./templateSelect.js";
 import { runCustomizePass } from "./customize.js";
 import { validateCategories } from "./categoryValidator.js";
 import { assembleOrgChart, HandsScopeViolationError } from "./assemble.js";
+import { generateOnboardingBatch } from "./onboardingBatch.js";
 import type { ApiCallUsage, CustomizationLog, InterviewAnswers, OrgChart, OrgChartTask } from "./types.js";
 import { CostGuardError, DEFAULT_MAX_COST_USD } from "./costGuard.js";
 
@@ -72,6 +73,7 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
     autonomy: a.autonomy,
     handsTool: a.handsTool,
     handsScope: a.handsScope,
+    requiresProfessionalVerification: a.requiresProfessionalVerification,
     origin: "customize-added",
   }));
 
@@ -131,8 +133,9 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
   // if applying them breaks the hard invariant, discard the corrections and
   // fall back to the pre-validation (already scope-safe) categorization
   // rather than failing the whole run.
+  let chart: OrgChart;
   try {
-    return assembleOrgChart(idea, selection, finalTasks, customization, calls);
+    chart = assembleOrgChart(idea, selection, finalTasks, customization, calls);
   } catch (err) {
     if (!(err instanceof HandsScopeViolationError) || categoryCorrections.length === 0) throw err;
 
@@ -142,6 +145,31 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
       if (original) task.teamHint = original;
     }
     const revertedCustomization: CustomizationLog = { ...customization, categoryCorrections: [] };
-    return assembleOrgChart(idea, selection, finalTasks, revertedCustomization, calls);
+    chart = assembleOrgChart(idea, selection, finalTasks, revertedCustomization, calls);
   }
+
+  // Step 5: onboarding batch (simulated-day script + Charter draft), from
+  // the same per-signup batch (master-plan-v2.md §4). Needs the FINAL chart,
+  // so it runs after assembly. Same graceful-degradation pattern as category
+  // validation: a budget shortfall or transient failure here leaves
+  // onboardingBatch null rather than discarding an otherwise-valid chart.
+  const batchRemainingBudget = maxCostUsd - chart.meta.costUsd;
+  if (batchRemainingBudget > 0) {
+    try {
+      const { batch, usage } = await generateOnboardingBatch(chart, idea, answers, opts.apiKey, batchRemainingBudget);
+      chart.onboardingBatch = batch;
+      chart.meta.calls.push(usage);
+      chart.meta.costUsd = chart.meta.calls.reduce((sum, c) => sum + c.costUsd, 0);
+    } catch (err) {
+      if (err instanceof CostGuardError) {
+        console.error(`[onboarding-batch] skipped: ${err.message}`);
+      } else {
+        console.error(`[onboarding-batch] skipped after error: ${(err as Error).message}`);
+      }
+    }
+  } else {
+    console.error(`[onboarding-batch] skipped: no budget remaining ($${batchRemainingBudget.toFixed(4)}).`);
+  }
+
+  return chart;
 }
