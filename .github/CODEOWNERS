@@ -2,4 +2,5 @@ apps/router/ @veltrixnextgen-arch
 packages/agents/ @veltrixnextgen-arch
 packages/vault/ @veltrixnextgen-arch
 packages/cost-gate/ @veltrixnextgen-arch
+packages/approval-queue/ @veltrixnextgen-arch
 docs/architecture/security-architecture.md @veltrixnextgen-arch

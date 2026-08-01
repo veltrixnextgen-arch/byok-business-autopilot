@@ -34,3 +34,8 @@
 **Date:** 2026-08-01
 **Context:** `packages/vault`'s dev-only `LocalKms` stores the master key in a local file — no rotation, no HSM, no access audit on the master key itself. That's an acceptable dev convenience and an unacceptable production posture (T1: user API key theft) if it ever ships by accident (e.g. a missing env var in a deploy config).
 **Decision:** Constructing `LocalKms` while `NODE_ENV=production` (or explicit `PRODUCTION=true`) throws `ProductionKmsGuardError` instead of silently working. Production must construct a real `Kms` implementation (`CloudKms` or equivalent) — there is no code path where a misconfigured production deploy quietly falls back to a file on disk.
+
+## ADR-008 — Router refuses to construct in production without a CostGate and an ApprovalQueue
+**Date:** 2026-08-01
+**Context:** Both dependencies are optional constructor arguments on `Router` (dev/test convenience — the router's own tests don't need cost-gate or approval-queue machinery to verify tagging/dedup/ledger behavior). Nothing before this stopped a misconfigured production deploy from constructing a `Router` with one or both omitted, silently running every task with no spend limit (T4) and no human review before an effect runs (T10, security-architecture.md §5).
+**Decision:** Same pattern as ADR-007: constructing `Router` while `NODE_ENV=production` (or `PRODUCTION=true`) throws `ProductionRouterGuardError` unless both a `CostGate` and an `ApprovalQueue` are provided. Dev/test code paths are unaffected — both remain optional outside production.

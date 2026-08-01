@@ -1,39 +1,57 @@
 import { randomUUID } from "node:crypto";
 import type { CostGate, Reservation } from "@byok/cost-gate";
+import { ApprovalQueue } from "@byok/approval-queue";
+import { isProductionEnvironment } from "@byok/vault";
 import type { AgentExecutor } from "./executor.js";
 import type { DedupStore } from "./dedup.js";
 import type { TaskLedger } from "./ledger.js";
 import { deriveTags, type TaggingHints } from "./tagging.js";
 import type { RouterTask, RouterTaskInput } from "./types.js";
 
-// The router: dispatch -> tag -> dedup -> GATE -> verdict -> executor
-// (ADR-001's bottom-up handoff at the single-task granularity, extended
-// with the fail-closed cost gate ahead of the executor per
-// security-architecture.md §6 / T4). costGate is optional — a Router
-// constructed without one skips gating entirely (existing behavior,
-// unchanged), which is what lets the router's own tests stay independent
-// of cost-gate machinery.
+export class ProductionRouterGuardError extends Error {}
+
+// The router: dispatch -> tag -> dedup -> GATE -> verdict -> executor ->
+// APPROVAL QUEUE -> effect (ADR-001's bottom-up handoff at the single-task
+// granularity, extended with the fail-closed cost gate ahead of the
+// executor per security-architecture.md §6/T4, and the approval queue
+// after it per §5/T10 — "the approval queue is the final firewall").
+//
+// costGate and approvalQueue are both optional in dev/test (existing
+// behavior for callers that don't need them is unchanged), but ADR-008:
+// production refuses to construct a Router without both.
 export class Router {
   constructor(
     private readonly ledger: TaskLedger,
     private readonly dedupStore: DedupStore,
     private readonly executor: AgentExecutor,
     private readonly costGate?: CostGate,
-  ) {}
+    private readonly approvalQueue?: ApprovalQueue,
+  ) {
+    if (isProductionEnvironment() && (!this.costGate || !this.approvalQueue)) {
+      throw new ProductionRouterGuardError(
+        "Router cannot be constructed in production (NODE_ENV=production or PRODUCTION=true) without both " +
+          "a CostGate and an ApprovalQueue attached (ADR-008).",
+      );
+    }
+  }
 
   async submitTask(input: RouterTaskInput, hints: TaggingHints = {}): Promise<RouterTask> {
     const existing = this.dedupStore.get(input.dedupKey);
     if (existing) return existing; // idempotent replay — never re-execute a seen dedupKey
 
     const now = () => new Date().toISOString();
+    const tenantId = input.tenantId ?? "default";
+    const tags = deriveTags(hints, input.tags ?? []);
+
     const task: RouterTask = {
       id: randomUUID(),
+      tenantId,
       subAgentId: input.subAgentId,
       teamId: input.teamId,
       title: input.title,
       payload: input.payload,
       model: input.model,
-      tags: deriveTags(hints, input.tags ?? []),
+      tags,
       dedupKey: input.dedupKey,
       sourceOrgChartTaskId: input.sourceOrgChartTaskId,
       createdAt: now(),
@@ -87,23 +105,49 @@ export class Router {
       task.status = "failed";
       task.error = outcome.error;
       if (this.costGate && reservation) this.costGate.release(reservation.id);
-    } else {
-      task.status = "completed";
-      task.result = outcome.result;
-      // Settle with the executor's reported cost when available, else fall
-      // back to the gate's own (upper-bound) estimate rather than leaving
-      // the reservation permanently "in flight" and never counted as spend.
-      if (this.costGate && reservation) this.costGate.settle(reservation.id, outcome.costUsd ?? reservation.amountUsd);
+      this.dedupStore.set(input.dedupKey, task);
+      this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: task.status, at: task.updatedAt, note: task.error });
+      return task;
     }
-    this.dedupStore.set(input.dedupKey, task);
-    this.ledger.append({
-      taskId: task.id,
-      subAgentId: task.subAgentId,
-      status: task.status,
-      at: task.updatedAt,
-      note: task.error,
-    });
 
+    // Execution succeeded — the LLM call already happened, so settle the
+    // reservation now regardless of what the approval queue decides next
+    // (approval gates the EFFECT, not the spend that already occurred).
+    task.result = outcome.result;
+    if (this.costGate && reservation) this.costGate.settle(reservation.id, outcome.costUsd ?? reservation.amountUsd);
+
+    if (this.approvalQueue) {
+      const { queued } = await this.approvalQueue.submitProposedAction({
+        id: task.id,
+        tenantId,
+        agentName: input.agentName ?? task.subAgentId,
+        roleTitle: task.teamId,
+        taskType: task.subAgentId,
+        summary: task.title,
+        draft: outcome.result,
+        stakesTags: tags,
+        effect: input.effect,
+        createdAt: task.updatedAt,
+      });
+
+      task.status = queued ? "awaiting_review" : "completed";
+      task.approvalActionId = task.id;
+      task.updatedAt = now();
+      this.dedupStore.set(input.dedupKey, task);
+      this.ledger.append({
+        taskId: task.id,
+        subAgentId: task.subAgentId,
+        status: task.status,
+        at: task.updatedAt,
+        note: queued ? "awaiting human/spot-check review" : "auto-approved via earned autonomy",
+      });
+      return task;
+    }
+
+    // No approval queue configured — preserve prior behavior exactly.
+    task.status = "completed";
+    this.dedupStore.set(input.dedupKey, task);
+    this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: task.status, at: task.updatedAt });
     return task;
   }
 

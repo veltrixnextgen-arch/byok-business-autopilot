@@ -10,6 +10,7 @@ const ROUTER: RequesterIdentity = { kind: "router-service", serviceId: "router-1
 function makeTask(overrides: Partial<RouterTask> = {}): RouterTask {
   return {
     id: "task-1",
+    tenantId: "default",
     subAgentId: "invoicing",
     teamId: "cfo",
     title: "Create invoice",
