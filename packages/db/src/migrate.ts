@@ -10,7 +10,7 @@ const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "
 
 // Applied in order; append new files here as they're added, never reorder
 // or edit an already-applied one — write a new migration instead.
-const MIGRATION_FILES = ["0001_init.sql", "0002_durable_storage.sql"];
+const MIGRATION_FILES = ["0001_init.sql", "0002_durable_storage.sql", "0003_better_auth.sql"];
 
 export async function runMigrations(pool: QueryablePool): Promise<void> {
   for (const file of MIGRATION_FILES) {

@@ -31,7 +31,12 @@ export function createApp(options: CreateAppOptions) {
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
     .route("/health", healthRoute)
-    .all("/auth/*", (c) => options.auth.handler(c.req.raw))
+    // Better Auth's default basePath is /api/auth on both server and
+    // client (createBrowserAuthClient doesn't override it) — this mount
+    // must match, or the client's requests never reach a route Better
+    // Auth's own handler recognizes (a bare /auth/* mount 404s on every
+    // call, discovered only once a real signup was attempted here).
+    .all("/api/auth/*", (c) => options.auth.handler(c.req.raw))
     .use("/me/*", tenantMiddleware(options.pool, options.auth))
     .route("/me", meRoute)
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))

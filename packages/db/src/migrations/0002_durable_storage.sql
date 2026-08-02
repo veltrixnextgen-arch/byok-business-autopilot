@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS cost_ledger_counters (
 
 ALTER TABLE cost_ledger_counters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cost_ledger_counters FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON cost_ledger_counters;
 CREATE POLICY tenant_isolation ON cost_ledger_counters
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS cost_reservations (
 
 ALTER TABLE cost_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cost_reservations FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON cost_reservations;
 CREATE POLICY tenant_isolation ON cost_reservations
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -99,6 +101,7 @@ CREATE TABLE IF NOT EXISTS router_tasks (
 
 ALTER TABLE router_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE router_tasks FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON router_tasks;
 CREATE POLICY tenant_isolation ON router_tasks
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -117,6 +120,7 @@ CREATE TABLE IF NOT EXISTS task_ledger_entries (
 
 ALTER TABLE task_ledger_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_ledger_entries FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON task_ledger_entries;
 CREATE POLICY tenant_isolation ON task_ledger_entries
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -141,6 +145,7 @@ CREATE TABLE IF NOT EXISTS approval_queue_items (
 
 ALTER TABLE approval_queue_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_queue_items FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON approval_queue_items;
 CREATE POLICY tenant_isolation ON approval_queue_items
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -160,6 +165,7 @@ CREATE TABLE IF NOT EXISTS autonomy_counters (
 
 ALTER TABLE autonomy_counters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE autonomy_counters FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON autonomy_counters;
 CREATE POLICY tenant_isolation ON autonomy_counters
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -179,6 +185,7 @@ CREATE TABLE IF NOT EXISTS paused_batches (
 
 ALTER TABLE paused_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE paused_batches FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON paused_batches;
 CREATE POLICY tenant_isolation ON paused_batches
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
@@ -206,6 +213,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON audit_log;
 CREATE POLICY tenant_isolation ON audit_log
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)

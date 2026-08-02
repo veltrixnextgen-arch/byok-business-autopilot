@@ -50,6 +50,11 @@ CREATE TABLE IF NOT EXISTS tenant_members (
 ALTER TABLE tenant_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_members FORCE ROW LEVEL SECURITY;
 
+-- DROP...IF EXISTS makes this migration safe to re-run against a
+-- persistent database (unlike CREATE TABLE, Postgres has no
+-- CREATE POLICY IF NOT EXISTS) — every deploy re-applies every migration
+-- file (see runMigrations), not just new ones.
+DROP POLICY IF EXISTS tenant_isolation ON tenant_members;
 CREATE POLICY tenant_isolation ON tenant_members
   FOR ALL
   USING (tenant_id = current_setting('app.tenant_id', true)::uuid)

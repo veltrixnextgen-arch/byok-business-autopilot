@@ -10,6 +10,10 @@ export interface ServerConfig {
   authSecret: string;
   authBaseUrl: string;
   webOrigin: string;
+  /** See AuthConfigOptions.crossSiteCookies — off by default because
+   *  SameSite=None requires Secure (HTTPS), which local dev's
+   *  http://localhost can't satisfy. Explicit opt-in via env var. */
+  crossSiteCookies: boolean;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -21,7 +25,8 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const port = Number(env.PORT ?? 3000);
   const authBaseUrl = env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
   const webOrigin = env.WEB_ORIGIN ?? "http://localhost:3002";
-  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin };
+  const crossSiteCookies = env.CROSS_SITE_COOKIES === "true";
+  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies };
 }
 
 /**
@@ -39,10 +44,12 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps) {
     baseURL: config.authBaseUrl,
     secret: config.authSecret,
     trustedOrigins: [config.webOrigin],
+    crossSiteCookies: config.crossSiteCookies,
   });
   const app = createApp({ pool, auth, trustCore, webOrigin: config.webOrigin });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`@byok/api listening on http://localhost:${info.port}`);
+    console.log(`crossSiteCookies=${config.crossSiteCookies} authBaseUrl=${config.authBaseUrl} webOrigin=${config.webOrigin}`);
   });
 }

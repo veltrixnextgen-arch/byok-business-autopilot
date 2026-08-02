@@ -3,6 +3,7 @@ import { tenantMembers, tenants } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
+import * as authSchema from "./schema.js";
 
 export interface AuthConfigOptions {
   db: Database;
@@ -13,6 +14,15 @@ export interface AuthConfigOptions {
    *  but a browser client on a different origin needs to be added
    *  explicitly or its requests are rejected before hono/cors even runs. */
   trustedOrigins?: string[];
+  /** True when apps/web and apps/api are on genuinely different sites (not
+   *  just different ports of the same host, e.g. staging's vercel.app vs
+   *  railway.app) — the session cookie's default SameSite=Lax is never
+   *  sent on cross-site fetch() calls, only top-level navigations, so the
+   *  browser silently drops the session on every API call. SameSite=None
+   *  requires Secure (HTTPS-only), which breaks local dev's
+   *  http://localhost — hence this being an explicit opt-in, not the
+   *  default. */
+  crossSiteCookies?: boolean;
 }
 
 /**
@@ -28,17 +38,26 @@ export interface AuthConfigOptions {
  * uuids — tenant_members.tenant_id is a `uuid` column and the RLS policy
  * casts current_setting('app.tenant_id')::uuid, so a non-uuid id here
  * would break inserts and the isolation check alike.
+ *
+ * schema.ts is generated (via `npx @better-auth/cli generate` against this
+ * exact config), not hand-authored — the Drizzle adapter needs the actual
+ * pgTable objects, not just matching tables in Postgres, to build queries;
+ * omitting `schema` here throws `The model "user" was not found in the
+ * schema object` at request time even though the tables exist.
  */
 export function createAuth(options: AuthConfigOptions) {
   return betterAuth({
     baseURL: options.baseURL,
     secret: options.secret,
     trustedOrigins: options.trustedOrigins,
-    database: drizzleAdapter(options.db, { provider: "pg" }),
+    database: drizzleAdapter(options.db, { provider: "pg", schema: authSchema }),
     advanced: {
       database: {
         generateId: "uuid",
       },
+      ...(options.crossSiteCookies
+        ? { defaultCookieAttributes: { sameSite: "none" as const, secure: true, partitioned: true } }
+        : {}),
     },
     emailAndPassword: {
       enabled: true,
