@@ -41,6 +41,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps) {
   const db = createDb(pool);
   const auth = createAuth({
     db,
+    pool,
     baseURL: config.authBaseUrl,
     secret: config.authSecret,
     trustedOrigins: [config.webOrigin],

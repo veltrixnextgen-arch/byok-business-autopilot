@@ -1,5 +1,5 @@
-import type { Database } from "@byok/db";
-import { tenantMembers, tenants } from "@byok/db";
+import type { Database, PoolLike } from "@byok/db";
+import { tenants, users, withTenantScope } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
@@ -7,6 +7,11 @@ import * as authSchema from "./schema.js";
 
 export interface AuthConfigOptions {
   db: Database;
+  /** Same pool `db` wraps — needed separately because tenant_members has
+   *  FORCE ROW LEVEL SECURITY, and inserting into it requires a connection
+   *  with app.tenant_id already set (withTenantScope), which a plain
+   *  Database handle can't do on its own. */
+  pool: PoolLike;
   baseURL: string;
   secret: string;
   /** Origins apps/web may be served from (different port/domain in dev) —
@@ -59,6 +64,21 @@ export function createAuth(options: AuthConfigOptions) {
         ? { defaultCookieAttributes: { sameSite: "none" as const, secure: true, partitioned: true } }
         : {}),
     },
+    // Better Auth's own `user` table (schema.ts) is a separate table from
+    // this project's `users` (packages/db/schema.ts) — same person, two
+    // rows, two id spaces, unless kept in sync. Without this, the very
+    // first org a user creates fails: afterAddMember below inserts into
+    // tenant_members using Better Auth's user.id, and that column has an
+    // FK against users.id — a row that, without this hook, never existed.
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user: { id: string; email: string; name: string }) => {
+            await options.db.insert(users).values({ id: user.id, email: user.email, name: user.name }).onConflictDoNothing();
+          },
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
     },
@@ -76,18 +96,41 @@ export function createAuth(options: AuthConfigOptions) {
     plugins: [
       organization({
         organizationHooks: {
-          afterCreateOrganization: async ({ organization: org }: { organization: { id: string; slug: string; name: string } }) => {
-            await options.db.insert(tenants).values({ id: org.id, slug: org.slug, name: org.name }).onConflictDoNothing();
-          },
+          // Better Auth calls afterAddMember BEFORE afterCreateOrganization
+          // during org creation (see crud-org.mjs: addMember at line 101,
+          // afterCreateOrganization at line 137) — a fixed ordering in
+          // Better Auth itself, not something this config controls. So the
+          // tenants sync can't live in afterCreateOrganization: by the time
+          // it would run, afterAddMember has already tried (and, before
+          // this fix, failed) to insert a tenant_members row whose
+          // tenant_id FK has no matching tenants row yet. Both hooks
+          // receive the full `organization` object regardless of which
+          // fires first, so the sync belongs here instead.
           afterAddMember: async ({
             member,
+            organization: org,
           }: {
             member: { organizationId: string; userId: string; role: string };
+            organization: { id: string; slug: string; name: string };
           }) => {
-            await options.db
-              .insert(tenantMembers)
-              .values({ tenantId: member.organizationId, userId: member.userId, role: member.role })
-              .onConflictDoNothing();
+            await options.db.insert(tenants).values({ id: org.id, slug: org.slug, name: org.name }).onConflictDoNothing();
+            // tenant_members has FORCE ROW LEVEL SECURITY — inserting via
+            // the plain `options.db` handle (no app.tenant_id set) fails
+            // its WITH CHECK outright ("new row violates row-level
+            // security policy"), caught only by actually trying this
+            // against real Postgres. withTenantScope sets app.tenant_id to
+            // the new member's own tenant before the insert runs. Raw SQL
+            // (bound params, never interpolation — same discipline as
+            // tenantContext.ts) rather than the Drizzle query builder:
+            // withTenantScope's client is a deliberately minimal
+            // structural interface, not a real pg.PoolClient, so it can't
+            // be wrapped in drizzle() directly.
+            await withTenantScope(options.pool, member.organizationId, async (client) => {
+              await client.query(
+                "INSERT INTO tenant_members (tenant_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+                [member.organizationId, member.userId, member.role],
+              );
+            });
           },
         },
       }),

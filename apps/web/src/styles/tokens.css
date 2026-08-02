@@ -1,0 +1,118 @@
+/* @import rules must precede every other rule (Tailwind's own @layer
+   statements included), so the Google Fonts import comes first. Open-source
+   families, not npm packages — keeps the "no new runtime dependency" rule
+   intact; the three families here match what was extracted from the
+   Runwisely design reference, not copied from it — no font binary data was
+   taken from that file. system-ui fallbacks cover the network-fetch-fails
+   case. */
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+/**
+ * Design tokens extracted (not copied) from the Runwisely design
+ * reference: a dark glassmorphic system, near-black base, translucent
+ * "glass" panels with colored ambient glow, a five-hue accent palette (one
+ * neutral/brand plus four team hues), pill-shaped chips/buttons, and two
+ * distinct motion registers (ceremony and calm, defined further down).
+ * Dark-first: this is the only palette for now, no light theme exists in
+ * the reference and none was asked for.
+ */
+@theme {
+  /* --- Color: surfaces --- */
+  --color-bg: #0a0d16;
+  --color-bg-elevated: #141827;
+  --color-bg-glass: rgba(255, 255, 255, 0.05);
+  --color-bg-glass-strong: rgba(20, 24, 39, 0.85);
+  --color-bg-glass-subtle: rgba(255, 255, 255, 0.03);
+
+  /* --- Color: text --- */
+  --color-text: #ecebf5;
+  --color-text-secondary: #a5a2b8;
+  --color-text-muted: #8d8aa0;
+
+  /* --- Color: borders --- */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  /* --- Color: accents ---
+     One neutral/brand hue (purple) plus four team hues, matching the
+     reference's Money/Clients/Marketing/Operations grouping. `danger` is
+     the one token NOT present in the reference (no error state was shown
+     there) — added to match the existing palette's saturation/lightness
+     family, needed for real form validation states. */
+  --color-accent: #a78bfa;
+  --color-accent-strong: #7c5cff;
+  --color-money: #ffb86b;
+  --color-clients: #7dd3fc;
+  --color-marketing: #f0a6ca;
+  --color-operations: #6ee7b7;
+  --color-danger: #ff7a7a;
+
+  /* --- Radius --- */
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-full: 99px;
+
+  /* --- Shadow: layered elevation + colored glow, matching the reference's
+     card treatment (a neutral drop shadow plus a soft tinted glow keyed to
+     the card's own accent) --- */
+  --shadow-card: 0 12px 40px -18px rgba(0, 0, 0, 0.8);
+  --shadow-card-lg: 0 18px 50px -18px rgba(0, 0, 0, 0.7);
+  --shadow-glow-accent: 0 0 30px -10px rgba(124, 92, 255, 0.35);
+  --shadow-glow-money: 0 0 34px -8px rgba(255, 184, 107, 0.12);
+  --shadow-glow-clients: 0 0 34px -8px rgba(125, 211, 252, 0.1);
+  --shadow-glow-marketing: 0 0 34px -8px rgba(240, 166, 202, 0.1);
+  --shadow-glow-operations: 0 0 34px -8px rgba(110, 231, 183, 0.12);
+
+  /* --- Glass blur --- */
+  --blur-glass-sm: 8px;
+  --blur-glass-md: 14px;
+  --blur-glass-lg: 16px;
+
+  /* --- Type --- */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+
+  /* Motion: two registers (duration-ceremony-fast/base/slow and
+     duration-calm-fast/base/slow below), chosen per screen, never mixed
+     on one element. "Ceremony" is for moments that should feel earned:
+     the landing page, the org-chart reveal, the Charter handoff. "Calm"
+     is for everything routine: queue, digest, dashboard, interview. Both
+     are neutralized by prefers-reduced-motion below. */
+  --duration-ceremony-fast: 400ms;
+  --duration-ceremony-base: 700ms;
+  --duration-ceremony-slow: 1100ms;
+  --ease-ceremony: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --duration-calm-fast: 120ms;
+  --duration-calm-base: 180ms;
+  --duration-calm-slow: 260ms;
+  --ease-calm: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

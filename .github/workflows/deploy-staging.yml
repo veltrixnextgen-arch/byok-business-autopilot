@@ -159,7 +159,7 @@ jobs:
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
-          railway up --detach --service "$RAILWAY_SERVICE"
+          railway up --service "$RAILWAY_SERVICE"
 
       - name: Generate Railway's public domain for apps/api
         id: railway_domain
@@ -192,7 +192,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
-          railway up --detach --service "$RAILWAY_SERVICE"
+          railway up --service "$RAILWAY_SERVICE"
 
       - name: Wait for apps/api to become healthy
         env:
@@ -221,7 +221,8 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           STAMP=$(date +%s)
-          STATUS=$(curl -s -D /tmp/signup_headers.txt -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
+          echo "$STAMP" > /tmp/deploy_verify_stamp.txt
+          STATUS=$(curl -s -c /tmp/deploy_verify_cookies.txt -D /tmp/signup_headers.txt -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
             -H "Content-Type: application/json" \
             -H "Origin: $WEB_URL" \
             -d "{\"email\":\"deploy-verify-$STAMP@example.invalid\",\"password\":\"Str0ngTempPassw0rd!\",\"name\":\"deploy verify\"}")
@@ -246,6 +247,30 @@ jobs:
             exit 1
           fi
           echo "Signup succeeded end to end, with a cross-site-capable session cookie."
+
+      # Step 3: a signed-up user must be able to create an organization and
+      # land in it. Reuses the signup step's session cookie.
+      - name: Verify org creation actually works end to end
+        env:
+          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          STAMP=$(cat /tmp/deploy_verify_stamp.txt)
+          STATUS=$(curl -s -b /tmp/deploy_verify_cookies.txt -o /tmp/org_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/organization/create" \
+            -H "Content-Type: application/json" \
+            -H "Origin: $WEB_URL" \
+            -d "{\"name\":\"Deploy verify $STAMP\",\"slug\":\"deploy-verify-$STAMP\"}")
+          echo "Org create HTTP status: $STATUS"
+          cat /tmp/org_resp.json 2>/dev/null
+          echo ""
+          if [ "$STATUS" -ge 300 ]; then
+            echo "::error::Org creation failed with HTTP $STATUS — fetching Railway logs for diagnosis."
+            sleep 8
+            railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
+            exit 1
+          fi
+          echo "Org creation succeeded end to end."
 
       # Ensure the project's Root Directory is actually apps/web (a Vercel
       # project setting, not something a vercel.json in the repo can
