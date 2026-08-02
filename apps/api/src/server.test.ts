@@ -13,22 +13,25 @@ test("throws when BETTER_AUTH_SECRET is missing", () => {
   );
 });
 
-test("defaults port to 3000 and derives authBaseUrl from it", () => {
+test("defaults port to 3000, derives authBaseUrl from it, and defaults webOrigin to the web dev port", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
     BETTER_AUTH_SECRET: "s",
   } as NodeJS.ProcessEnv);
   assert.equal(config.port, 3000);
   assert.equal(config.authBaseUrl, "http://localhost:3000");
+  assert.equal(config.webOrigin, "http://localhost:3002");
 });
 
-test("respects an explicit PORT and BETTER_AUTH_URL", () => {
+test("respects an explicit PORT, BETTER_AUTH_URL, and WEB_ORIGIN", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
     BETTER_AUTH_SECRET: "s",
     PORT: "4000",
     BETTER_AUTH_URL: "https://api.example.com",
+    WEB_ORIGIN: "https://app.example.com",
   } as NodeJS.ProcessEnv);
   assert.equal(config.port, 4000);
   assert.equal(config.authBaseUrl, "https://api.example.com");
+  assert.equal(config.webOrigin, "https://app.example.com");
 });

@@ -7,7 +7,8 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "dev": "tsx watch src/dev.ts"
   },
   "dependencies": {
     "@byok/approval-queue": "*",

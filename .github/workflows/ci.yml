@@ -24,6 +24,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Phase B Step 1: `npm run typecheck` includes apps/web — a real
+      # `vite build` (client + SSR bundles) followed by `tsc --noEmit`, not
+      # just a syntax check. See apps/web/package.json's own "typecheck".
       - run: npm run typecheck
       - run: npm test
       - run: npm run lint

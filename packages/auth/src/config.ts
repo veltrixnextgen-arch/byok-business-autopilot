@@ -8,6 +8,11 @@ export interface AuthConfigOptions {
   db: Database;
   baseURL: string;
   secret: string;
+  /** Origins apps/web may be served from (different port/domain in dev) —
+   *  Better Auth's own CORS/CSRF origin check trusts baseURL by default,
+   *  but a browser client on a different origin needs to be added
+   *  explicitly or its requests are rejected before hono/cors even runs. */
+  trustedOrigins?: string[];
 }
 
 /**
@@ -28,6 +33,7 @@ export function createAuth(options: AuthConfigOptions) {
   return betterAuth({
     baseURL: options.baseURL,
     secret: options.secret,
+    trustedOrigins: options.trustedOrigins,
     database: drizzleAdapter(options.db, { provider: "pg" }),
     advanced: {
       database: {
