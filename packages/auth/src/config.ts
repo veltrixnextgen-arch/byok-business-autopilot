@@ -3,6 +3,7 @@ import { tenantMembers, tenants } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
+import * as authSchema from "./schema.js";
 
 export interface AuthConfigOptions {
   db: Database;
@@ -28,13 +29,19 @@ export interface AuthConfigOptions {
  * uuids — tenant_members.tenant_id is a `uuid` column and the RLS policy
  * casts current_setting('app.tenant_id')::uuid, so a non-uuid id here
  * would break inserts and the isolation check alike.
+ *
+ * schema.ts is generated (via `npx @better-auth/cli generate` against this
+ * exact config), not hand-authored — the Drizzle adapter needs the actual
+ * pgTable objects, not just matching tables in Postgres, to build queries;
+ * omitting `schema` here throws `The model "user" was not found in the
+ * schema object` at request time even though the tables exist.
  */
 export function createAuth(options: AuthConfigOptions) {
   return betterAuth({
     baseURL: options.baseURL,
     secret: options.secret,
     trustedOrigins: options.trustedOrigins,
-    database: drizzleAdapter(options.db, { provider: "pg" }),
+    database: drizzleAdapter(options.db, { provider: "pg", schema: authSchema }),
     advanced: {
       database: {
         generateId: "uuid",
