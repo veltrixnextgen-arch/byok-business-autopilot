@@ -218,6 +218,10 @@ jobs:
           echo ""
           if [ "$STATUS" -ge 300 ]; then
             echo "::error::Signup failed with HTTP $STATUS — fetching Railway logs for diagnosis."
+            # Log shipping lags the request slightly; give it a moment so
+            # the actual error line is in the fetched window, not just
+            # "Starting Container".
+            sleep 8
             railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
             exit 1
           fi
