@@ -146,6 +146,11 @@ jobs:
           # Railway/Nixpacks may default this to "production" for Node
           # builds, which would trip the ADR-007 guard. Pin it explicitly.
           railway variable set "NODE_ENV=staging" --service "$RAILWAY_SERVICE"
+          # engines.node in package.json alone didn't move Nixpacks off an
+          # older default (confirmed live: "crypto is not defined", the
+          # global Web Crypto API Node only exposes unflagged from v20) —
+          # this is Nixpacks' own documented, guaranteed override.
+          railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
           railway up --detach --service "$RAILWAY_SERVICE"
 
