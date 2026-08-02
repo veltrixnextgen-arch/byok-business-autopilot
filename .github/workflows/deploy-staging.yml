@@ -197,15 +197,19 @@ jobs:
           echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
           exit 1
 
-      # Ensure the project's Root Directory is actually apps/web — Root
-      # Directory is a Vercel project setting, not something a vercel.json
-      # in the repo can declare, and the CLI applies it relative to
-      # wherever it's invoked from. Setting it here (idempotent) and
-      # running the CLI from the repo root — not `cd apps/web` first —
-      # keeps those consistent: cd-ing ourselves AND having the platform
-      # apply its own Root Directory on top compounds into a doubled,
-      # nonexistent path.
-      - name: Ensure Vercel project Root Directory is apps/web
+      # Ensure the project's Root Directory is actually apps/web (a Vercel
+      # project setting, not something a vercel.json in the repo can
+      # declare — the CLI applies it relative to wherever it's invoked
+      # from, so we also run the CLI from the repo root, not `cd apps/web`
+      # first, to avoid compounding into a doubled path) AND that the
+      # Framework Preset is explicitly tanstack-start. The project's
+      # earlier broken attempt (wrong Root Directory) apparently left the
+      # Framework Preset stuck on a wrong auto-detected guess, so the build
+      # falls back to generic Node.js entrypoint scanning instead of
+      # trusting Nitro's own Build Output API — "No entrypoint found"
+      # even though .vercel/output/functions/__server.func/index.mjs
+      # exists exactly where Nitro's vercel preset put it.
+      - name: Ensure Vercel project Root Directory + Framework Preset are correct
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -213,7 +217,7 @@ jobs:
           curl -sf -X PATCH "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"rootDirectory":"apps/web"}' > /dev/null
+            -d '{"rootDirectory":"apps/web","framework":"tanstack-start"}' > /dev/null
 
       # Now that Railway's URL is known, build apps/web with it baked in as
       # VITE_API_URL (Vite inlines this at build time, so it must be correct
