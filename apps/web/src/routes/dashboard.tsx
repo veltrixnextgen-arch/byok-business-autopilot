@@ -9,6 +9,12 @@ export const Route = createFileRoute("/dashboard")({
     if (!data) {
       throw redirect({ to: "/login" });
     }
+    // A signed-up user with no organization yet has nowhere for
+    // tenantMiddleware to scope them to — send them to create one instead
+    // of rendering a dashboard that can only ever show a 401.
+    if (!data.session.activeOrganizationId) {
+      throw redirect({ to: "/onboarding" });
+    }
   },
   component: Dashboard,
 });

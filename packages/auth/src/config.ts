@@ -1,5 +1,5 @@
 import type { Database } from "@byok/db";
-import { tenantMembers, tenants } from "@byok/db";
+import { tenantMembers, tenants, users } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
@@ -58,6 +58,23 @@ export function createAuth(options: AuthConfigOptions) {
       ...(options.crossSiteCookies
         ? { defaultCookieAttributes: { sameSite: "none" as const, secure: true, partitioned: true } }
         : {}),
+    },
+    // Better Auth's own `user` table (schema.ts) is a separate table from
+    // this project's `users` (packages/db/schema.ts) — same person, two
+    // rows, two id spaces, unless kept in sync. Without this, the very
+    // first org a user creates fails: afterAddMember below inserts into
+    // tenant_members using Better Auth's user.id, and that column has an
+    // FK against users.id — a row that, without this hook, never existed.
+    // Mirrors the afterCreateOrganization/afterAddMember pattern already
+    // used for organization -> tenants.
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user: { id: string; email: string; name: string }) => {
+            await options.db.insert(users).values({ id: user.id, email: user.email, name: user.name }).onConflictDoNothing();
+          },
+        },
+      },
     },
     emailAndPassword: {
       enabled: true,

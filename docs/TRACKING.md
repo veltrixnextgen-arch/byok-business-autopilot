@@ -39,3 +39,7 @@ Per ADR-010 — these apply for the whole Phase B build, not just the first step
 5. **Never push to `main`.** All Phase B work goes through a PR; branch protection enforces this (verified — see issue #10's close-out), but the discipline holds even where the tooling wouldn't catch a violation.
 6. **UI PRs include screenshots.** A PR that changes anything user-visible shows what it looks like, not just what the diff says.
 7. **Trust-core is consumed only through public interfaces — design as if the lint rule didn't exist.** The ADR-009 ESLint boundary is a backstop for accidents, not the thing that makes an import decision correct. Every design should already avoid deep imports on its own merits.
+8. **No new runtime dependencies without justifying in the PR why the platform can't do it.** Specifically: no state-management library (TanStack Router's loaders + React state are enough), no component library, no animation library (CSS transforms/transitions only), no icon package larger than the icons actually used.
+9. **Performance budget, enforced in CI: apps/web's initial JS bundle stays under 150KB gzipped** — the build fails if it's exceeded. Report the bundle size in every UI PR.
+10. **Every screen renders from server data via route loaders.** No screen holds duplicate business logic — if the engine decides it, the screen displays it, it doesn't re-derive it.
+11. **Delete rather than comment out.** No dead code, no "we might need this."
