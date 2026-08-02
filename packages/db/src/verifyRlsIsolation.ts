@@ -19,6 +19,26 @@ async function main(): Promise<void> {
   }
 
   const pool = new Pool({ connectionString });
+
+  // Diagnostic only — role attributes, never the credential itself. If this
+  // ever shows rolsuper/rolbypassrls = true, everything below is moot: a
+  // role with BYPASSRLS skips FORCE ROW LEVEL SECURITY entirely regardless
+  // of policy correctness. Neon's Console/API-created roles inherit
+  // neon_superuser membership (-> BYPASSRLS) unless created via plain SQL.
+  const roleCheck = (await pool.query(
+    "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user",
+  )) as { rows: Array<{ rolname: string; rolsuper: boolean; rolbypassrls: boolean }> };
+  const role = roleCheck.rows[0];
+  if (role) {
+    console.log(`[rls-verify] connected as role "${role.rolname}" — rolsuper=${role.rolsuper} rolbypassrls=${role.rolbypassrls}`);
+    if (role.rolsuper || role.rolbypassrls) {
+      console.log(
+        "[rls-verify] this role bypasses RLS at the Postgres level — FORCE ROW LEVEL SECURITY has no effect on it, " +
+          "regardless of policy correctness. It must not be used as the app's runtime role.",
+      );
+    }
+  }
+
   const tenantAId = randomUUID();
   const tenantBId = randomUUID();
   const userId = randomUUID();
