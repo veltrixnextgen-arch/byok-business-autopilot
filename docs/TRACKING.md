@@ -17,7 +17,7 @@ In build order, matching `docs/strategy/master-plan-v2.md` §4-5:
 
 | Label | Color | Meaning |
 |---|---|---|
-| `trust-core` | red | The four security-critical components ADR-005 CODEOWNERS-locks: router, vault, cost gate, approval queue. No AI-generated merges without human review. |
+| `trust-core` | red | The four security-critical components ADR-005 CODEOWNERS-locks: router, vault, cost gate, approval queue. Merges require the `TRUST-CORE REVIEWED` attestation, a required CI check (ADR-012) — a real CODEOWNERS approval where more than one maintainer exists. |
 | `commodity-surface` | blue | Phase B's UI/product surface (onboarding, role cards, approval-queue UI, Charter editor, dashboard, billing) — not CODEOWNERS-locked into trust-core, but still built under the same PR-per-step discipline (ADR-010) as everything else. |
 | `extraction` | green | The Task Extraction Engine: templates, customize pass, clustering/assembly, simulated-day + Charter draft generation. |
 | `security` | orange | Security-specific hardening or audit work — CI scanning, CODEOWNERS coverage, key-scoping, just-in-time Hands — whether or not it also touches trust-core. |
@@ -28,6 +28,7 @@ In build order, matching `docs/strategy/master-plan-v2.md` §4-5:
 
 1. **Every PR references an issue.** Use a closing keyword (`Fixes #12`, `Closes #12`) or `Refs #12` if the PR only partially addresses it.
 2. **`test-gate` issues close only with a linked passing report committed to `test/results/`.** The report is the evidence the kill/advance criterion was actually met — a `test-gate` issue does not get closed on code merged alone.
+3. **A PR touching a trust-core path (`.github/CODEOWNERS`'s entries) needs the attestation line before it can merge.** Add `TRUST-CORE REVIEWED: veltrixnextgen-arch` to the PR description — the `trust-core-attestation` CI check (ADR-012) fails the PR without it, and re-runs automatically when the description is edited. Only add the line after actually reading the trust-core diff. This is a stand-in for a real second-reviewer approval, which this repo can't produce with one maintainer; restore `required_pull_request_reviews` and retire this check the moment a second maintainer exists.
 
 ## Phase B working rules
 

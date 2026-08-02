@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+    # ADR-012: `edited` is required (not a default type) so that adding the
+    # TRUST-CORE REVIEWED line to a PR description re-runs the
+    # trust-core-attestation check without needing an empty commit.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -51,9 +55,10 @@ jobs:
         run: npm audit --audit-level=high
 
       # ADR-006: trust-core dependencies are pinned to exact versions on
-      # purpose. This doesn't block the merge (CODEOWNERS review on those
-      # paths — see .github/CODEOWNERS and ADR-005 — is the actual gate);
-      # it just makes the change visible on the PR so the reviewer knows to
+      # purpose. This doesn't block the merge on its own — the
+      # trust-core-attestation job below is the actual gate for changes
+      # under a trust-core path (ADR-012) — it just makes the change
+      # visible on the PR so whoever writes the attestation line knows to
       # check the pin is still exact and the bump was intentional.
       - name: Flag trust-core package.json / lockfile changes (ADR-006)
         run: |
@@ -71,3 +76,49 @@ jobs:
             echo "::warning::Trust-core dependency files changed — verify pins are still exact per ADR-006:"
             echo "$CHANGED"
           fi
+
+  trust-core-attestation:
+    name: Trust-core attestation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # ADR-012: branch protection no longer requires an approving review
+      # (unsatisfiable with a single-account repo — GitHub won't let an
+      # author approve their own PR). This is the replacement gate for
+      # trust-core paths specifically: a required CI check, not an
+      # approval, so it works the same for one maintainer or many. Paths
+      # here mirror .github/CODEOWNERS' trust-core entries exactly — keep
+      # the two in sync if either changes.
+      - name: Require an explicit trust-core review attestation
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only "$BASE_SHA" HEAD -- \
+            apps/router/ \
+            packages/agents/ \
+            packages/vault/ \
+            packages/cost-gate/ \
+            packages/approval-queue/ \
+            docs/architecture/security-architecture.md \
+            eslint.config.js \
+            .github/ || true)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No trust-core paths changed — no attestation required."
+            exit 0
+          fi
+
+          echo "Trust-core paths changed by this PR:"
+          echo "$CHANGED"
+
+          if echo "$PR_BODY" | grep -qF "TRUST-CORE REVIEWED: veltrixnextgen-arch"; then
+            echo "Attestation found in PR description."
+            exit 0
+          fi
+
+          echo "::error::This PR touches a trust-core path but its description does not contain the line 'TRUST-CORE REVIEWED: veltrixnextgen-arch'. Add that line only after actually reading the trust-core diff — this check exists so that line means something."
+          exit 1
