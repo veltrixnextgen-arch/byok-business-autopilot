@@ -159,7 +159,7 @@ jobs:
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
-          railway up --detach --service "$RAILWAY_SERVICE"
+          railway up --service "$RAILWAY_SERVICE"
 
       - name: Generate Railway's public domain for apps/api
         id: railway_domain
@@ -192,7 +192,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
-          railway up --detach --service "$RAILWAY_SERVICE"
+          railway up --service "$RAILWAY_SERVICE"
 
       - name: Wait for apps/api to become healthy
         env:
