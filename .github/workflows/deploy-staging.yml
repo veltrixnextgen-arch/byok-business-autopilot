@@ -58,16 +58,31 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
+          # Vercel API error bodies are plain error codes/messages, never
+          # secrets — safe to print for diagnosis. Try scoped to the team
+          # first; a project owned by a personal account (not a team)
+          # returns 404 for a teamId-scoped lookup even with correct IDs,
+          # so fall back to the unscoped lookup rather than guess which
+          # kind of account this is.
           HTTP_STATUS=$(curl -s -o /tmp/vercel_project.json -w "%{http_code}" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
-          # Vercel API error bodies are plain error codes/messages, never
-          # secrets — safe to print for diagnosis.
-          echo "Vercel API HTTP status: $HTTP_STATUS"
+          echo "Vercel API HTTP status (with teamId): $HTTP_STATUS"
           cat /tmp/vercel_project.json
           echo ""
+
           if [ "$HTTP_STATUS" -ge 400 ]; then
-            echo "::error::Vercel API request failed with HTTP $HTTP_STATUS — see response body above."
+            echo "Retrying without teamId (personal-account project)..."
+            HTTP_STATUS=$(curl -s -o /tmp/vercel_project.json -w "%{http_code}" \
+              "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
+              -H "Authorization: Bearer $VERCEL_TOKEN")
+            echo "Vercel API HTTP status (without teamId): $HTTP_STATUS"
+            cat /tmp/vercel_project.json
+            echo ""
+          fi
+
+          if [ "$HTTP_STATUS" -ge 400 ]; then
+            echo "::error::Vercel API request failed with HTTP $HTTP_STATUS both with and without teamId — see response bodies above."
             exit 1
           fi
           NAME=$(jq -r '.name // empty' /tmp/vercel_project.json)
