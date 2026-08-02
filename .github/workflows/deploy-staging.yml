@@ -58,9 +58,19 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          RESPONSE=$(curl -sf "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
+          HTTP_STATUS=$(curl -s -o /tmp/vercel_project.json -w "%{http_code}" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
             -H "Authorization: Bearer $VERCEL_TOKEN")
-          NAME=$(echo "$RESPONSE" | jq -r '.name // empty')
+          # Vercel API error bodies are plain error codes/messages, never
+          # secrets — safe to print for diagnosis.
+          echo "Vercel API HTTP status: $HTTP_STATUS"
+          cat /tmp/vercel_project.json
+          echo ""
+          if [ "$HTTP_STATUS" -ge 400 ]; then
+            echo "::error::Vercel API request failed with HTTP $HTTP_STATUS — see response body above."
+            exit 1
+          fi
+          NAME=$(jq -r '.name // empty' /tmp/vercel_project.json)
           if [ -z "$NAME" ]; then
             echo "::error::Could not read the Vercel project's name from the API — cannot derive its stable domain."
             exit 1
