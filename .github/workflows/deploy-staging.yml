@@ -197,6 +197,32 @@ jobs:
           echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
           exit 1
 
+      # A real signup, not just a health check — /health proves the
+      # process is up, not that auth actually works end to end. On
+      # failure, dump Railway's own logs immediately (RAILWAY_TOKEN is
+      # already in scope here) instead of guessing from an empty HTTP
+      # error body.
+      - name: Verify signup actually works end to end
+        env:
+          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          STAMP=$(date +%s)
+          STATUS=$(curl -s -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
+            -H "Content-Type: application/json" \
+            -H "Origin: $WEB_URL" \
+            -d "{\"email\":\"deploy-verify-$STAMP@example.invalid\",\"password\":\"Str0ngTempPassw0rd!\",\"name\":\"deploy verify\"}")
+          echo "Signup HTTP status: $STATUS"
+          cat /tmp/signup_resp.json 2>/dev/null
+          echo ""
+          if [ "$STATUS" -ge 300 ]; then
+            echo "::error::Signup failed with HTTP $STATUS — fetching Railway logs for diagnosis."
+            railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
+            exit 1
+          fi
+          echo "Signup succeeded end to end."
+
       # Ensure the project's Root Directory is actually apps/web (a Vercel
       # project setting, not something a vercel.json in the repo can
       # declare — the CLI applies it relative to wherever it's invoked
