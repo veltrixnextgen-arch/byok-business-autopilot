@@ -1,0 +1,200 @@
+name: Deploy (staging)
+
+# Issue #26: deploys trigger from tags, not arbitrary commits. Tagging
+# vX.Y.Z-staging deploys the full stack (Neon migrations + RLS verification,
+# Railway apps/api, Vercel apps/web) to staging only — there is no
+# production environment or production deploy path yet.
+on:
+  push:
+    tags:
+      - "v*.*.*-staging"
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy staging stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run migrations against managed Postgres (Neon)
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: npm run db:migrate
+
+      # RLS negative test — see packages/db/src/verifyRlsIsolation.ts.
+      # "Migrations ran" only proves the schema loaded; this connects as the
+      # app's own restricted role (never a superuser) and proves tenant B's
+      # session cannot read a row inserted under tenant A — zero rows
+      # returned, not an error. This step's log output is the evidence
+      # copied into the PR description.
+      - name: Verify RLS isolation against live Neon (real negative test)
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: npm run db:verify-rls
+
+      - name: Install Railway and Vercel CLIs
+        run: npm install -g @railway/cli@5.30.3 vercel@58.4.4
+
+      # Vercel's <project-name>.vercel.app alias is reserved at project
+      # creation and stays constant across every production deploy — read it
+      # from the API instead of guessing, so apps/api's WEB_ORIGIN (needed
+      # for CORS + Better Auth trustedOrigins) is correct before apps/api
+      # ever starts, with zero string-guessing.
+      - name: Determine Vercel's stable production domain
+        id: vercel_domain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          RESPONSE=$(curl -sf "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          NAME=$(echo "$RESPONSE" | jq -r '.name // empty')
+          if [ -z "$NAME" ]; then
+            echo "::error::Could not read the Vercel project's name from the API — cannot derive its stable domain."
+            exit 1
+          fi
+          echo "Vercel project name: $NAME"
+          echo "url=https://$NAME.vercel.app" >> "$GITHUB_OUTPUT"
+
+      # apps/api's runtime config lives entirely in Railway's own env store
+      # (never in a GitHub secret used only for CI-to-platform auth) — set
+      # here from values this job already holds, so nothing needs to be
+      # hand-copied into Railway's dashboard. BETTER_AUTH_SECRET and
+      # STAGING_KMS_MASTER_KEY are generated fresh on every staging deploy:
+      # acceptable for a pipeline-verification environment (it invalidates
+      # existing staging sessions each deploy), and StagingKms has no
+      # deployed caller yet — see the PR description.
+      - name: Configure Railway environment and deploy apps/api
+        id: railway_deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
+          WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
+        run: |
+          BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+          STAGING_KMS_MASTER_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+          # These are generated here (not pulled from a registered GitHub
+          # secret), so GitHub doesn't know to mask them automatically —
+          # register them explicitly in case any CLI command echoes a value
+          # back as confirmation output.
+          echo "::add-mask::$BETTER_AUTH_SECRET"
+          echo "::add-mask::$STAGING_KMS_MASTER_KEY"
+
+          railway variable set "DATABASE_URL=$NEON_DATABASE_URL"
+          railway variable set "REDIS_URL=$UPSTASH_REDIS_URL"
+          railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET"
+          railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY"
+          railway variable set "WEB_ORIGIN=$WEB_ORIGIN"
+          # ADR-007: StagingKms/isProductionEnvironment() key on NODE_ENV —
+          # Railway/Nixpacks may default this to "production" for Node
+          # builds, which would trip the ADR-007 guard. Pin it explicitly.
+          railway variable set "NODE_ENV=staging"
+
+          railway up --detach
+
+      - name: Generate Railway's public domain for apps/api
+        id: railway_domain
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          OUTPUT=$(railway domain 2>&1)
+          echo "$OUTPUT"
+          URL=$(echo "$OUTPUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.railway\.app' | head -1)
+          if [ -z "$URL" ]; then
+            LIST_OUTPUT=$(railway domain list 2>&1)
+            echo "$LIST_OUTPUT"
+            HOST=$(echo "$LIST_OUTPUT" | grep -oE '[a-zA-Z0-9.-]+\.up\.railway\.app' | head -1)
+            if [ -n "$HOST" ]; then
+              URL="https://$HOST"
+            fi
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::Could not determine Railway's public domain for apps/api from 'railway domain' output."
+            exit 1
+          fi
+          echo "Railway URL: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      # BETTER_AUTH_URL needs Railway's own domain, which only exists after
+      # the first deploy above — set it now and redeploy once more so it's
+      # in place before this URL sees any real traffic.
+      - name: Set BETTER_AUTH_URL and redeploy apps/api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}"
+          railway up --detach
+
+      - name: Wait for apps/api to become healthy
+        env:
+          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf "$RAILWAY_URL/health" > /dev/null; then
+              echo "apps/api is healthy at $RAILWAY_URL/health"
+              exit 0
+            fi
+            echo "Waiting for apps/api to come up ($i/30)..."
+            sleep 5
+          done
+          echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
+          exit 1
+
+      # Now that Railway's URL is known, build apps/web with it baked in as
+      # VITE_API_URL (Vite inlines this at build time, so it must be correct
+      # for THIS deploy, not patched in afterward) and promote to Vercel's
+      # stable production domain determined above.
+      - name: Deploy apps/web to Vercel
+        id: vercel_deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          cd apps/web
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+            --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
+            > /tmp/vercel-deploy-url.txt
+          cat /tmp/vercel-deploy-url.txt
+
+      - name: Smoke-check the deployed dashboard route
+        env:
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
+            if [ "$STATUS" -lt 500 ]; then
+              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Waiting for apps/web to come up ($i/30, last status $STATUS)..."
+            sleep 5
+          done
+          echo "::error::apps/web never became reachable at $WEB_URL/dashboard"
+          exit 1
+
+      - name: Summary
+        env:
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+          API_URL: ${{ steps.railway_domain.outputs.url }}
+        run: |
+          {
+            echo "### Staging deploy complete"
+            echo ""
+            echo "- apps/web: $WEB_URL"
+            echo "- apps/api: $API_URL"
+            echo "- Dashboard: $WEB_URL/dashboard"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -24,6 +24,7 @@
     "approval-queue:test": "npm run test --workspace @byok/approval-queue",
     "db:test": "npm run test --workspace @byok/db",
     "db:migrate": "npm run migrate --workspace @byok/db",
+    "db:verify-rls": "npm run verify-rls --workspace @byok/db",
     "auth:test": "npm run test --workspace @byok/auth",
     "jobs:test": "npm run test --workspace @byok/jobs",
     "api:test": "npm run test --workspace @byok/api",

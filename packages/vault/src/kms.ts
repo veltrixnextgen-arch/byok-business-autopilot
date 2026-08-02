@@ -58,6 +58,38 @@ export class LocalKms implements Kms {
   }
 }
 
+// Staging-only. Same envelope-encryption crypto as LocalKms, but the master
+// key comes from an env var (the host platform's own secret store) instead
+// of a local file — there's no local filesystem to persist a key file on a
+// PaaS deploy. Still not production-safe: one static key, no rotation, no
+// HSM, no access audit. CloudKms is the real production swap.
+export class StagingKms implements Kms {
+  private readonly masterKey: Buffer;
+
+  constructor(masterKeyBase64: string) {
+    // ADR-007: never in production — identical guard to LocalKms.
+    if (isProductionEnvironment()) {
+      throw new ProductionKmsGuardError(
+        "StagingKms cannot be constructed in production (NODE_ENV=production or PRODUCTION=true). " +
+          "Construct a CloudKms (or another real Kms implementation) instead.",
+      );
+    }
+    const key = Buffer.from(masterKeyBase64, "base64");
+    if (key.length !== 32) {
+      throw new Error(`StagingKms master key must decode to 32 bytes (AES-256), got ${key.length}.`);
+    }
+    this.masterKey = key;
+  }
+
+  async encryptDek(dek: Buffer): Promise<EncryptedBlob> {
+    return encrypt(dek, this.masterKey);
+  }
+
+  async decryptDek(blob: EncryptedBlob): Promise<Buffer> {
+    return decrypt(blob, this.masterKey);
+  }
+}
+
 export interface CloudKmsConfig {
   provider: "aws-kms" | "gcp-kms";
   /** ARN (AWS) or resource name (GCP) of the customer master key. */
