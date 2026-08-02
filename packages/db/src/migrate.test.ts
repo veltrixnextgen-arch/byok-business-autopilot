@@ -28,3 +28,27 @@ test("0001_init.sql enables and forces RLS with a bound-setting policy for every
   assert.match(sql, /current_setting\('app\.tenant_id', true\)::uuid/);
   assert.match(sql, /WITH CHECK \(tenant_id = current_setting\('app\.tenant_id', true\)::uuid\)/);
 });
+
+test("0002_durable_storage.sql RLS-policies every tenant-scoped table it creates", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0002_durable_storage.sql"), "utf8");
+
+  // Every table this migration creates carries a tenant_id column and must
+  // be locked down the same way — this list is intentionally literal so
+  // adding a table here without a matching policy fails this test loudly.
+  const tenantScopedTables = [
+    "cost_ledger_counters",
+    "cost_reservations",
+    "router_tasks",
+    "task_ledger_entries",
+    "approval_queue_items",
+    "autonomy_counters",
+    "paused_batches",
+    "audit_log",
+  ];
+
+  for (const table of tenantScopedTables) {
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`), `${table}: missing ENABLE RLS`);
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;`), `${table}: missing FORCE RLS`);
+    assert.match(sql, new RegExp(`CREATE POLICY tenant_isolation ON ${table}`), `${table}: missing tenant_isolation policy`);
+  }
+});

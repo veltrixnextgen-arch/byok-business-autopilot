@@ -7,7 +7,11 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:integration": "tsx --test \"src/**/*.itest.ts\""
+  },
+  "dependencies": {
+    "@byok/db": "*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

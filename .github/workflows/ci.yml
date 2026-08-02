@@ -71,11 +71,56 @@ jobs:
             packages/vault/package.json \
             packages/cost-gate/package.json \
             packages/approval-queue/package.json \
+            packages/db/package.json \
             package-lock.json || true)
           if [ -n "$CHANGED" ]; then
             echo "::warning::Trust-core dependency files changed — verify pins are still exact per ADR-006:"
             echo "$CHANGED"
           fi
+
+  integration-tests:
+    name: Integration tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: byok
+          POSTGRES_PASSWORD: byok_ci_password
+          POSTGRES_DB: byok
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U byok"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://byok:byok_ci_password@localhost:5432/byok
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      # THE atomicity fix (issue #6): proves the reservation/autonomy race
+      # is closed against a REAL Postgres, not just an in-memory fake — see
+      # each package's *.itest.ts for what's actually being proven.
+      - run: npm run test:integration --workspace @byok/cost-gate
+      - run: npm run test:integration --workspace @byok/approval-queue
+      - run: npm run test:integration --workspace @byok/router
 
   trust-core-attestation:
     name: Trust-core attestation
@@ -103,6 +148,7 @@ jobs:
             packages/vault/ \
             packages/cost-gate/ \
             packages/approval-queue/ \
+            packages/db/ \
             docs/architecture/security-architecture.md \
             eslint.config.js \
             .github/ || true)
