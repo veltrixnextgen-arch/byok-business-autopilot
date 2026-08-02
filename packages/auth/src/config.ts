@@ -1,5 +1,5 @@
-import type { Database } from "@byok/db";
-import { tenantMembers, tenants, users } from "@byok/db";
+import type { Database, PoolLike } from "@byok/db";
+import { tenants, users, withTenantScope } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
@@ -7,6 +7,11 @@ import * as authSchema from "./schema.js";
 
 export interface AuthConfigOptions {
   db: Database;
+  /** Same pool `db` wraps — needed separately because tenant_members has
+   *  FORCE ROW LEVEL SECURITY, and inserting into it requires a connection
+   *  with app.tenant_id already set (withTenantScope), which a plain
+   *  Database handle can't do on its own. */
+  pool: PoolLike;
   baseURL: string;
   secret: string;
   /** Origins apps/web may be served from (different port/domain in dev) —
@@ -101,10 +106,23 @@ export function createAuth(options: AuthConfigOptions) {
           }: {
             member: { organizationId: string; userId: string; role: string };
           }) => {
-            await options.db
-              .insert(tenantMembers)
-              .values({ tenantId: member.organizationId, userId: member.userId, role: member.role })
-              .onConflictDoNothing();
+            // tenant_members has FORCE ROW LEVEL SECURITY — inserting via
+            // the plain `options.db` handle (no app.tenant_id set) fails
+            // its WITH CHECK outright ("new row violates row-level
+            // security policy"), caught only by actually trying this
+            // against real Postgres. withTenantScope sets app.tenant_id to
+            // the new member's own tenant before the insert runs. Raw SQL
+            // (bound params, never interpolation — same discipline as
+            // tenantContext.ts) rather than the Drizzle query builder:
+            // withTenantScope's client is a deliberately minimal
+            // structural interface, not a real pg.PoolClient, so it can't
+            // be wrapped in drizzle() directly.
+            await withTenantScope(options.pool, member.organizationId, async (client) => {
+              await client.query(
+                "INSERT INTO tenant_members (tenant_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+                [member.organizationId, member.userId, member.role],
+              );
+            });
           },
         },
       }),
