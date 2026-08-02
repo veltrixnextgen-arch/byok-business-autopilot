@@ -50,5 +50,6 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps) {
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`@byok/api listening on http://localhost:${info.port}`);
+    console.log(`crossSiteCookies=${config.crossSiteCookies} authBaseUrl=${config.authBaseUrl} webOrigin=${config.webOrigin}`);
   });
 }
