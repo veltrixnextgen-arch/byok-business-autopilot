@@ -70,8 +70,6 @@ export function createAuth(options: AuthConfigOptions) {
     // first org a user creates fails: afterAddMember below inserts into
     // tenant_members using Better Auth's user.id, and that column has an
     // FK against users.id — a row that, without this hook, never existed.
-    // Mirrors the afterCreateOrganization/afterAddMember pattern already
-    // used for organization -> tenants.
     databaseHooks: {
       user: {
         create: {
@@ -98,14 +96,24 @@ export function createAuth(options: AuthConfigOptions) {
     plugins: [
       organization({
         organizationHooks: {
-          afterCreateOrganization: async ({ organization: org }: { organization: { id: string; slug: string; name: string } }) => {
-            await options.db.insert(tenants).values({ id: org.id, slug: org.slug, name: org.name }).onConflictDoNothing();
-          },
+          // Better Auth calls afterAddMember BEFORE afterCreateOrganization
+          // during org creation (see crud-org.mjs: addMember at line 101,
+          // afterCreateOrganization at line 137) — a fixed ordering in
+          // Better Auth itself, not something this config controls. So the
+          // tenants sync can't live in afterCreateOrganization: by the time
+          // it would run, afterAddMember has already tried (and, before
+          // this fix, failed) to insert a tenant_members row whose
+          // tenant_id FK has no matching tenants row yet. Both hooks
+          // receive the full `organization` object regardless of which
+          // fires first, so the sync belongs here instead.
           afterAddMember: async ({
             member,
+            organization: org,
           }: {
             member: { organizationId: string; userId: string; role: string };
+            organization: { id: string; slug: string; name: string };
           }) => {
+            await options.db.insert(tenants).values({ id: org.id, slug: org.slug, name: org.name }).onConflictDoNothing();
             // tenant_members has FORCE ROW LEVEL SECURITY — inserting via
             // the plain `options.db` handle (no app.tenant_id set) fails
             // its WITH CHECK outright ("new row violates row-level
