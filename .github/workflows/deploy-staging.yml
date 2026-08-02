@@ -197,6 +197,24 @@ jobs:
           echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
           exit 1
 
+      # Ensure the project's Root Directory is actually apps/web — Root
+      # Directory is a Vercel project setting, not something a vercel.json
+      # in the repo can declare, and the CLI applies it relative to
+      # wherever it's invoked from. Setting it here (idempotent) and
+      # running the CLI from the repo root — not `cd apps/web` first —
+      # keeps those consistent: cd-ing ourselves AND having the platform
+      # apply its own Root Directory on top compounds into a doubled,
+      # nonexistent path.
+      - name: Ensure Vercel project Root Directory is apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          curl -sf -X PATCH "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"rootDirectory":"apps/web"}' > /dev/null
+
       # Now that Railway's URL is known, build apps/web with it baked in as
       # VITE_API_URL (Vite inlines this at build time, so it must be correct
       # for THIS deploy, not patched in afterward) and promote to Vercel's
@@ -208,7 +226,6 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          cd apps/web
           vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
             --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
             > /tmp/vercel-deploy-url.txt
