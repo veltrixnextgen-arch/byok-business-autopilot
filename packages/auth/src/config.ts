@@ -14,6 +14,15 @@ export interface AuthConfigOptions {
    *  but a browser client on a different origin needs to be added
    *  explicitly or its requests are rejected before hono/cors even runs. */
   trustedOrigins?: string[];
+  /** True when apps/web and apps/api are on genuinely different sites (not
+   *  just different ports of the same host, e.g. staging's vercel.app vs
+   *  railway.app) — the session cookie's default SameSite=Lax is never
+   *  sent on cross-site fetch() calls, only top-level navigations, so the
+   *  browser silently drops the session on every API call. SameSite=None
+   *  requires Secure (HTTPS-only), which breaks local dev's
+   *  http://localhost — hence this being an explicit opt-in, not the
+   *  default. */
+  crossSiteCookies?: boolean;
 }
 
 /**
@@ -46,6 +55,9 @@ export function createAuth(options: AuthConfigOptions) {
       database: {
         generateId: "uuid",
       },
+      ...(options.crossSiteCookies
+        ? { defaultCookieAttributes: { sameSite: "none" as const, secure: true, partitioned: true } }
+        : {}),
     },
     emailAndPassword: {
       enabled: true,

@@ -142,6 +142,13 @@ jobs:
           railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
           railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"
           railway variable set "WEB_ORIGIN=$WEB_ORIGIN" --service "$RAILWAY_SERVICE"
+          # apps/web (vercel.app) and apps/api (railway.app) are genuinely
+          # different sites, not just different ports — the session
+          # cookie's default SameSite=Lax is never sent on cross-site
+          # fetch() calls. Off by default (see AuthConfigOptions.crossSiteCookies)
+          # since SameSite=None needs HTTPS, which local dev's
+          # http://localhost doesn't have; staging is HTTPS end to end.
+          railway variable set "CROSS_SITE_COOKIES=true" --service "$RAILWAY_SERVICE"
           # ADR-007: StagingKms/isProductionEnvironment() key on NODE_ENV —
           # Railway/Nixpacks may default this to "production" for Node
           # builds, which would trip the ADR-007 guard. Pin it explicitly.
@@ -214,7 +221,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           STAMP=$(date +%s)
-          STATUS=$(curl -s -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
+          STATUS=$(curl -s -D /tmp/signup_headers.txt -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
             -H "Content-Type: application/json" \
             -H "Origin: $WEB_URL" \
             -d "{\"email\":\"deploy-verify-$STAMP@example.invalid\",\"password\":\"Str0ngTempPassw0rd!\",\"name\":\"deploy verify\"}")
@@ -230,7 +237,15 @@ jobs:
             railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
             exit 1
           fi
-          echo "Signup succeeded end to end."
+          # Not just "did it 200" — the actual bug this caught was a
+          # cross-site cookie the browser silently drops on every
+          # subsequent request. Assert the attribute directly.
+          if ! grep -qi "SameSite=None" /tmp/signup_headers.txt; then
+            echo "::error::Signup succeeded but the session cookie is missing SameSite=None — it won't survive cross-site fetch() calls from apps/web. Headers:"
+            cat /tmp/signup_headers.txt
+            exit 1
+          fi
+          echo "Signup succeeded end to end, with a cross-site-capable session cookie."
 
       # Ensure the project's Root Directory is actually apps/web (a Vercel
       # project setting, not something a vercel.json in the repo can

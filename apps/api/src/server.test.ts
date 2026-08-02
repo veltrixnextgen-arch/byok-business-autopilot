@@ -35,3 +35,20 @@ test("respects an explicit PORT, BETTER_AUTH_URL, and WEB_ORIGIN", () => {
   assert.equal(config.authBaseUrl, "https://api.example.com");
   assert.equal(config.webOrigin, "https://app.example.com");
 });
+
+test("crossSiteCookies defaults to false (SameSite=None needs HTTPS, which local dev doesn't have)", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.crossSiteCookies, false);
+});
+
+test("crossSiteCookies is true only when CROSS_SITE_COOKIES=true exactly", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    CROSS_SITE_COOKIES: "true",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.crossSiteCookies, true);
+});
