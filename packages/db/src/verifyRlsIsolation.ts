@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import { withTenantScope } from "./tenantContext.js";
 
 /**
@@ -83,13 +83,22 @@ async function main(): Promise<void> {
     }
     console.log("[rls-verify] PASS: tenant B's cross-tenant read of tenant A's row returned ZERO rows — refused, not errored");
 
-    const noContextClient = await pool.connect();
+    // A dedicated one-off Client, not a pool.connect() — pool connections
+    // get reused across the checks above, and Postgres resets a
+    // set_config(..., true)-scoped custom GUC to an empty string at
+    // transaction end, not back to "undefined". current_setting(...) would
+    // then see '' instead of NULL, and ''::uuid throws — a real
+    // fail-closed outcome (an error, not a leak), but not the clean
+    // "truly never set" case this check means to prove. A fresh physical
+    // connection that has never run set_config guarantees the real case.
+    const noContextClient = new Client({ connectionString });
+    await noContextClient.connect();
     let noContextRows: unknown[];
     try {
       const res = (await noContextClient.query("SELECT id FROM tenant_members WHERE id = $1", [memberRowId])) as { rows: unknown[] };
       noContextRows = res.rows;
     } finally {
-      noContextClient.release();
+      await noContextClient.end();
     }
     if (noContextRows.length !== 0) {
       throw new Error(`FAIL: a connection with no tenant context set read ${noContextRows.length} row(s). RLS isolation is NOT enforced on this database.`);
