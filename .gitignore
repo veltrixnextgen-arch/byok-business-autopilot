@@ -10,3 +10,8 @@ coverage/
 
 # LocalKms dev master key — see packages/vault/src/kms.ts. Never commit this.
 .local-kms/
+
+# TanStack Router auto-generates this from apps/web/src/routes/ on every
+# dev/build run — never hand-edited, no reason to commit it.
+routeTree.gen.ts
+.tanstack/

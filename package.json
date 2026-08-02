@@ -13,7 +13,8 @@
     "packages/auth",
     "packages/jobs",
     "apps/router",
-    "apps/api"
+    "apps/api",
+    "apps/web"
   ],
   "scripts": {
     "extract": "npm run extract --workspace @byok/extraction --",
@@ -26,13 +27,20 @@
     "auth:test": "npm run test --workspace @byok/auth",
     "jobs:test": "npm run test --workspace @byok/jobs",
     "api:test": "npm run test --workspace @byok/api",
-    "typecheck": "npm run build --workspaces --if-present",
+    "web:typecheck": "npm run typecheck --workspace @byok/web",
+    "typecheck": "npm run build --workspaces --if-present && npm run web:typecheck",
     "test": "npm run db:test && npm run auth:test && npm run jobs:test && npm run api:test && npm run router:test && npm run vault:test && npm run cost-gate:test && npm run approval-queue:test",
     "test:integration": "npm run test:integration --workspace @byok/cost-gate && npm run test:integration --workspace @byok/approval-queue && npm run test:integration --workspace @byok/router",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "dev": "docker compose up -d --wait && concurrently -n api,web -c blue,green \"npm run dev --workspace @byok/api\" \"npm run dev --workspace @byok/web\""
   },
   "devDependencies": {
     "@typescript-eslint/parser": "8.65.0",
+    "concurrently": "10.0.4",
     "eslint": "10.8.0"
+  },
+  "overrides": {
+    "h3": "1.15.11",
+    "js-yaml": "^4.1.0"
   }
 }

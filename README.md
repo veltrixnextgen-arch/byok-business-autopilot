@@ -29,32 +29,38 @@ Full detail lives in [docs/strategy/master-plan-v2.md](docs/strategy/master-plan
 
 ## Local development
 
-The shell (`apps/api`) needs Postgres and Redis. One command starts both:
+First-time setup, from repo root:
 
 ```bash
-docker compose up -d
+cp .env.example .env        # fill in DATABASE_URL/REDIS_URL/WEB_ORIGIN if you changed the defaults
+npm install
+docker compose up -d --wait # Postgres + Redis, waits for both healthchecks
+npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL — first time only, see below
 ```
 
-Then, from repo root:
+Then, day to day:
 
 ```bash
-cp .env.example .env        # fill in DATABASE_URL/REDIS_URL if you changed the defaults
-npm install
-npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL
+npm run dev                 # docker compose up -d --wait, then apps/api + apps/web together
+```
+
+`apps/api` serves on `:3000` by default (see `apps/api/src/dev.ts` — it wires a real but single-process, in-memory `Router`/`CostGate`/`ApprovalQueue` via `apps/api/src/dev/devTrustCore.ts`, explicitly dev-only; a deployed environment needs its own real pricing/ceiling decisions instead, see `server.ts`). `apps/web` serves on `:3002`. Sign up at `/signup`, then `/dashboard` proves auth + tenant + API resolve end to end.
+
+**Don't re-run `db:migrate` against a non-fresh database** — `CREATE POLICY` isn't idempotent (see `packages/db/src/migrations/`'s comments); it's a one-time step per database, not part of the `npm run dev` loop.
+
+```bash
 npm test                    # every package's test suite (in-memory fakes, no Docker needed)
 npm run test:integration    # atomicity/durability proofs against the REAL Postgres above
-npm run typecheck           # tsc across every workspace
+npm run typecheck           # tsc across every workspace, plus a real `vite build` + tsc for apps/web
 npm run lint                # ESLint — includes the trust-core boundary rule, ADR-009
 ```
-
-`apps/api` itself isn't started by a script yet — trust-core (`Router`/`CostGate`/`ApprovalQueue`) construction is a deployment-level decision (pricing table, ceilings) that hasn't been made yet; see `apps/api/src/server.ts`'s `startServer()` for the seam it's meant to be wired through.
 
 ### Repo layout
 
 - `apps/router` — the router service (trust core, CODEOWNERS-locked, ADR-005)
 - `packages/vault`, `packages/cost-gate`, `packages/approval-queue` — trust core (CODEOWNERS-locked)
 - `packages/db` — Drizzle schema + Postgres RLS tenant isolation (Ring 1, security-architecture.md §4)
-- `packages/auth` — Better Auth config (multi-tenancy via the organization plugin, MFA, the step-up permission concept for T6)
+- `packages/auth` — Better Auth config (multi-tenancy via the organization plugin, MFA, the step-up permission concept for T6) + a browser client (`@byok/auth/client`) apps/web consumes
 - `packages/jobs` — BullMQ queues/workers with a required, typed `tenantId` on every payload
 - `apps/api` — the shell's typed API boundary; talks to trust-core only through each package's public `index.ts` (ADR-009, enforced by `eslint.config.js`)
-- `apps/web` — Phase B UI surface, not yet built
+- `apps/web` — TanStack Start frontend. Foundation only so far (Phase B Step 1): auth pages + a minimal authenticated dashboard proving the stack is wired together, no product UI yet

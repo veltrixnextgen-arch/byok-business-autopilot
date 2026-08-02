@@ -11,7 +11,7 @@ const TRUST_CORE_PACKAGES = ["@byok/router", "@byok/vault", "@byok/cost-gate", "
 
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**"],
+    ignores: ["**/dist/**", "**/node_modules/**", "**/routeTree.gen.ts"],
   },
   {
     files: ["apps/api/**/*.ts", "apps/web/**/*.ts", "apps/web/**/*.tsx"],
