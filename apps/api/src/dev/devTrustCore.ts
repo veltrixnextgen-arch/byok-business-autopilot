@@ -1,7 +1,27 @@
 import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approval-queue";
-import { CostGate, PricingTable, ReservationLedger, type TierModelMap } from "@byok/cost-gate";
+import { CostGate, loadDefaultPricingTable, ReservationLedger, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
 import type { TrustCoreDeps } from "../context.js";
+
+// Model ids here must exactly match packages/cost-gate/src/pricing-table.json
+// (loaded below, not hand-duplicated — see loadDefaultPricingTable's own
+// comment for why a hand-copied table previously drifted: this repo's T1
+// entry was "claude-haiku-4-5", missing the "-20251001" suffix every real
+// call — customize.ts, categoryValidator.ts, onboardingBatch.ts — actually
+// uses, so cost estimation for the onboarding batch would have silently
+// thrown UnknownModelError the moment it ran for real). Exported (not just
+// used inline) so devTrustCore.test.ts can assert every model id referenced
+// anywhere in this repo has a pricing entry, not just the ones this map
+// happens to name.
+export const DEV_TIER_MODEL_MAP: TierModelMap = {
+  T1: "claude-haiku-4-5-20251001",
+  T2: "claude-sonnet-4-6",
+  T3: "claude-opus-4-6",
+};
+
+export function loadDevPricingTable(): PricingTable {
+  return loadDefaultPricingTable();
+}
 
 /**
  * Local-dev-only trust-core: real Router/CostGate/ApprovalQueue classes,
@@ -15,33 +35,13 @@ import type { TrustCoreDeps } from "../context.js";
  * `npm run dev` has something real to run against everywhere else.
  */
 export function createDevTrustCore(): TrustCoreDeps {
-  const modelMap: TierModelMap = {
-    T1: "claude-haiku-4-5",
-    T2: "claude-sonnet-4-6",
-    T3: "claude-opus-4-6",
-  };
-
-  const pricingTable = new PricingTable({
-    version: 1,
-    lastVerified: new Date().toISOString().slice(0, 10),
-    prices: {
-      "claude-haiku-4-5": { provider: "anthropic", tier: "T1", inputPerMTok: 0.8, outputPerMTok: 4 },
-      "claude-sonnet-4-6": { provider: "anthropic", tier: "T2", inputPerMTok: 3, outputPerMTok: 15 },
-      "claude-opus-4-6": { provider: "anthropic", tier: "T3", inputPerMTok: 15, outputPerMTok: 75 },
-    },
-  });
-
+  const pricingTable = loadDevPricingTable();
   const ceilingConfig = { companyMonthlyUsd: 50, perRoleUsd: {}, perTaskTypeUsd: {} };
 
-  const costGate = new CostGate(pricingTable, ceilingConfig, new ReservationLedger(), modelMap);
+  const costGate = new CostGate(pricingTable, ceilingConfig, new ReservationLedger(), DEV_TIER_MODEL_MAP);
   const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
-  const router = new Router(
-    new InMemoryTaskLedger(),
-    new InMemoryDedupStore(),
-    new MockExecutor(),
-    costGate,
-    approvalQueue,
-  );
+  const ledger = new InMemoryTaskLedger();
+  const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
 
-  return { router, costGate, approvalQueue };
+  return { router, costGate, approvalQueue, ledger };
 }

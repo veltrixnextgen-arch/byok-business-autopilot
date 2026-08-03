@@ -125,6 +125,7 @@ jobs:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
           WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           STAGING_KMS_MASTER_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
@@ -142,6 +143,10 @@ jobs:
           railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
           railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"
           railway variable set "WEB_ORIGIN=$WEB_ORIGIN" --service "$RAILWAY_SERVICE"
+          # Onboarding-only platform inference key (ADR-003) — server.ts's
+          # readServerConfigFromEnv throws at boot without it, same
+          # discipline as DATABASE_URL/BETTER_AUTH_SECRET.
+          railway variable set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" --service "$RAILWAY_SERVICE"
           # apps/web (vercel.app) and apps/api (railway.app) are genuinely
           # different sites, not just different ports — the session
           # cookie's default SameSite=Lax is never sent on cross-site

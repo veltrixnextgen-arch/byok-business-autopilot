@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { withTenantScope } from "./tenantContext.js";
+import { withUserScope } from "./userContext.js";
 
 /**
  * A real negative test against a live database, run as part of the STEP 2
@@ -12,37 +13,10 @@ import { withTenantScope } from "./tenantContext.js";
  * isolation the schema claims to enforce is actually enforced by Postgres
  * itself for the exact role the deployed app connects as.
  */
-async function main(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is required (the app_user connection string — never printed by this script).");
-  }
-
-  const pool = new Pool({ connectionString });
-
-  // Diagnostic only — role attributes, never the credential itself. If this
-  // ever shows rolsuper/rolbypassrls = true, everything below is moot: a
-  // role with BYPASSRLS skips FORCE ROW LEVEL SECURITY entirely regardless
-  // of policy correctness. Neon's Console/API-created roles inherit
-  // neon_superuser membership (-> BYPASSRLS) unless created via plain SQL.
-  const roleCheck = (await pool.query(
-    "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user",
-  )) as { rows: Array<{ rolname: string; rolsuper: boolean; rolbypassrls: boolean }> };
-  const role = roleCheck.rows[0];
-  if (role) {
-    console.log(`[rls-verify] connected as role "${role.rolname}" — rolsuper=${role.rolsuper} rolbypassrls=${role.rolbypassrls}`);
-    if (role.rolsuper || role.rolbypassrls) {
-      console.log(
-        "[rls-verify] this role bypasses RLS at the Postgres level — FORCE ROW LEVEL SECURITY has no effect on it, " +
-          "regardless of policy correctness. It must not be used as the app's runtime role.",
-      );
-    }
-  }
-
+async function verifyTenantIsolation(pool: Pool, connectionString: string, runId: string): Promise<void> {
   const tenantAId = randomUUID();
   const tenantBId = randomUUID();
   const userId = randomUUID();
-  const runId = randomUUID().slice(0, 8);
   let memberRowId: string | undefined;
 
   try {
@@ -105,7 +79,7 @@ async function main(): Promise<void> {
     }
     console.log("[rls-verify] PASS: no tenant context set also returns ZERO rows");
 
-    console.log("RLS ISOLATION: VERIFIED — app_user cannot cross tenant boundaries on tenant_members");
+    console.log("RLS ISOLATION (tenant_members): VERIFIED — app_user cannot cross tenant boundaries");
   } finally {
     try {
       if (memberRowId) {
@@ -115,10 +89,126 @@ async function main(): Promise<void> {
       }
       await pool.query("DELETE FROM tenants WHERE id = ANY($1::uuid[])", [[tenantAId, tenantBId]]);
       await pool.query("DELETE FROM users WHERE id = $1", [userId]);
-      console.log(`[rls-verify] cleanup complete (run ${runId})`);
-    } finally {
-      await pool.end();
+      console.log(`[rls-verify] tenant cleanup complete (run ${runId})`);
+    } catch {
+      // best-effort cleanup — a failure here must not mask the real
+      // pass/fail result of the checks above.
     }
+  }
+}
+
+/**
+ * Same proof as verifyTenantIsolation, for signup_extraction_batches
+ * (migrations/0004_signup_extraction_batches.sql, ADR-015) — this table
+ * is scoped by app.user_id, not app.tenant_id, since it's written before
+ * any tenant exists. "The RLS policy compiles" doesn't prove it's
+ * enforced for the exact role the deployed app connects as; only a real
+ * cross-user read attempt does.
+ */
+async function verifyUserIsolation(pool: Pool, connectionString: string, runId: string): Promise<void> {
+  const userAId = randomUUID();
+  const userBId = randomUUID();
+  let batchId: string | undefined;
+
+  try {
+    await pool.query("INSERT INTO users (id, email) VALUES ($1, $2), ($3, $4)", [
+      userAId,
+      `rls-verify-user-a-${runId}@example.invalid`,
+      userBId,
+      `rls-verify-user-b-${runId}@example.invalid`,
+    ]);
+    console.log(`[rls-verify] seeded user A and user B (run ${runId})`);
+
+    batchId = randomUUID();
+    await withUserScope(pool, userAId, async (client) => {
+      await client.query("INSERT INTO signup_extraction_batches (id, user_id, idea, status) VALUES ($1, $2, $3, 'running')", [
+        batchId,
+        userAId,
+        "rls-verify idea",
+      ]);
+    });
+    console.log(`[rls-verify] inserted signup_extraction_batches row ${batchId} under user A`);
+
+    const ownRead = await withUserScope(pool, userAId, async (client) => {
+      return client.query("SELECT id FROM signup_extraction_batches WHERE id = $1", [batchId]) as Promise<{ rows: unknown[] }>;
+    });
+    if (ownRead.rows.length !== 1) {
+      throw new Error(`FAIL: user A could not read its own row back (expected 1 row, got ${ownRead.rows.length}) — test setup is broken, not proof of isolation.`);
+    }
+    console.log("[rls-verify] PASS: user A reads its own row (1 row) — proves the row genuinely exists");
+
+    const crossUserRead = await withUserScope(pool, userBId, async (client) => {
+      return client.query("SELECT id FROM signup_extraction_batches WHERE id = $1", [batchId]) as Promise<{ rows: unknown[] }>;
+    });
+    if (crossUserRead.rows.length !== 0) {
+      throw new Error(`FAIL: user B read ${crossUserRead.rows.length} row(s) belonging to user A. RLS isolation is NOT enforced on this table.`);
+    }
+    console.log("[rls-verify] PASS: user B's cross-user read of user A's row returned ZERO rows — refused, not errored");
+
+    const noContextClient = new Client({ connectionString });
+    await noContextClient.connect();
+    let noContextRows: unknown[];
+    try {
+      const res = (await noContextClient.query("SELECT id FROM signup_extraction_batches WHERE id = $1", [batchId])) as { rows: unknown[] };
+      noContextRows = res.rows;
+    } finally {
+      await noContextClient.end();
+    }
+    if (noContextRows.length !== 0) {
+      throw new Error(`FAIL: a connection with no user context set read ${noContextRows.length} row(s). RLS isolation is NOT enforced on this table.`);
+    }
+    console.log("[rls-verify] PASS: no user context set also returns ZERO rows");
+
+    console.log("RLS ISOLATION (signup_extraction_batches): VERIFIED — app_user cannot cross user boundaries");
+  } finally {
+    try {
+      if (batchId) {
+        await withUserScope(pool, userAId, async (client) => {
+          await client.query("DELETE FROM signup_extraction_batches WHERE id = $1", [batchId]);
+        });
+      }
+      await pool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [[userAId, userBId]]);
+      console.log(`[rls-verify] user cleanup complete (run ${runId})`);
+    } catch {
+      // best-effort cleanup, same reasoning as verifyTenantIsolation's.
+    }
+  }
+}
+
+async function main(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is required (the app_user connection string — never printed by this script).");
+  }
+
+  const pool = new Pool({ connectionString });
+
+  // Diagnostic only — role attributes, never the credential itself. If this
+  // ever shows rolsuper/rolbypassrls = true, everything below is moot: a
+  // role with BYPASSRLS skips FORCE ROW LEVEL SECURITY entirely regardless
+  // of policy correctness. Neon's Console/API-created roles inherit
+  // neon_superuser membership (-> BYPASSRLS) unless created via plain SQL.
+  const roleCheck = (await pool.query(
+    "SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user",
+  )) as { rows: Array<{ rolname: string; rolsuper: boolean; rolbypassrls: boolean }> };
+  const role = roleCheck.rows[0];
+  if (role) {
+    console.log(`[rls-verify] connected as role "${role.rolname}" — rolsuper=${role.rolsuper} rolbypassrls=${role.rolbypassrls}`);
+    if (role.rolsuper || role.rolbypassrls) {
+      console.log(
+        "[rls-verify] this role bypasses RLS at the Postgres level — FORCE ROW LEVEL SECURITY has no effect on it, " +
+          "regardless of policy correctness. It must not be used as the app's runtime role.",
+      );
+    }
+  }
+
+  const runId = randomUUID().slice(0, 8);
+
+  try {
+    await verifyTenantIsolation(pool, connectionString, runId);
+    await verifyUserIsolation(pool, connectionString, runId);
+  } finally {
+    await pool.end();
   }
 }
 

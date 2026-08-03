@@ -52,3 +52,19 @@ test("0002_durable_storage.sql RLS-policies every tenant-scoped table it creates
     assert.match(sql, new RegExp(`CREATE POLICY tenant_isolation ON ${table}`), `${table}: missing tenant_isolation policy`);
   }
 });
+
+test("0004_signup_extraction_batches.sql enables and forces RLS keyed on app.user_id, not app.tenant_id", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0004_signup_extraction_batches.sql"), "utf8");
+
+  // This table is deliberately NOT tenant-scoped (ADR-015 — it's written
+  // before any tenant exists), so it must NOT reuse the tenant_isolation
+  // policy name or app.tenant_id — a copy-paste of the tenant pattern here
+  // would silently defeat isolation (every user sharing whatever
+  // app.tenant_id happens to be set, or none at all).
+  assert.match(sql, /ALTER TABLE signup_extraction_batches ENABLE ROW LEVEL SECURITY;/);
+  assert.match(sql, /ALTER TABLE signup_extraction_batches FORCE ROW LEVEL SECURITY;/);
+  assert.match(sql, /CREATE POLICY user_isolation ON signup_extraction_batches/);
+  assert.match(sql, /current_setting\('app\.user_id', true\)::uuid/);
+  assert.match(sql, /WITH CHECK \(user_id = current_setting\('app\.user_id', true\)::uuid\)/);
+  assert.doesNotMatch(sql, /app\.tenant_id/);
+});

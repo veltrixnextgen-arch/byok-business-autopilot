@@ -16,6 +16,7 @@
     "@byok/auth": "*",
     "@byok/cost-gate": "*",
     "@byok/db": "*",
+    "@byok/extraction": "*",
     "@byok/jobs": "*",
     "@byok/router": "*",
     "@byok/vault": "*",
