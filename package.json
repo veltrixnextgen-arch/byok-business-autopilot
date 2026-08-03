@@ -8,6 +8,7 @@
   },
   "workspaces": [
     "packages/templates",
+    "packages/agents/contracts",
     "packages/agents/extraction",
     "packages/vault",
     "packages/cost-gate",

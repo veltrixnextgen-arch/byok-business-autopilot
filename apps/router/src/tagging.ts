@@ -1,5 +1,5 @@
 // Rule-based tagging. Hints are optional and typically come from an
-// extraction-engine OrgChartTask (stakes/autonomy/frequency/compliance
+// extraction-engine Task (stakes/autonomy/frequency/compliance
 // metadata) — but the router works without them too, since not every task
 // originates from the extraction engine.
 export interface TaggingHints {

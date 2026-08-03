@@ -28,7 +28,7 @@ export interface RouterTask {
   /** Idempotency key. Resubmitting the same key returns the existing task
    *  instead of re-executing — this is the dedup mechanism. */
   dedupKey: string;
-  /** Links back to packages/agents/extraction's OrgChartTask.id, when this
+  /** Links back to @byok/contracts' Task.id, when this
    *  router task originated from an extracted org chart. */
   sourceOrgChartTaskId?: string;
   createdAt: string;

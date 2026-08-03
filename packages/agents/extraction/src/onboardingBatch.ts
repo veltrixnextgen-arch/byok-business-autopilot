@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { CharterDraft, InterviewAnswers, OnboardingBatch, OrgChart, SimulatedDayCard } from "./types.js";
+import type { Charter, InterviewAnswers, OnboardingBatch, OrgChart, SimulatedDayCard } from "./types.js";
 import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
 
 // master-plan-v2.md §4 (Phase A): the Task Extraction Engine "also emits the
@@ -34,15 +34,14 @@ const ONBOARDING_BATCH_TOOL = {
         items: {
           type: "object",
           properties: {
-            agentName: { type: "string", description: "A friendly first name for this sub-agent, auto-suggested (editable later)." },
-            subAgentId: { type: "string", description: "Must exactly match a subAgents[].id from the org chart provided." },
-            roleTitle: { type: "string", description: "The team's role title this sub-agent reports to, e.g. 'CFO'." },
+            agentId: { type: "string", description: "Must exactly match an agents[].id from the org chart provided." },
+            roleTitle: { type: "string", description: "The team's role title this agent reports to, e.g. 'CFO'." },
             summary: {
               type: "string",
               description: "One plain-language line: what they did today, in the style 'prepared 2 invoices for your approval'.",
             },
           },
-          required: ["agentName", "subAgentId", "roleTitle", "summary"],
+          required: ["agentId", "roleTitle", "summary"],
         },
       },
       charterDraft: {
@@ -86,13 +85,13 @@ const ONBOARDING_BATCH_TOOL = {
 function buildPrompt(chart: OrgChart, idea: string, answers: InterviewAnswers): string {
   const teamLines = chart.teams
     .map((team) => {
-      const subAgents = team.subAgentIds.map((id) => chart.subAgents.find((s) => s.id === id)!);
+      const agents = team.agentIds.map((id) => chart.agents.find((a) => a.id === id)!);
       return (
         `${team.roleTitle}${team.isHuman ? " (human — the user, not an agent)" : ""}:\n` +
-        subAgents
-          .map((s) => {
-            const tasks = s.taskIds.map((tid) => chart.tasks.find((t) => t.id === tid)!.text);
-            return `  - ${s.label} (id: ${s.id}): ${tasks.join("; ")}`;
+        agents
+          .map((a) => {
+            const tasks = a.taskIds.map((tid) => chart.tasks.find((t) => t.id === tid)!.text);
+            return `  - ${a.name} · ${a.title} (id: ${a.id}): ${tasks.join("; ")}`;
           })
           .join("\n")
       );
@@ -104,19 +103,18 @@ function buildPrompt(chart: OrgChart, idea: string, answers: InterviewAnswers): 
     `Business type: ${answers.businessType}`,
     `Interview budget answer: ${answers.budget}`,
     ``,
-    `The assembled org chart for this company:`,
+    `The assembled org chart for this company (each agent's name is already assigned — use it exactly as given, never invent a different one):`,
     teamLines,
     ``,
     `Generate the onboarding batch for this company:`,
     `1. simulatedDay: 3-5 cards. Pick a spread across different (non-human) teams, not all from one team. ` +
-      `Invent a friendly first name per sub-agent (these are illustrative suggestions, fully editable later — ` +
-      `don't worry about consistency with any other naming). Keep each summary concrete and specific to this ` +
-      `company's actual tasks, not generic filler.`,
+      `Use each agent's name exactly as given above — do not invent a different one. Keep each summary ` +
+      `concrete and specific to this company's actual tasks, not generic filler.`,
     `2. charterDraft: cover every non-human team from the org chart in roleTasks (skip the Founder/CEO team — ` +
       `that's the human, not a role to summarize). Keep the MVP definition scoped to what's actually launchable, ` +
       `not the whole long-term vision. budgetCeilingPlaceholder should read the interview's budget answer above ` +
       `and phrase it as a starting monthly ceiling.`,
-    `3. Write every roleTasks entry as natural plain-language prose — do NOT prefix it with the sub-agent's ` +
+    `3. Write every roleTasks entry as natural plain-language prose — do NOT prefix it with the agent's ` +
       `category label. Write "Track stock levels for each product and flag reorder points" not "Inventory: ` +
       `Track stock levels...". No internal jargon or label:value formatting anywhere in the charter.`,
   ].join("\n");
@@ -158,16 +156,22 @@ export async function generateOnboardingBatch(
     throw new Error("Claude did not return a generate_onboarding_batch tool call.");
   }
 
-  const input = toolUse.input as { simulatedDay?: SimulatedDayCard[]; charterDraft?: CharterDraft };
+  const input = toolUse.input as { simulatedDay?: Omit<SimulatedDayCard, "agentName">[]; charterDraft?: Charter };
   if (!input.simulatedDay || !input.charterDraft) {
     console.error(`[onboarding-batch] stop_reason=${response.stop_reason}, outputTokens=${outputTokens}/${MAX_OUTPUT_TOKENS}`);
     throw new Error("generate_onboarding_batch tool call was missing simulatedDay or charterDraft.");
   }
 
-  // Defensive: drop any card that references a sub-agent id not actually in
-  // this chart (a hallucinated id would break downstream UI linking).
-  const validSubAgentIds = new Set(chart.subAgents.map((s) => s.id));
-  const simulatedDay = input.simulatedDay.filter((card) => validSubAgentIds.has(card.subAgentId));
+  // Defensive: drop any card that references an agent id not actually in
+  // this chart (a hallucinated id would break downstream UI linking), and
+  // always fill agentName from the chart's own canonical Agent.name rather
+  // than trusting the model to have echoed it back correctly — names must
+  // stay identical everywhere downstream (userflow-v2.md: "Names flow
+  // through everything downstream: digest, approval queue, dashboard").
+  const agentsById = new Map(chart.agents.map((a) => [a.id, a]));
+  const simulatedDay: SimulatedDayCard[] = input.simulatedDay
+    .filter((card) => agentsById.has(card.agentId))
+    .map((card) => ({ ...card, agentName: agentsById.get(card.agentId)!.name }));
 
   return {
     batch: { simulatedDay, charterDraft: input.charterDraft },

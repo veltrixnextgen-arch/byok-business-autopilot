@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { TeamHint } from "@byok/templates";
-import type { ApiCallUsage, CategoryCorrection, OrgChartTask } from "./types.js";
+import type { ApiCallUsage, CategoryCorrection, Task } from "./types.js";
 import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
 import { formatCategoryLegend } from "./categoryDefinitions.js";
 
@@ -42,7 +42,7 @@ const VALIDATE_TOOL = {
   },
 };
 
-function buildPrompt(tasks: OrgChartTask[]): string {
+function buildPrompt(tasks: Task[]): string {
   const taskLines = tasks.map((t) => `- ${t.id} | assigned: ${t.teamHint} | "${t.text}"`).join("\n");
   return [
     `Category definitions:`,
@@ -63,7 +63,7 @@ export interface ValidateRunResult {
 }
 
 export async function validateCategories(
-  tasks: OrgChartTask[],
+  tasks: Task[],
   apiKey: string,
   maxCostUsd: number,
 ): Promise<ValidateRunResult> {

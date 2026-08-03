@@ -22,21 +22,22 @@ export function printTree(chart: OrgChart): string {
 
   for (const team of chart.teams) {
     lines.push(`${team.roleTitle}${team.isHuman ? " (human — the user)" : ""}`);
-    const subAgents = team.subAgentIds.map((id) => chart.subAgents.find((s) => s.id === id)!);
-    subAgents.forEach((sub, i) => {
-      const isLast = i === subAgents.length - 1;
+    const agents = team.agentIds.map((id) => chart.agents.find((a) => a.id === id)!);
+    agents.forEach((agent, i) => {
+      const isLast = i === agents.length - 1;
       const branch = isLast ? "└─" : "├─";
-      const tools = sub.handsTools.length ? ` (${sub.handsTools.join(", ")})` : "";
-      const taskWord = sub.taskIds.length === 1 ? "task" : "tasks";
+      const tools = agent.hands.length ? ` (${agent.hands.join(", ")})` : "";
+      const taskWord = agent.taskIds.length === 1 ? "task" : "tasks";
+      const lock = agent.complianceLocked ? " 🔏" : "";
       lines.push(
-        `  ${branch} ${sub.label} [${sub.suggestedTier}, ${AUTONOMY_SYMBOL[sub.autonomyDefault]} ${sub.autonomyDefault}] ` +
-          `— ${sub.taskIds.length} ${taskWord}${tools}`,
+        `  ${branch} ${agent.name} · ${agent.title} [${agent.tier}, ${AUTONOMY_SYMBOL[agent.autonomyDefault]} ${agent.autonomyDefault}]${lock} ` +
+          `— ${agent.taskIds.length} ${taskWord}${tools}`,
       );
     });
     lines.push("");
   }
 
-  lines.push(`${chart.teams.length} teams, ${chart.subAgents.length} sub-agents, ${chart.tasks.length} tasks total.`);
+  lines.push(`${chart.teams.length} teams, ${chart.agents.length} agents, ${chart.tasks.length} tasks total.`);
 
   lines.push("");
   if (chart.onboardingBatch) {
