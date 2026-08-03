@@ -240,4 +240,26 @@ export const ecommerceTemplate: BusinessTemplate = {
   description:
     "Selling physical products online (own storefront or a marketplace like Etsy/Shopify).",
   tasks,
+  branchQuestions: [
+    {
+      id: "inventoryModel",
+      prompt: "Do you hold your own inventory, or is it dropshipped/print-on-demand?",
+      kind: "single-select",
+      options: [
+        { value: "own-inventory", label: "I hold my own inventory" },
+        { value: "dropship-or-pod", label: "Dropshipped or print-on-demand" },
+        { value: "mixed", label: "A mix of both" },
+      ],
+    },
+    {
+      id: "sellsThrough",
+      prompt: "Where do you sell?",
+      kind: "single-select",
+      options: [
+        { value: "own-storefront", label: "My own storefront" },
+        { value: "marketplace", label: "A marketplace (Etsy, Amazon...)" },
+        { value: "both", label: "Both" },
+      ],
+    },
+  ],
 };

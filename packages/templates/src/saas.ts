@@ -183,4 +183,26 @@ export const saasTemplate: BusinessTemplate = {
   name: "SaaS / software product",
   description: "A software product idea, including ones not yet built (MVP-3 build branch applies).",
   tasks,
+  branchQuestions: [
+    {
+      id: "buildStage",
+      prompt: "How far along is the software itself?",
+      kind: "single-select",
+      options: [
+        { value: "idea-only", label: "Idea only — nothing built" },
+        { value: "prototype", label: "A rough prototype exists" },
+        { value: "in-production", label: "It's live and in production" },
+      ],
+    },
+    {
+      id: "needsWaitlist",
+      prompt: "Do you need a waitlist or landing page before launch?",
+      kind: "single-select",
+      options: [
+        { value: "yes", label: "Yes, not live yet" },
+        { value: "no", label: "No" },
+        { value: "already-launched", label: "Already launched" },
+      ],
+    },
+  ],
 };

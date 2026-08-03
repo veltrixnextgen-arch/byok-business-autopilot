@@ -173,7 +173,15 @@ export function assembleOrgChart(
       brain: null,
       hands: [...new Set(agentTasks.map((t) => t.handsTool).filter((h): h is string => h !== null))],
       autonomyDefault,
-      complianceLocked: autonomyDefault === "locked",
+      // NOT autonomyDefault === "locked": plenty of tasks are locked for
+      // caution unrelated to compliance (deploy-coordinator: "the human
+      // approves every production deploy, always"; vendor-manager:
+      // "ordering never autonomous") — confirmed for real running the six
+      // fixtures, where a tax-deadline-tracker agent (locked, but not a
+      // compliance-hint task) came back complianceLocked: true with
+      // requiresProfessionalVerification: false, exactly backwards. The
+      // real signal is requiresProfessionalVerification itself.
+      complianceLocked: requiresProfessionalVerification,
       requiresProfessionalVerification,
     });
   }

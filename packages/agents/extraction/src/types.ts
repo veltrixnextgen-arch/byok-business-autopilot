@@ -23,7 +23,6 @@ export type {
   Team,
   TemplateSelection,
 } from "@byok/contracts";
-export { getCoreInterviewQuestions, getInterviewQuestions } from "@byok/contracts";
 
 // Claude's customize-pass response shape (tool_use input) — extraction-
 // internal, never seen by apps/web, so it stays here rather than in the

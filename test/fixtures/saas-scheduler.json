@@ -1,12 +1,16 @@
 {
   "idea": "I have an idea for a SaaS tool that schedules social media posts — nothing is built yet",
   "answers": {
-    "businessType": "SaaS tool that schedules social media posts",
-    "whoPays": "both",
-    "channels": "not-sure",
-    "status": "nothing-yet",
-    "dread": "marketing",
-    "budget": "50+",
-    "jurisdiction": { "country": "US", "stateOrProvince": "DE" }
+    "whatCustomersPayFor": "A SaaS tool that schedules social media posts",
+    "whoTheCustomerIs": "both",
+    "howMoneyArrives": "subscription",
+    "howDeliveryReaches": "software-saas",
+    "jurisdiction": { "country": "US", "stateOrProvince": "DE" },
+    "stage": "nothing-yet",
+    "whoIsWorkingOnIt": "solo",
+    "branchAnswers": {
+      "buildStage": "idea-only",
+      "needsWaitlist": "yes"
+    }
   }
 }

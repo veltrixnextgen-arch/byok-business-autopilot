@@ -285,4 +285,27 @@ export const serviceTemplate: BusinessTemplate = {
   name: "Service business",
   description: "Professional or local services sold to consumers or businesses (consulting, bookkeeping, agencies).",
   tasks,
+  branchQuestions: [
+    {
+      id: "billingModel",
+      prompt: "How do you bill clients?",
+      kind: "single-select",
+      options: [
+        { value: "hourly", label: "Hourly" },
+        { value: "retainer", label: "Monthly retainer" },
+        { value: "per-project", label: "Per project" },
+        { value: "mixed", label: "A mix of these" },
+      ],
+    },
+    {
+      id: "deliveryMode",
+      prompt: "Is delivery mostly remote or in person?",
+      kind: "single-select",
+      options: [
+        { value: "remote", label: "Remote" },
+        { value: "in-person", label: "In person" },
+        { value: "mixed", label: "A mix of both" },
+      ],
+    },
+  ],
 };

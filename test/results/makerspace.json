@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I want to run a community makerspace with paid memberships, equipment rentals, and weekend classes.",
-    "generatedAt": "2026-08-01T09:59:35.486Z",
+    "generatedAt": "2026-08-03T07:33:11.837Z",
     "templateSelection": {
       "primary": "physical-space",
       "blendedWith": null,
@@ -19,33 +19,33 @@
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3726,
-        "outputTokens": 1065,
-        "costUsd": 0.027153
+        "inputTokens": 3782,
+        "outputTokens": 1050,
+        "costUsd": 0.027096000000000002
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2052,
+        "inputTokens": 2049,
         "outputTokens": 33,
-        "costUsd": 0.0017736
+        "costUsd": 0.0017712000000000001
       },
       {
         "step": "onboarding-batch",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2392,
-        "outputTokens": 1664,
-        "costUsd": 0.0085696
+        "inputTokens": 2431,
+        "outputTokens": 1594,
+        "costUsd": 0.0083208
       }
     ],
-    "costUsd": 0.0374962
+    "costUsd": 0.037188
   },
   "teams": [
     {
       "id": "founder",
       "roleTitle": "Founder / CEO",
       "isHuman": true,
-      "subAgentIds": [
+      "agentIds": [
         "chief-of-staff"
       ]
     },
@@ -53,27 +53,27 @@
       "id": "cfo",
       "roleTitle": "CFO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "membership-billing",
         "expense-categorization",
         "cashflow-forecast",
         "tax-deadline-tracker",
         "safety-waivers",
-        "regulatory-tracker"
+        "compliance-licensing",
+        "compliance-whs"
       ]
     },
     {
       "id": "ops",
       "roleTitle": "Ops Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "booking-scheduler",
         "membership-tracking",
         "facility-maintenance",
         "vendor-manager",
         "event-coordinator",
-        "consumables-tracker",
-        "equipment-usage-logger",
+        "induction-tracker",
         "class-enrollment-monitor"
       ]
     },
@@ -81,18 +81,18 @@
       "id": "cmo",
       "roleTitle": "CMO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "social-manager",
         "email-marketing",
         "seo-agent",
-        "class-promo-writer"
+        "community-content"
       ]
     },
     {
       "id": "support",
       "roleTitle": "Support Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "tier1-triage",
         "escalation"
       ]
@@ -101,289 +101,381 @@
       "id": "people",
       "roleTitle": "People Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "job-post-writer",
         "applicant-summarizer"
       ]
     }
   ],
-  "subAgents": [
+  "agents": [
     {
       "id": "chief-of-staff",
-      "label": "Chief of Staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
       "teamId": "founder",
       "taskIds": [
         "founder.chief-of-staff.weekly-plan"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "membership-billing",
-      "label": "Membership billing",
+      "name": "Tess",
+      "title": "Membership billing",
       "teamId": "cfo",
       "taskIds": [
         "cfo.membership.billing"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Membership/payment platform"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "expense-categorization",
-      "label": "Expense categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
         "cfo.expenses.categorize"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "cashflow-forecast",
-      "label": "Cash-flow forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
       "teamId": "cfo",
       "taskIds": [
         "cfo.cashflow.forecast"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tax-deadline-tracker",
-      "label": "Tax-deadline tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
       "teamId": "cfo",
       "taskIds": [
         "cfo.tax.tracker"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "booking-scheduler",
-      "label": "Booking scheduler",
+      "name": "Owen",
+      "title": "Booking scheduler",
       "teamId": "ops",
       "taskIds": [
         "ops.booking.scheduler"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Booking platform"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "membership-tracking",
-      "label": "Membership tracking",
+      "name": "Miles",
+      "title": "Membership tracking",
       "teamId": "ops",
       "taskIds": [
         "ops.membership.tracking"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Membership platform"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "facility-maintenance",
-      "label": "Facility maintenance",
+      "name": "Omar",
+      "title": "Facility maintenance",
       "teamId": "ops",
       "taskIds": [
         "ops.facility.maintenance"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "vendor-manager",
-      "label": "Vendor manager",
+      "name": "Morgan",
+      "title": "Vendor manager",
       "teamId": "ops",
       "taskIds": [
         "ops.vendor.supplies"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "event-coordinator",
-      "label": "Event coordinator",
+      "name": "Kian",
+      "title": "Event coordinator",
       "teamId": "ops",
       "taskIds": [
         "ops.event.coordinator"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Calendar"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "social-manager",
-      "label": "Social manager",
+      "name": "Rhys",
+      "title": "Social manager",
       "teamId": "cmo",
       "taskIds": [
         "cmo.social.local"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Instagram/Facebook"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "email-marketing",
-      "label": "Email marketing",
+      "name": "Ana",
+      "title": "Email marketing",
       "teamId": "cmo",
       "taskIds": [
         "cmo.email.member"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Email"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "seo-agent",
-      "label": "SEO agent",
+      "name": "Theo",
+      "title": "SEO agent",
       "teamId": "cmo",
       "taskIds": [
         "cmo.seo.local"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Google Business"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tier1-triage",
-      "label": "Tier-1 triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
         "support.triage.inbound"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shared inbox"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "escalation",
-      "label": "Escalation",
+      "name": "Nia",
+      "title": "Escalation",
       "teamId": "support",
       "taskIds": [
         "support.escalation.detect"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "safety-waivers",
-      "label": "Safety & waivers",
+      "name": "Riko",
+      "title": "Safety & waivers",
       "teamId": "cfo",
       "taskIds": [
         "compliance.safety-waivers"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
     },
     {
       "id": "job-post-writer",
-      "label": "Job-post writer",
+      "name": "Ivy",
+      "title": "Job-post writer",
       "teamId": "people",
       "taskIds": [
         "people.jobpost.write"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "applicant-summarizer",
-      "label": "Applicant summarizer",
+      "name": "Zara",
+      "title": "Applicant summarizer",
       "teamId": "people",
       "taskIds": [
         "people.applicant.summarize"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "consumables-tracker",
-      "label": "Class Consumables Tracker",
-      "teamId": "ops",
-      "taskIds": [
-        "customize.physical-space.1.consumables-tracker"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "equipment-usage-logger",
-      "label": "Equipment Usage Logger",
-      "teamId": "ops",
-      "taskIds": [
-        "customize.physical-space.2.equipment-usage-logger"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "regulatory-tracker",
-      "label": "Makerspace Regulatory Tracker",
+      "id": "compliance-licensing",
+      "name": "Jules",
+      "title": "Licensing & Regulatory Tracker",
       "teamId": "cfo",
       "taskIds": [
-        "customize.physical-space.3.regulatory-tracker"
+        "customize.physical-space.1.compliance-licensing"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
     },
     {
-      "id": "class-promo-writer",
-      "label": "Weekend Class Promoter",
-      "teamId": "cmo",
+      "id": "compliance-whs",
+      "name": "Dara",
+      "title": "WHS Compliance Tracker",
+      "teamId": "cfo",
       "taskIds": [
-        "customize.physical-space.4.class-promo-writer"
+        "customize.physical-space.2.compliance-whs"
       ],
-      "suggestedTier": "T2",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "induction-tracker",
+      "name": "Devon",
+      "title": "Equipment Induction Tracker",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.physical-space.3.induction-tracker"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "class-enrollment-monitor",
-      "label": "Class Enrollment Monitor",
+      "name": "Jordan",
+      "title": "Class Enrollment Monitor",
       "teamId": "ops",
       "taskIds": [
-        "customize.physical-space.5.class-enrollment-monitor"
+        "customize.physical-space.4.class-enrollment-monitor"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "community-content",
+      "name": "Casey",
+      "title": "Makerspace Community Content Agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.physical-space.5.community-content"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     }
   ],
   "tasks": [
     {
       "id": "founder.chief-of-staff.weekly-plan",
       "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
-      "subAgentType": "chief-of-staff",
-      "subAgentLabel": "Chief of Staff",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
       "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
@@ -395,8 +487,8 @@
     {
       "id": "cfo.membership.billing",
       "text": "Process membership sign-ups, renewals, and rental/day-pass charges; issue receipts",
-      "subAgentType": "membership-billing",
-      "subAgentLabel": "Membership billing",
+      "agentType": "membership-billing",
+      "agentLabel": "Membership billing",
       "teamHint": "cfo",
       "frequency": "daily",
       "stakes": "low",
@@ -408,8 +500,8 @@
     {
       "id": "cfo.expenses.categorize",
       "text": "Tag facility and equipment expenses and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "low",
@@ -422,8 +514,8 @@
     {
       "id": "cfo.cashflow.forecast",
       "text": "30/60/90-day cash-flow projection and runway alerts",
-      "subAgentType": "cashflow-forecast",
-      "subAgentLabel": "Cash-flow forecast",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -436,8 +528,8 @@
     {
       "id": "cfo.tax.tracker",
       "text": "Track tax deadlines and local business license renewals",
-      "subAgentType": "tax-deadline-tracker",
-      "subAgentLabel": "Tax-deadline tracker",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -449,8 +541,8 @@
     {
       "id": "ops.booking.scheduler",
       "text": "Manage the booking calendar for equipment, rooms, and rental slots — flag conflicts and double-bookings",
-      "subAgentType": "booking-scheduler",
-      "subAgentLabel": "Booking scheduler",
+      "agentType": "booking-scheduler",
+      "agentLabel": "Booking scheduler",
       "teamHint": "ops",
       "frequency": "daily",
       "stakes": "low",
@@ -462,8 +554,8 @@
     {
       "id": "ops.membership.tracking",
       "text": "Track active memberships, upcoming renewals, and lapsed members",
-      "subAgentType": "membership-tracking",
-      "subAgentLabel": "Membership tracking",
+      "agentType": "membership-tracking",
+      "agentLabel": "Membership tracking",
       "teamHint": "ops",
       "frequency": "daily",
       "stakes": "low",
@@ -475,8 +567,8 @@
     {
       "id": "ops.facility.maintenance",
       "text": "Monitor equipment/facility condition logs and flag overdue maintenance items",
-      "subAgentType": "facility-maintenance",
-      "subAgentLabel": "Facility maintenance",
+      "agentType": "facility-maintenance",
+      "agentLabel": "Facility maintenance",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
@@ -488,8 +580,8 @@
     {
       "id": "ops.vendor.supplies",
       "text": "Track supply/consumables orders and flag reorder points",
-      "subAgentType": "vendor-manager",
-      "subAgentLabel": "Vendor manager",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "low",
@@ -501,8 +593,8 @@
     {
       "id": "ops.event.coordinator",
       "text": "Compile and publish the class/event schedule — confirm instructor/host availability and room allocation, send attendee reminders",
-      "subAgentType": "event-coordinator",
-      "subAgentLabel": "Event coordinator",
+      "agentType": "event-coordinator",
+      "agentLabel": "Event coordinator",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "low",
@@ -514,8 +606,8 @@
     {
       "id": "cmo.social.local",
       "text": "Draft local social posts (new classes, open slots, member spotlights)",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Social manager",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
       "teamHint": "cmo",
       "frequency": "daily",
       "stakes": "low",
@@ -527,8 +619,8 @@
     {
       "id": "cmo.email.member",
       "text": "Draft member newsletters and renewal/win-back campaigns",
-      "subAgentType": "email-marketing",
-      "subAgentLabel": "Email marketing",
+      "agentType": "email-marketing",
+      "agentLabel": "Email marketing",
       "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "medium",
@@ -541,8 +633,8 @@
     {
       "id": "cmo.seo.local",
       "text": "Keep the Google Business listing and local SEO fresh",
-      "subAgentType": "seo-agent",
-      "subAgentLabel": "SEO agent",
+      "agentType": "seo-agent",
+      "agentLabel": "SEO agent",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "low",
@@ -554,8 +646,8 @@
     {
       "id": "support.triage.inbound",
       "text": "Read inbound member messages/DMs, tag urgency, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
       "teamHint": "support",
       "frequency": "daily",
       "stakes": "low",
@@ -568,8 +660,8 @@
     {
       "id": "support.escalation.detect",
       "text": "Detect upset members or complex cases and package context for the human",
-      "subAgentType": "escalation",
-      "subAgentLabel": "Escalation",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "high",
@@ -582,8 +674,8 @@
     {
       "id": "compliance.safety-waivers",
       "text": "Manage member waivers and flag safety/liability concerns from incident reports for human legal/insurance review",
-      "subAgentType": "safety-waivers",
-      "subAgentLabel": "Safety & waivers",
+      "agentType": "safety-waivers",
+      "agentLabel": "Safety & waivers",
       "teamHint": "compliance",
       "frequency": "weekly",
       "stakes": "high",
@@ -597,8 +689,8 @@
     {
       "id": "people.jobpost.write",
       "text": "Draft job posts when hiring signals appear (instructors, front-desk, maintenance)",
-      "subAgentType": "job-post-writer",
-      "subAgentLabel": "Job-post writer",
+      "agentType": "job-post-writer",
+      "agentLabel": "Job-post writer",
       "teamHint": "people",
       "frequency": "adhoc",
       "stakes": "medium",
@@ -610,8 +702,8 @@
     {
       "id": "people.applicant.summarize",
       "text": "Summarize applicants for human screening",
-      "subAgentType": "applicant-summarizer",
-      "subAgentLabel": "Applicant summarizer",
+      "agentType": "applicant-summarizer",
+      "agentLabel": "Applicant summarizer",
       "teamHint": "people",
       "frequency": "adhoc",
       "stakes": "medium",
@@ -622,36 +714,10 @@
       "origin": "template"
     },
     {
-      "id": "customize.physical-space.1.consumables-tracker",
-      "text": "Track consumables used in classes (filament, wood, resin, solder, etc.) and flag when per-class material costs exceed budget thresholds",
-      "subAgentType": "consumables-tracker",
-      "subAgentLabel": "Class Consumables Tracker",
-      "teamHint": "ops",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.physical-space.2.equipment-usage-logger",
-      "text": "Log equipment usage hours per machine (e.g. laser cutter, 3D printer, lathe) and flag machines approaching service intervals",
-      "subAgentType": "equipment-usage-logger",
-      "subAgentLabel": "Equipment Usage Logger",
-      "teamHint": "ops",
-      "frequency": "weekly",
-      "stakes": "high",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.physical-space.3.regulatory-tracker",
-      "text": "Identify and track local licensing and regulatory requirements for operating a community makerspace (including equipment safety, electrical/workshop safety, and public venue obligations) in Victoria, Australia",
-      "subAgentType": "regulatory-tracker",
-      "subAgentLabel": "Makerspace Regulatory Tracker",
+      "id": "customize.physical-space.1.compliance-licensing",
+      "text": "Identify and track local licensing and regulatory requirements for operating a makerspace with physical equipment (e.g. power tools, laser cutters) in Victoria, Australia",
+      "agentType": "compliance-licensing",
+      "agentLabel": "Licensing & Regulatory Tracker",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -662,11 +728,38 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.physical-space.4.class-promo-writer",
-      "text": "Draft promotional content for upcoming weekend classes — descriptions, instructor bios, and registration links for local community boards and social channels",
-      "subAgentType": "class-promo-writer",
-      "subAgentLabel": "Weekend Class Promoter",
-      "teamHint": "cmo",
+      "id": "customize.physical-space.2.compliance-whs",
+      "text": "Identify and track workplace health and safety obligations for a public-facing space with power tools and hazardous equipment in Victoria, Australia",
+      "agentType": "compliance-whs",
+      "agentLabel": "WHS Compliance Tracker",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.physical-space.3.induction-tracker",
+      "text": "Track equipment induction/certification requirements for members — flag any member attempting to book high-risk equipment without a recorded induction",
+      "agentType": "induction-tracker",
+      "agentLabel": "Equipment Induction Tracker",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.physical-space.4.class-enrollment-monitor",
+      "text": "Monitor class enrollment numbers for weekend sessions and flag classes at risk of under-enrollment (cancellation threshold) or over-enrollment (capacity breach)",
+      "agentType": "class-enrollment-monitor",
+      "agentLabel": "Class Enrollment Monitor",
+      "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
@@ -675,11 +768,11 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.physical-space.5.class-enrollment-monitor",
-      "text": "Monitor class registration numbers against minimum viable attendance thresholds and alert founder to cancel or boost undersubscribed classes before the cut-off date",
-      "subAgentType": "class-enrollment-monitor",
-      "subAgentLabel": "Class Enrollment Monitor",
-      "teamHint": "ops",
+      "id": "customize.physical-space.5.community-content",
+      "text": "Draft targeted local marketing content (e.g. 'intro to laser cutting' workshop promos, tool-specific class callouts) to attract new members and class sign-ups",
+      "agentType": "community-content",
+      "agentLabel": "Makerspace Community Content Agent",
+      "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
@@ -690,11 +783,11 @@
   ],
   "customization": {
     "added": [
-      "customize.physical-space.1.consumables-tracker",
-      "customize.physical-space.2.equipment-usage-logger",
-      "customize.physical-space.3.regulatory-tracker",
-      "customize.physical-space.4.class-promo-writer",
-      "customize.physical-space.5.class-enrollment-monitor"
+      "customize.physical-space.1.compliance-licensing",
+      "customize.physical-space.2.compliance-whs",
+      "customize.physical-space.3.induction-tracker",
+      "customize.physical-space.4.class-enrollment-monitor",
+      "customize.physical-space.5.community-content"
     ],
     "removed": [],
     "frequencyAdjustments": [
@@ -705,108 +798,107 @@
       }
     ],
     "categoryCorrections": [],
-    "notes": "Added makerspace-specific tasks for consumables tracking, per-machine usage hours, class enrolment monitoring, class promotional content, and a generic Victoria compliance tracker. Bumped safety waivers to weekly given continuous public access to dangerous machinery. No template tasks removed as all apply cleanly to this business model."
+    "notes": "Added makerspace-specific compliance tracks (licensing + WHS, both Victoria-generic per policy), equipment induction safety gating, class enrollment monitoring, and maker-community content. Bumped safety-waivers to weekly given physical safety-risk classification. No template tasks removed — all apply to this in-person, subscription + rental + classes model."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Morgan",
-        "subAgentId": "membership-billing",
+        "agentId": "membership-billing",
         "roleTitle": "CFO",
-        "summary": "Processed 3 new membership sign-ups and flagged 2 renewal reminders due next week"
+        "summary": "Processed 3 new membership sign-ups and issued digital receipts for monthly renewals.",
+        "agentName": "Tess"
       },
       {
-        "agentName": "Jamie",
-        "subAgentId": "booking-scheduler",
+        "agentId": "booking-scheduler",
         "roleTitle": "Ops Lead",
-        "summary": "Resolved a double-booking conflict on the laser cutter for Saturday morning and confirmed availability with both members"
+        "summary": "Resolved a double-booking conflict for the laser cutter on Saturday morning and notified both members.",
+        "agentName": "Owen"
       },
       {
-        "agentName": "Alex",
-        "subAgentId": "event-coordinator",
-        "roleTitle": "Ops Lead",
-        "summary": "Confirmed instructor availability for next weekend's woodworking class and sent attendee reminders to 12 registered participants"
-      },
-      {
-        "agentName": "Casey",
-        "subAgentId": "social-manager",
+        "agentId": "social-manager",
         "roleTitle": "CMO",
-        "summary": "Posted 2 local Instagram stories highlighting this week's new member projects and tagged an open afternoon slot on the 3D printer"
+        "summary": "Drafted a social post highlighting this week's new 'Intro to Wood Working' class and promoted open weekend slots.",
+        "agentName": "Rhys"
       },
       {
-        "agentName": "Sam",
-        "subAgentId": "tier1-triage",
+        "agentId": "induction-tracker",
+        "roleTitle": "Ops Lead",
+        "summary": "Flagged that one member tried to book the CNC machine without a recorded induction — sent them a reminder about certification requirements.",
+        "agentName": "Devon"
+      },
+      {
+        "agentId": "tier1-triage",
         "roleTitle": "Support Lead",
-        "summary": "Triaged 4 member messages — answered 2 FAQs about membership pricing, escalated 1 equipment malfunction report, and drafted a reply about weekend class registration"
+        "summary": "Handled 5 inbound member messages about rental rates and class scheduling, drafted replies using your existing FAQs.",
+        "agentName": "Sam"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A pay-to-use community makerspace offering monthly memberships, hourly equipment rentals, and weekend classes for makers in Victoria, Australia.",
-      "mvpDefinition": "Launch with a single shared workshop space open 20 hours per week, 2–3 core pieces of equipment (laser cutter, 3D printers, basic hand tools), tiered membership tiers (casual day-pass, monthly full access), and one beginner-friendly weekend class to start. Focus on word-of-mouth and local community sign-ups; keep instructor recruitment and scheduling manual for now.",
+      "sharpenedIdea": "A community makerspace that generates revenue through paid monthly memberships for equipment access, à-la-carte equipment rentals, and weekend skill-building classes (welding, woodworking, laser cutting, etc.).",
+      "mvpDefinition": "A single makerspace location with a roster of core equipment (3–5 machines: laser cutter, CNC, welding station, 3D printer, table saws), a working booking system, at least two paid instructors running recurring weekend classes, and a membership sign-up and billing process. Initial member capacity is 20–30 active members, with rentals and day-passes available for non-members.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft a rolling weekly plan that maps out member bookings, upcoming classes, and key milestones",
-            "Flag scheduling or resource conflicts between different teams (e.g., equipment needed for both a class and a private rental) and escalate to founder for decision"
+            "Draft the weekly operating plan, identify potential scheduling and resource conflicts across teams (e.g., instructors vs. maintenance windows), and escalate blockers to the founder for decision."
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Process new membership sign-ups, renewals, and rental/day-pass charges; issue receipts and confirmations",
-            "Categorize all facility expenses (rent, utilities, insurance, equipment maintenance) and consumables costs (filament, wood, resin), flagging any unusual spikes",
-            "Generate 30/60/90-day cash-flow projections showing runway and alert founder if burn rate threatens sustainability",
-            "Track tax filing deadlines and local business license renewal dates for Victoria, Australia",
-            "Collect member waivers, manage safety documentation, and flag any reported incidents or safety concerns for founder legal/insurance review",
-            "Research and track all relevant licensing, equipment safety standards, and regulatory obligations for operating a public makerspace in Victoria (electrical safety, workshop safety codes, public venue insurance requirements)"
+            "Process new membership sign-ups, renewals, and day-pass or equipment rental charges; issue digital receipts and invoices.",
+            "Tag all facility and equipment expenses (utilities, maintenance, consumables, instructor fees) by category and alert the founder if any spending looks unusual or out of budget.",
+            "Forecast cash flow for the next 30, 60, and 90 days so the founder knows runway and can plan for growth or shortfalls.",
+            "Track tax deadlines, local business license renewal dates, and any compliance filing requirements specific to running a makerspace in Victoria, Australia.",
+            "Maintain all member liability waivers, review incident reports, and flag any safety or legal concerns to the founder or legal/insurance advisor.",
+            "Research and track all local makerspace licensing and regulatory requirements in Victoria (e.g., building permits, food-safety rules if applicable, noise restrictions) and ensure the space is compliant.",
+            "Research and track all Victorian workplace health and safety (WHS) obligations for operating a public-facing facility with power tools, hazardous equipment, and members of the public."
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Maintain the shared booking calendar for equipment, workshop rooms, and rental slots; flag double-bookings and resolve conflicts",
-            "Track all active, renewing, and lapsed memberships; alert founder to churn trends or high-value member departures",
-            "Monitor equipment and facility condition logs (cleanliness, wear, damage); flag overdue maintenance and schedule repairs to minimize downtime",
-            "Track consumables inventory (filament, wood, resin, solder, etc.) and reorder points; flag when stock is low",
-            "Compile the weekend class and event schedule; confirm instructor/host availability and room allocation; send pre-class reminders to registered attendees",
-            "Track material costs per class session and alert founder if consumables spending exceeds the budgeted cost per participant",
-            "Log monthly usage hours for each major piece of equipment (laser cutter, 3D printers, lathe, etc.) and flag machines approaching scheduled service intervals",
-            "Monitor class registration numbers against minimum viable class size; alert founder early if a class is undersubscribed so he can decide whether to cancel, reschedule, or promote it"
+            "Manage the equipment and room booking calendar, prevent double-bookings, and notify members when conflicts arise.",
+            "Track all active members, monitor upcoming membership renewal dates, and alert the founder about at-risk or lapsed members.",
+            "Monitor equipment and facility condition logs, flag maintenance items that are overdue, and coordinate with maintenance staff.",
+            "Track supply and consumables orders (welding rods, wood stock, resin, etc.), monitor stock levels, and alert the founder when reorder points are reached.",
+            "Compile and publish the weekend class schedule, confirm instructor availability, allocate rooms, and send attendee reminders.",
+            "Track which members have completed required inductions or certifications for high-risk equipment (laser cutter, CNC, welding), and flag any member trying to book equipment without a recorded induction.",
+            "Monitor enrollment numbers for weekend classes and alert the founder when a class is at risk of cancellation (too few sign-ups) or over-capacity."
           ]
         },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Draft local social media posts highlighting new classes, available equipment slots, and member spotlights to attract and engage the community",
-            "Compose member newsletters (monthly renewal tips, new equipment announcements) and re-engagement campaigns for lapsed members",
-            "Keep Google Business Profile and local search presence fresh with updated hours, photos, and member reviews",
-            "Write promotional content for each upcoming weekend class — compelling descriptions, instructor bios, and clear registration links — and distribute to local community boards and social channels"
+            "Draft local social media posts promoting new classes, open rental slots, and member spotlights to build community engagement.",
+            "Draft member newsletters, renewal reminders, and win-back campaigns to retain members and encourage repeat bookings.",
+            "Keep the Google Business listing and local SEO information up to date so new members can find the space.",
+            "Create targeted local marketing content (e.g., 'Intro to Laser Cutting' workshop promos, tool-specific class callouts) to attract new members and drive class sign-ups."
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Read all inbound member messages, DMs, and support requests; tag by urgency (urgent, normal, low); draft replies to common questions (hours, pricing, waiver status, booking help)",
-            "Identify upset or frustrated members or unusually complex cases; summarize context and escalate to founder for personal follow-up or decision-making"
+            "Read and triage inbound member messages and direct messages, tag urgency level, and draft replies to common questions using existing FAQs.",
+            "Identify upset members or complex cases, gather context, and escalate to the founder for personal attention."
           ]
         },
         {
           "roleTitle": "People Lead",
           "tasks": [
-            "Draft job posts when hiring signals appear (instructors for new class types, front-desk/admin help, maintenance technician)",
-            "Summarize incoming applicants for founder screening — highlighting relevant experience, teaching/workshop background, and fit for the makerspace culture"
+            "Draft job postings when hiring signals emerge (e.g., need for additional instructors, front-desk staff, or maintenance technicians).",
+            "Summarize job applicants and their backgrounds to help the founder screen candidates quickly."
           ]
         }
       ],
       "monthOneGoals": [
-        "Finalize facility setup, safety protocols, and equipment commissioning; complete all required waiver documentation and regulatory compliance checks for Victoria",
-        "Recruit and onboard first 3 instructors (or subject-matter experts) and lock in the schedule for 2 weekend starter classes",
-        "Achieve first 20 paid memberships (mix of monthly and day-pass) through direct outreach and local buzz",
-        "Launch basic website and Google Business Profile; post 3 social media stories/posts per week to build awareness in local maker community",
-        "Establish daily/weekly operational routines (booking checks, facility maintenance logs, consumables tracking) so the founder can focus on growth and member experience"
+        "Launch the membership sign-up and billing system so the first 15–20 members can join and be charged monthly.",
+        "Publish a live class schedule for at least two recurring weekend classes with confirmed instructors and working booking/enrollment.",
+        "Set up the equipment booking calendar and ensure no double-bookings occur in the first month.",
+        "Confirm all liability waivers are signed by members, and flag any safety or compliance gaps to address before opening.",
+        "Establish a weekly founder + team check-in to surface blockers, resolve conflicts, and review first-month metrics (membership count, class attendance, equipment usage)."
       ],
-      "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+      "budgetCeilingPlaceholder": "You'll set a real monthly operating budget ceiling when you connect your accounting keys — adjust anytime as the space grows."
     }
   }
 }

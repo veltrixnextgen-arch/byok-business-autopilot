@@ -100,8 +100,7 @@ function buildPrompt(chart: OrgChart, idea: string, answers: InterviewAnswers): 
 
   return [
     `Business idea: "${idea}"`,
-    `Business type: ${answers.businessType}`,
-    `Interview budget answer: ${answers.budget}`,
+    `What customers pay for: ${answers.whatCustomersPayFor}`,
     ``,
     `The assembled org chart for this company (each agent's name is already assigned — use it exactly as given, never invent a different one):`,
     teamLines,
@@ -112,8 +111,9 @@ function buildPrompt(chart: OrgChart, idea: string, answers: InterviewAnswers): 
       `concrete and specific to this company's actual tasks, not generic filler.`,
     `2. charterDraft: cover every non-human team from the org chart in roleTasks (skip the Founder/CEO team — ` +
       `that's the human, not a role to summarize). Keep the MVP definition scoped to what's actually launchable, ` +
-      `not the whole long-term vision. budgetCeilingPlaceholder should read the interview's budget answer above ` +
-      `and phrase it as a starting monthly ceiling.`,
+      `not the whole long-term vision. budgetCeilingPlaceholder is a generic placeholder ("you'll set a real ` +
+      `monthly ceiling when you connect your own keys") — the interview doesn't collect a budget figure, so ` +
+      `don't invent one.`,
     `3. Write every roleTasks entry as natural plain-language prose — do NOT prefix it with the agent's ` +
       `category label. Write "Track stock levels for each product and flag reorder points" not "Inventory: ` +
       `Track stock levels...". No internal jargon or label:value formatting anywhere in the charter.`,

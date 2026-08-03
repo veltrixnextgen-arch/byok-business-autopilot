@@ -1,13 +1,13 @@
 {
   "meta": {
     "idea": "I want to start a small mortgage brokerage helping first-time homebuyers get approved.",
-    "generatedAt": "2026-08-01T10:00:18.487Z",
+    "generatedAt": "2026-08-03T07:34:04.466Z",
     "templateSelection": {
       "primary": "service",
       "blendedWith": null,
       "scores": {
         "ecommerce": 0,
-        "service": 3,
+        "service": 5,
         "saas": 1.5,
         "content": 0,
         "local": 0,
@@ -19,33 +19,33 @@
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3686,
-        "outputTokens": 1279,
-        "costUsd": 0.030243
+        "inputTokens": 3705,
+        "outputTokens": 1484,
+        "costUsd": 0.033375
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2072,
-        "outputTokens": 228,
-        "costUsd": 0.0025696
+        "inputTokens": 2134,
+        "outputTokens": 351,
+        "costUsd": 0.0031112
       },
       {
         "step": "onboarding-batch",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2316,
-        "outputTokens": 1680,
-        "costUsd": 0.0085728
+        "inputTokens": 2285,
+        "outputTokens": 1459,
+        "costUsd": 0.007664000000000001
       }
     ],
-    "costUsd": 0.041385399999999996
+    "costUsd": 0.0441502
   },
   "teams": [
     {
       "id": "founder",
       "roleTitle": "Founder / CEO",
       "isHuman": true,
-      "subAgentIds": [
+      "agentIds": [
         "chief-of-staff"
       ]
     },
@@ -53,32 +53,19 @@
       "id": "cfo",
       "roleTitle": "CFO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "invoicing",
         "expense-categorization",
         "cashflow-forecast",
         "tax-deadline-tracker",
-        "compliance-review",
-        "licence-tracker",
-        "fintrac-kyc-checker"
-      ]
-    },
-    {
-      "id": "delivery",
-      "roleTitle": "Delivery Lead",
-      "isHuman": false,
-      "subAgentIds": [
-        "delivery-qa",
-        "mortgage-application-packager",
-        "deal-pipeline-tracker",
-        "buyer-education-content"
+        "compliance-review"
       ]
     },
     {
       "id": "sales",
       "roleTitle": "Sales Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "lead-qualifier",
         "outreach-drafter",
         "crm-hygiene",
@@ -89,279 +76,302 @@
       "id": "support",
       "roleTitle": "Support Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "onboarding",
         "tier1-triage",
         "escalation"
       ]
     },
     {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "agentIds": [
+        "social-manager"
+      ]
+    },
+    {
       "id": "ops",
       "roleTitle": "Ops Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "scheduling",
-        "referral-tracker"
+        "core-service-delivery"
       ]
     }
   ],
-  "subAgents": [
+  "agents": [
     {
       "id": "chief-of-staff",
-      "label": "Chief of Staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
       "teamId": "founder",
       "taskIds": [
         "founder.chief-of-staff.weekly-plan"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "invoicing",
-      "label": "Invoicing",
+      "name": "Dara",
+      "title": "Invoicing",
       "teamId": "cfo",
       "taskIds": [
         "cfo.invoicing.create",
         "cfo.invoicing.remind"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Stripe"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "expense-categorization",
-      "label": "Expense categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
         "cfo.expenses.categorize"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "cashflow-forecast",
-      "label": "Cash-flow forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
       "teamId": "cfo",
       "taskIds": [
         "cfo.cashflow.forecast"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tax-deadline-tracker",
-      "label": "Tax-deadline tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
       "teamId": "cfo",
       "taskIds": [
         "cfo.tax.tracker"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "delivery-qa",
-      "label": "Delivery QA",
-      "teamId": "delivery",
-      "taskIds": [
-        "delivery.core.qa"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "lead-qualifier",
-      "label": "Lead qualifier",
+      "name": "Taylor",
+      "title": "Lead qualifier",
       "teamId": "sales",
       "taskIds": [
         "sales.qualifier.score"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "CRM"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "outreach-drafter",
-      "label": "Outreach drafter",
+      "name": "Jordan",
+      "title": "Outreach drafter",
       "teamId": "sales",
       "taskIds": [
         "sales.outreach.draft"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Email"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "crm-hygiene",
-      "label": "CRM hygiene",
+      "name": "Mira",
+      "title": "CRM hygiene",
       "teamId": "sales",
       "taskIds": [
         "sales.crm.hygiene"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "CRM"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "proposal-builder",
-      "label": "Proposal builder",
+      "name": "Yuki",
+      "title": "Proposal builder",
       "teamId": "sales",
       "taskIds": [
         "sales.proposal.build"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "CRM"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "onboarding",
-      "label": "Onboarding",
+      "name": "Maya",
+      "title": "Onboarding",
       "teamId": "support",
       "taskIds": [
         "support.onboarding.welcome",
         "support.onboarding.setup"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Email"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tier1-triage",
-      "label": "Tier-1 triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
         "support.triage.inbound"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shared inbox"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "escalation",
-      "label": "Escalation",
+      "name": "Rhys",
+      "title": "Escalation",
       "teamId": "support",
       "taskIds": [
         "support.escalation.detect"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "compliance-review",
-      "label": "Compliance sub-agent",
+      "name": "Riko",
+      "title": "Compliance sub-agent",
       "teamId": "cfo",
       "taskIds": [
-        "compliance.review"
+        "compliance.review",
+        "customize.service.1.compliance-review",
+        "customize.service.2.compliance-review"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "social-manager",
+      "name": "Nia",
+      "title": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.expertise",
+        "customize.service.7.social-manager"
+      ],
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "scheduling",
-      "label": "Scheduling",
+      "name": "Tess",
+      "title": "Scheduling",
       "teamId": "ops",
       "taskIds": [
         "ops.scheduling.calls"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Calendar"
-      ]
-    },
-    {
-      "id": "licence-tracker",
-      "label": "BCFSA Licence Monitor",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.service.1.licence-tracker"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "fintrac-kyc-checker",
-      "label": "FINTRAC / KYC File Checker",
-      "teamId": "cfo",
-      "taskIds": [
-        "customize.service.2.fintrac-kyc-checker"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
-    },
-    {
-      "id": "mortgage-application-packager",
-      "label": "Mortgage Application Packager",
-      "teamId": "delivery",
-      "taskIds": [
-        "customize.service.3.mortgage-application-packager"
-      ],
-      "suggestedTier": "T1",
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "deal-pipeline-tracker",
-      "label": "Borrower Deal Pipeline Tracker",
-      "teamId": "delivery",
-      "taskIds": [
-        "customize.service.4.deal-pipeline-tracker"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "buyer-education-content",
-      "label": "First-Time Buyer Education Drafter",
-      "teamId": "delivery",
-      "taskIds": [
-        "customize.service.5.buyer-education-content"
-      ],
-      "suggestedTier": "T3",
-      "autonomyDefault": "eligible-early",
-      "handsTools": []
-    },
-    {
-      "id": "referral-tracker",
-      "label": "Referral Source Tracker",
+      "id": "core-service-delivery",
+      "name": "Devon",
+      "title": "Client KYC Document Collector",
       "teamId": "ops",
       "taskIds": [
-        "customize.service.6.referral-tracker"
+        "customize.service.3.core-service-delivery",
+        "customize.service.4.core-service-delivery",
+        "customize.service.5.core-service-delivery",
+        "customize.service.6.core-service-delivery"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     }
   ],
   "tasks": [
     {
       "id": "founder.chief-of-staff.weekly-plan",
       "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
-      "subAgentType": "chief-of-staff",
-      "subAgentLabel": "Chief of Staff",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
       "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
@@ -373,10 +383,10 @@
     {
       "id": "cfo.invoicing.create",
       "text": "Create invoices for client retainers/projects",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
       "teamHint": "cfo",
-      "frequency": "weekly",
+      "frequency": "monthly",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -387,10 +397,10 @@
     {
       "id": "cfo.invoicing.remind",
       "text": "Draft payment reminders matched to client history",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
       "teamHint": "cfo",
-      "frequency": "weekly",
+      "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -402,8 +412,8 @@
     {
       "id": "cfo.expenses.categorize",
       "text": "Tag business expenses and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "low",
@@ -416,8 +426,8 @@
     {
       "id": "cfo.cashflow.forecast",
       "text": "30/60/90-day cash-flow projection and runway alerts",
-      "subAgentType": "cashflow-forecast",
-      "subAgentLabel": "Cash-flow forecast",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -430,8 +440,8 @@
     {
       "id": "cfo.tax.tracker",
       "text": "Track tax deadlines and prep the accountant handoff packet",
-      "subAgentType": "tax-deadline-tracker",
-      "subAgentLabel": "Tax-deadline tracker",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -441,23 +451,10 @@
       "origin": "template"
     },
     {
-      "id": "delivery.core.qa",
-      "text": "Check completed client work for accuracy before it goes out",
-      "subAgentType": "delivery-qa",
-      "subAgentLabel": "Delivery QA",
-      "teamHint": "delivery",
-      "frequency": "weekly",
-      "stakes": "high",
-      "tier": "T2",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "template"
-    },
-    {
       "id": "sales.qualifier.score",
       "text": "Score inbound leads and enrich them from public info",
-      "subAgentType": "lead-qualifier",
-      "subAgentLabel": "Lead qualifier",
+      "agentType": "lead-qualifier",
+      "agentLabel": "Lead qualifier",
       "teamHint": "sales",
       "frequency": "weekly",
       "stakes": "low",
@@ -469,8 +466,8 @@
     {
       "id": "sales.outreach.draft",
       "text": "Draft personalized first-touch and follow-up outreach",
-      "subAgentType": "outreach-drafter",
-      "subAgentLabel": "Outreach drafter",
+      "agentType": "outreach-drafter",
+      "agentLabel": "Outreach drafter",
       "teamHint": "sales",
       "frequency": "weekly",
       "stakes": "medium",
@@ -483,10 +480,10 @@
     {
       "id": "sales.crm.hygiene",
       "text": "Log interactions, update deal stages, flag stale deals",
-      "subAgentType": "crm-hygiene",
-      "subAgentLabel": "CRM hygiene",
+      "agentType": "crm-hygiene",
+      "agentLabel": "CRM hygiene",
       "teamHint": "sales",
-      "frequency": "daily",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "eligible-early",
@@ -497,8 +494,8 @@
     {
       "id": "sales.proposal.build",
       "text": "Build quotes/proposals from templates and deal context",
-      "subAgentType": "proposal-builder",
-      "subAgentLabel": "Proposal builder",
+      "agentType": "proposal-builder",
+      "agentLabel": "Proposal builder",
       "teamHint": "sales",
       "frequency": "weekly",
       "stakes": "medium",
@@ -511,8 +508,8 @@
     {
       "id": "support.onboarding.welcome",
       "text": "Draft welcome sequences for new clients",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "low",
@@ -524,8 +521,8 @@
     {
       "id": "support.onboarding.setup",
       "text": "Draft setup guides and check-in messages for new clients",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "low",
@@ -537,8 +534,8 @@
     {
       "id": "support.triage.inbound",
       "text": "Read inbound client messages, tag urgency, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
       "teamHint": "support",
       "frequency": "daily",
       "stakes": "low",
@@ -551,8 +548,8 @@
     {
       "id": "support.escalation.detect",
       "text": "Detect complex or upset cases and package context for the human",
-      "subAgentType": "escalation",
-      "subAgentLabel": "Escalation",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "high",
@@ -565,8 +562,8 @@
     {
       "id": "compliance.review",
       "text": "Flag contract red-flags and track regulation deadlines",
-      "subAgentType": "compliance-review",
-      "subAgentLabel": "Compliance sub-agent",
+      "agentType": "compliance-review",
+      "agentLabel": "Compliance sub-agent",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -578,10 +575,23 @@
       "origin": "template"
     },
     {
+      "id": "cmo.social.expertise",
+      "text": "Draft occasional posts establishing professional expertise",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
       "id": "ops.scheduling.calls",
       "text": "Manage calendar, booking confirmations and reminders for client calls",
-      "subAgentType": "scheduling",
-      "subAgentLabel": "Scheduling",
+      "agentType": "scheduling",
+      "agentLabel": "Scheduling",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "low",
@@ -591,10 +601,10 @@
       "origin": "template"
     },
     {
-      "id": "customize.service.1.licence-tracker",
-      "text": "Flag any missing or expiring BCFSA mortgage broker licence documents and track renewal deadlines",
-      "subAgentType": "licence-tracker",
-      "subAgentLabel": "BCFSA Licence Monitor",
+      "id": "customize.service.1.compliance-review",
+      "text": "Flag any BCFSA licensing or registration requirements, renewal deadlines, and Mortgage Brokers Act obligations for human professional review",
+      "agentType": "compliance-review",
+      "agentLabel": "BCFSA Licensing Monitor",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -605,12 +615,12 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.2.fintrac-kyc-checker",
-      "text": "Check that FINTRAC client identification and AML/KYC records are complete for each new borrower file, and flag any gaps for human review",
-      "subAgentType": "fintrac-kyc-checker",
-      "subAgentLabel": "FINTRAC / KYC File Checker",
+      "id": "customize.service.2.compliance-review",
+      "text": "Flag FINTRAC AML/KYC obligations (client identification, record-keeping, suspicious transaction reporting thresholds) for human professional review",
+      "agentType": "compliance-review",
+      "agentLabel": "FINTRAC AML/KYC Monitor",
       "teamHint": "compliance",
-      "frequency": "weekly",
+      "frequency": "monthly",
       "stakes": "high",
       "tier": "T1",
       "autonomy": "locked",
@@ -619,25 +629,51 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.3.mortgage-application-packager",
-      "text": "Assemble and review each borrower's mortgage application package (income docs, credit pull consent, property details) for completeness before submitting to lenders",
-      "subAgentType": "mortgage-application-packager",
-      "subAgentLabel": "Mortgage Application Packager",
-      "teamHint": "delivery",
-      "frequency": "weekly",
+      "id": "customize.service.3.core-service-delivery",
+      "text": "Collect and organize client KYC documents (government ID, proof of income, employment letters, credit consent forms) and flag any missing items",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Client KYC Document Collector",
+      "teamHint": "ops",
+      "frequency": "adhoc",
       "stakes": "high",
       "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.4.core-service-delivery",
+      "text": "Research and compare lender products (rates, terms, qualification criteria) available to a specific first-time buyer client and summarize options for broker review",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Lender Product Researcher",
+      "teamHint": "delivery",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T2",
       "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.4.deal-pipeline-tracker",
-      "text": "Track each borrower deal's stage across lenders (submitted, conditionally approved, docs required, funded) and send status updates to the client",
-      "subAgentType": "deal-pipeline-tracker",
-      "subAgentLabel": "Borrower Deal Pipeline Tracker",
-      "teamHint": "delivery",
-      "frequency": "daily",
+      "id": "customize.service.5.core-service-delivery",
+      "text": "Assemble a mortgage application package for a client (completed forms, supporting documents, lender submission checklist) ready for broker sign-off before submission",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Mortgage Application Packager",
+      "teamHint": "ops",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.6.core-service-delivery",
+      "text": "Track the status of submitted mortgage applications with lenders and send clients plain-language updates at each milestone",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Application Status Tracker",
+      "teamHint": "support",
+      "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
@@ -645,47 +681,45 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.5.buyer-education-content",
-      "text": "Draft plain-language explainers for first-time buyers covering mortgage terms, rate types, and the approval process to send at each key milestone",
-      "subAgentType": "buyer-education-content",
-      "subAgentLabel": "First-Time Buyer Education Drafter",
-      "teamHint": "delivery",
-      "frequency": "adhoc",
+      "id": "customize.service.7.social-manager",
+      "text": "Draft first-time homebuyer educational content (e.g. 'What is a stress test?', 'Fixed vs variable rates explained') for the business website or social channels",
+      "agentType": "social-manager",
+      "agentLabel": "First-Time Buyer Education Content Creator",
+      "teamHint": "cmo",
+      "frequency": "monthly",
       "stakes": "low",
       "tier": "T3",
       "autonomy": "eligible-early",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.service.6.referral-tracker",
-      "text": "Draft referral thank-you messages and track which referral sources are producing qualified leads",
-      "subAgentType": "referral-tracker",
-      "subAgentLabel": "Referral Source Tracker",
-      "teamHint": "ops",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
-      "customize.service.1.licence-tracker",
-      "customize.service.2.fintrac-kyc-checker",
-      "customize.service.3.mortgage-application-packager",
-      "customize.service.4.deal-pipeline-tracker",
-      "customize.service.5.buyer-education-content",
-      "customize.service.6.referral-tracker"
+      "customize.service.1.compliance-review",
+      "customize.service.2.compliance-review",
+      "customize.service.3.core-service-delivery",
+      "customize.service.4.core-service-delivery",
+      "customize.service.5.core-service-delivery",
+      "customize.service.6.core-service-delivery",
+      "customize.service.7.social-manager"
     ],
     "removed": [
       "delivery.core.execute",
-      "delivery.core.handoff",
-      "cmo.social.expertise"
+      "delivery.core.qa",
+      "delivery.core.handoff"
     ],
     "frequencyAdjustments": [
+      {
+        "taskId": "cfo.invoicing.create",
+        "from": "weekly",
+        "to": "monthly"
+      },
+      {
+        "taskId": "cfo.invoicing.remind",
+        "from": "weekly",
+        "to": "monthly"
+      },
       {
         "taskId": "sales.qualifier.score",
         "from": "daily",
@@ -695,121 +729,135 @@
         "taskId": "sales.outreach.draft",
         "from": "daily",
         "to": "weekly"
+      },
+      {
+        "taskId": "sales.crm.hygiene",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "cmo.social.expertise",
+        "from": "monthly",
+        "to": "weekly"
       }
     ],
     "categoryCorrections": [
       {
-        "taskId": "customize.service.5.buyer-education-content",
-        "from": "support",
-        "to": "delivery",
-        "reason": "Plain-language educational content about mortgages provided to customers at key milestones is the paid deliverable for a mortgage broker service, not internal customer support; it would otherwise mistag as cmo if treated as internal content marketing."
+        "taskId": "customize.service.3.core-service-delivery",
+        "from": "delivery",
+        "to": "ops",
+        "reason": "Collecting and organizing client documents is internal document/workflow management, not customer-facing paid deliverable work; this is back-office logistics and should be ops."
       },
       {
-        "taskId": "customize.service.6.referral-tracker",
-        "from": "sales",
+        "taskId": "customize.service.5.core-service-delivery",
+        "from": "delivery",
         "to": "ops",
-        "reason": "Tracking referral sources and their conversion quality is internal business intelligence/vendor management, not business development; drafting thank-you messages is a minor component and doesn't make the core task sales-focused (sales owns finding/closing NEW customers, not managing existing referral logistics)."
+        "reason": "Assembling application packages and checklists is internal workflow/document assembly, not the core paid advice/analysis being sold; this is back-office logistics (ops)."
+      },
+      {
+        "taskId": "customize.service.6.core-service-delivery",
+        "from": "delivery",
+        "to": "support",
+        "reason": "Tracking application status and sending plain-language updates to clients is customer-facing communication/problem-resolution support, not the paid deliverable itself."
       }
     ],
-    "notes": "Core delivery tasks replaced with mortgage-specific application packaging and deal tracking; BCFSA licence monitoring and FINTRAC KYC checker added as locked compliance tasks; referral tracker added since referrals are the sole channel; generic social posting removed as it doesn't fit a referral-only brokerage at MVP-0; lead scoring and outreach dialed back to weekly to match lower volume of first-time buyer referrals."
+    "notes": "Removed generic delivery tasks and replaced with mortgage-specific client workflows (KYC, lender research, application packaging, status tracking). Added BCFSA and FINTRAC compliance monitors. Reduced sales/outreach cadence from daily to weekly (solo operator, low volume) and invoicing to monthly (per-project, one-time payments). Bumped social content to weekly to support trust-building with first-time buyers. Added educational CMO content task as a primary lead-gen lever for this niche."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Marcus",
-        "subAgentId": "mortgage-application-packager",
-        "roleTitle": "Delivery Lead",
-        "summary": "Assembled complete application package for the Chen family — income docs, employment verification, and property appraisal request ready to submit to TD tomorrow."
-      },
-      {
-        "agentName": "Priya",
-        "subAgentId": "lead-qualifier",
+        "agentId": "lead-qualifier",
         "roleTitle": "Sales Lead",
-        "summary": "Scored 3 new leads from your referral partner list; flagged 2 as high-fit first-time buyers with pre-approval capacity."
+        "summary": "Scored 7 inbound leads from website, flagged 3 as qualified first-time buyers ready for outreach",
+        "agentName": "Taylor"
       },
       {
-        "agentName": "Sam",
-        "subAgentId": "fintrac-kyc-checker",
+        "agentId": "cashflow-forecast",
         "roleTitle": "CFO",
-        "summary": "Reviewed KYC files for 4 new borrowers; flagged one missing employment verification before file can proceed to lender."
+        "summary": "Generated 90-day cash-flow projection showing 4-month runway at current burn rate; flagged need for 3 active client retainers by month 2",
+        "agentName": "Sana"
       },
       {
-        "agentName": "Jordan",
-        "subAgentId": "deal-pipeline-tracker",
-        "roleTitle": "Delivery Lead",
-        "summary": "Updated deal pipeline: 2 clients moved to conditional approval, 1 awaiting property inspection results. Sent status updates to each."
-      },
-      {
-        "agentName": "Casey",
-        "subAgentId": "onboarding",
+        "agentId": "onboarding",
         "roleTitle": "Support Lead",
-        "summary": "Drafted welcome email and mortgage prep checklist for 2 new clients signing on today."
+        "summary": "Drafted welcome sequence for new client including timeline overview, document checklist, and first call agenda",
+        "agentName": "Maya"
+      },
+      {
+        "agentId": "core-service-delivery",
+        "roleTitle": "Ops Lead",
+        "summary": "Collected and organized KYC documents for 2 clients; flagged missing proof-of-income letter from one applicant",
+        "agentName": "Devon"
+      },
+      {
+        "agentId": "social-manager",
+        "roleTitle": "CMO",
+        "summary": "Drafted educational post: 'Understanding the Mortgage Stress Test — What First-Time Buyers Need to Know'",
+        "agentName": "Nia"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A lean mortgage brokerage that guides first-time homebuyers through pre-approval and closing by automating paperwork, compliance, and client education.",
-      "mvpDefinition": "Launch by handling pre-approval and application assembly for first-time buyers in your region. Start with 5–10 clients per month, focusing on sourcing leads from referral partners and real-estate networks, preparing clean mortgage application packages for major lenders (TD, RBC, Scotiabank), and sending educational milestone updates so borrowers understand each step. No investor loans, no commercial deals — pure first-time buyer flow.",
+      "sharpenedIdea": "A mortgage brokerage that guides first-time homebuyers through approval by collecting their documents, comparing lender options, and handling application submission.",
+      "mvpDefinition": "A mortgage brokerage that serves first-time homebuyers in one region. The MVP focuses on: qualifying leads, collecting and organizing client financial documents (pay stubs, ID, employment letters, credit consent), researching 3–5 lender products suitable to each client's profile, assembling and submitting a complete mortgage application package with the broker, and tracking application status until approval. No complex portfolio management or commercial lending—just helping first-time buyers get approval with transparency on rates and terms.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft a rolling weekly plan each Monday highlighting who owns which client deals and any upcoming milestone deadlines.",
-            "Flag any cross-team conflicts — for example, if a borrower needs docs from Delivery but Support is waiting on their reply — and surface them to the founder for quick resolution."
+            "Draft the weekly plan summarizing progress on all teams and flagging any cross-team conflicts or blockers for the founder's review"
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Create and send invoices to clients for retainer fees or per-application fees matched to your pricing structure.",
-            "Tag and categorize all business expenses (software, lender partner fees, tech tools) and flag any unusual spending.",
-            "Project cash flow for the next 30, 60, and 90 days based on expected client flow and deal closures; alert if runway drops below 3 months.",
-            "Track all tax deadlines (GST filings, corporate tax, payroll remittance) and prepare a summary packet for your accountant each quarter.",
-            "Review all client contracts and lender agreements for legal red flags and flag expiring service agreements or regulatory deadlines.",
-            "Monitor your BCFSA mortgage broker licence for any expiring education credits, insurance requirements, or renewal notices; ensure all documentation stays current.",
-            "Verify that every new borrower file has complete FINTRAC identification (name, DOB, address, ID type) and anti-money-laundering KYC records; flag any incomplete files before they go to lenders."
-          ]
-        },
-        {
-          "roleTitle": "Delivery Lead",
-          "tasks": [
-            "Spot-check each completed client work — application packages, educational documents, deal status updates — before they're sent out; catch missing forms or errors.",
-            "Assemble every borrower's mortgage application package by collecting and organizing income verification, employment letters, credit check consents, property appraisals, and any other lender requirements.",
-            "Track each client's deal status as it moves through lenders (submitted, conditionally approved, additional docs requested, funded) and send plain-language status updates to keep them informed.",
-            "Write and send clear, jargon-free explainers to first-time buyers at key moments — explaining mortgage types, interest rates, the approval timeline, what to expect at closing — so they feel confident and informed."
+            "Create invoices for client retainers or service fees and draft payment reminders matched to client history",
+            "Tag business expenses and flag any unusual spending patterns or anomalies",
+            "Generate 30/60/90-day cash-flow projections and send runway alerts when cash reserves drop below a threshold",
+            "Track upcoming tax deadlines and prepare the handoff packet for the accountant, including receipts and categorized expenses",
+            "Flag any contract red-flags, regulatory deadlines, and BCFSA licensing or registration requirements for the mortgage brokerage. Flag any Mortgage Brokers Act obligations, FINTRAC AML/KYC rules (client identification, record-keeping, suspicious transaction reporting), and license renewal dates for human professional review"
           ]
         },
         {
           "roleTitle": "Sales Lead",
           "tasks": [
-            "Score and qualify every inbound lead (referral, website inquiry, event) by assessing their likelihood to close and enriching their profile with publicly available info.",
-            "Draft personalized first outreach emails and follow-up sequences for qualified leads to book an initial consultation.",
-            "Log all client interactions in your CRM, update deal stages as they progress, and flag leads that have gone quiet so they don't fall through the cracks.",
-            "Build custom mortgage quotes and pre-approval proposals using your rate templates and the borrower's financial profile to send during the initial consultation."
+            "Score inbound leads and enrich them with public information to assess fit for mortgage brokerage services",
+            "Draft personalized first-touch outreach messages and follow-ups to warm leads",
+            "Log all client interactions, update deal stages in the CRM, and flag deals that have gone quiet for follow-up",
+            "Build quotes and proposals from templates, customized with the specific client's profile and lender options"
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Draft welcome sequences for newly signed clients including a onboarding checklist, document requirements, and a 'getting started' timeline so they know what comes next.",
-            "Read all incoming client messages, tag them by urgency (e.g., document request, rate question, closing question), and draft helpful replies to common questions without escalation.",
-            "Spot complex or frustrated client messages and escalate them to the founder with full context — previous deal history, outstanding issues, sentiment — so they can respond personally."
+            "Draft welcome sequences for newly signed clients including a project timeline, document checklist, and first-call agenda",
+            "Read inbound client messages, tag urgency, and draft replies to common questions about rates, timelines, and documents",
+            "Detect complex or upset client cases and escalate with full context to the founder for human intervention"
+          ]
+        },
+        {
+          "roleTitle": "CMO",
+          "tasks": [
+            "Draft educational content for the website and social media establishing the brokerage's expertise (e.g., 'Understanding the Mortgage Stress Test', 'Fixed vs. Variable Rates Explained', 'First-Time Buyer Checklist') to build trust and attract leads"
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Manage your calendar and send booking confirmations and reminder messages for all client consultation calls.",
-            "Track which referral sources (real-estate agents, previous clients, community partners) are sending you the best-quality leads; draft thank-you messages to keep those relationships warm and log source performance monthly."
+            "Manage the founder's calendar, send booking confirmations and reminders for all client calls",
+            "Collect and organize client KYC documents (government ID, proof of income, employment letters, credit consent forms) and flag any missing items",
+            "Research and compare lender products (rates, terms, qualification criteria) available to each first-time buyer client and summarize options for founder review",
+            "Assemble a complete mortgage application package for each client (filled forms, supporting documents, lender submission checklist) ready for founder sign-off before submission to the lender",
+            "Track the status of submitted mortgage applications with each lender and send clients plain-language updates at each milestone (submitted, under review, approval, funding)"
           ]
         }
       ],
       "monthOneGoals": [
-        "Land and onboard 3–5 qualified first-time buyer clients for pre-approval and complete their application packages for lender submission.",
-        "Set up your BCFSA compliance infrastructure: confirm broker licence documents are filed, establish FINTRAC/KYC process, and document all check points in writing.",
-        "Build and test your application template and educational content so every client gets consistent, clear communications at each deal stage.",
-        "Establish 2–3 referral relationships (real-estate agents, financial advisors, community orgs) and send initial outreach to warm leads."
+        "Sign 3–5 first-time homebuyer clients into retainers and complete their initial document collection",
+        "Submit 2 mortgage applications to lenders with full, error-free packages",
+        "Establish a repeatable lead qualification and outreach workflow, starting with 15–20 inbound leads",
+        "Complete all BCFSA licensing registration and AML/KYC compliance setup so the brokerage is fully regulated and ready to operate",
+        "Build a public-facing website with first-time buyer educational resources and lead capture form"
       ],
-      "budgetCeilingPlaceholder": "$50+/month (from your interview answer — adjust anytime)"
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys and review the team's tools and services—adjust anytime."
     }
   }
 }

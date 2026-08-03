@@ -4,8 +4,5 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
-  "types": "src/index.ts",
-  "dependencies": {
-    "@byok/templates": "*"
-  }
+  "types": "src/index.ts"
 }

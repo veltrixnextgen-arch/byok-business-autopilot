@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Pricing is data, not code — a versioned JSON table with a lastVerified
 // date, not hardcoded constants scattered through estimator logic
@@ -74,7 +76,21 @@ export class PricingTable {
   }
 }
 
-export function loadPricingTable(path: string, staleAfterDays: number = DEFAULT_STALE_AFTER_DAYS): PricingTable {
-  const data = JSON.parse(readFileSync(path, "utf-8")) as PricingTableData;
+export function loadPricingTable(tablePath: string, staleAfterDays: number = DEFAULT_STALE_AFTER_DAYS): PricingTable {
+  const data = JSON.parse(readFileSync(tablePath, "utf-8")) as PricingTableData;
   return new PricingTable(data, staleAfterDays);
+}
+
+// The versioned table this package ships (pricing-table.json, next to this
+// file) is the real source of truth — callers should load it by name
+// rather than hand-duplicating prices inline, which is exactly how a
+// model-id mismatch (a hand-copied table missing a date suffix a real
+// model id has) previously went undetected: two "sources of truth" that
+// silently drifted apart. Resolved relative to this module's own file so
+// it works the same whether this package is consumed via src/ (tsx, this
+// repo's actual runtime pattern) or a future compiled dist/.
+const DEFAULT_PRICING_TABLE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "pricing-table.json");
+
+export function loadDefaultPricingTable(staleAfterDays: number = DEFAULT_STALE_AFTER_DAYS): PricingTable {
+  return loadPricingTable(DEFAULT_PRICING_TABLE_PATH, staleAfterDays);
 }
