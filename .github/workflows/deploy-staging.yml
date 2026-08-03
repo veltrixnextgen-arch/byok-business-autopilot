@@ -363,7 +363,19 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+          # Caught live during STEP 5 verification: a deploy whose only
+          # source diff was one unrelated apps/api dependency line came
+          # back with the client+SSR bundles both wrongly containing
+          # react/jsx-dev-runtime (jsxDEV) instead of the production jsx
+          # runtime — every page that actually renders (not just an
+          # early-redirect route) 500'd with "jsxDEV is not a function".
+          # The build log showed "Restored build cache from previous
+          # deployment" right before it; a corrupted/stale Vercel build
+          # cache is the only plausible cause given the source diff.
+          # --force without --with-cache discards that cache and forces
+          # a fresh build every deploy — this project's build takes ~6s,
+          # so the cost of never trusting a stale cache is negligible.
+          vercel deploy --prod --yes --force --token="$VERCEL_TOKEN" \
             --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
             > /tmp/vercel-deploy-url.txt
           cat /tmp/vercel-deploy-url.txt
@@ -372,13 +384,20 @@ jobs:
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}
         run: |
+          # /dashboard alone isn't enough: with no session cookie it
+          # 307-redirects out of its beforeLoad guard before the page ever
+          # actually renders, so an SSR-render bug (e.g. the SSR bundle
+          # crashing on jsxDEV — caught live during STEP 5 verification)
+          # would sail through this check. "/" always renders for real
+          # (no auth guard, no redirect), so check both.
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
-            if [ "$STATUS" -lt 500 ]; then
-              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $STATUS)"
+            DASHBOARD_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
+            ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/")
+            if [ "$DASHBOARD_STATUS" -lt 500 ] && [ "$ROOT_STATUS" -lt 500 ]; then
+              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $DASHBOARD_STATUS) and $WEB_URL/ (HTTP $ROOT_STATUS)"
               exit 0
             fi
-            echo "Waiting for apps/web to come up ($i/30, last status $STATUS)..."
+            echo "Waiting for apps/web to come up ($i/30, last status dashboard=$DASHBOARD_STATUS root=$ROOT_STATUS)..."
             sleep 5
           done
           echo "::error::apps/web never became reachable at $WEB_URL/dashboard"
