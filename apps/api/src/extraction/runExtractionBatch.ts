@@ -1,8 +1,20 @@
+import Anthropic from "@anthropic-ai/sdk";
 import type { InterviewAnswers, OrgChart } from "@byok/contracts";
 import type { CostGate } from "@byok/cost-gate";
 import { CUSTOMIZE_MODEL, extractOrgChart } from "@byok/extraction";
 import type { TaskLedger } from "@byok/router";
 import type { SignupExtractionBatchStore } from "@byok/db";
+
+// The Anthropic SDK's raw error text for a rejected key ("401
+// {"type":"error","error":{"type":"authentication_error",...}}") never
+// contains the key itself, but it's still internal wire format, not
+// something to hand a user — and it's genuinely a different situation
+// from "extraction failed" (nothing to retry, the platform key needs
+// fixing). Both 401 (bad/revoked key) and 403 (key valid but lacks
+// access) read as "this key doesn't work" from the caller's side.
+function isApiKeyRejection(err: unknown): boolean {
+  return err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError;
+}
 
 export interface RunExtractionBatchDeps {
   costGate: CostGate;
@@ -97,7 +109,11 @@ export async function runExtractionBatch(
     return { status: "completed", batchId: batch.id, chart, costUsd: chart.meta.costUsd };
   } catch (err) {
     deps.costGate.release(reservation.id);
-    const message = err instanceof Error ? err.message : "extraction failed";
+    const message = isApiKeyRejection(err)
+      ? "The AI provider rejected the platform's API key. Extraction can't run until this is fixed — try again later."
+      : err instanceof Error
+        ? err.message
+        : "extraction failed";
     await deps.batchStore.fail(input.userId, batch.id, message);
     deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "failed", at: now(), note: message });
     return { status: "failed", batchId: batch.id, error: message };

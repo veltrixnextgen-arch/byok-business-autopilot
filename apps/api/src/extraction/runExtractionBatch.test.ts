@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import Anthropic from "@anthropic-ai/sdk";
 import type { InterviewAnswers, OrgChart } from "@byok/contracts";
 import { CostGate, PricingTable, ReservationLedger, type TierModelMap } from "@byok/cost-gate";
 import type { LedgerEntry, TaskLedger } from "@byok/router";
@@ -131,6 +132,39 @@ test("a QUEUE/SKIP verdict never calls extract and marks the batch failed with t
   assert.equal(extractCalled, false);
   assert.deepEqual(batchStore.calls, ["start", "fail"]);
   assert.ok(ledger.entries.some((e) => e.status === "queued" || e.status === "skipped"));
+});
+
+test("a rejected platform API key surfaces a clear, specific message — not the raw provider error body", async () => {
+  // Mirrors what the Anthropic SDK actually throws for a bad/revoked key
+  // (confirmed live against staging: a real invalid key produces exactly
+  // this shape), not a hand-rolled Error — the classification in
+  // runExtractionBatch.ts checks `instanceof Anthropic.AuthenticationError`.
+  const upstreamError = new Anthropic.AuthenticationError(
+    401,
+    { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } },
+    undefined,
+    undefined,
+  );
+  const { deps, ledger, batchStore } = buildDeps({
+    ceilingUsd: 1000,
+    extract: async () => {
+      throw upstreamError;
+    },
+  });
+
+  const result = await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });
+
+  assert.equal(result.status, "failed");
+  if (result.status === "failed") {
+    assert.doesNotMatch(result.error, /invalid x-api-key|authentication_error|request_id/);
+    assert.match(result.error, /rejected the platform's API key/);
+  }
+  for (const note of ledger.entries.map((e) => e.note).filter((n): n is string => Boolean(n))) {
+    assert.doesNotMatch(note, /invalid x-api-key|authentication_error/);
+  }
+  assert.deepEqual(batchStore.failedWith, [
+    "The AI provider rejected the platform's API key. Extraction can't run until this is fixed — try again later.",
+  ]);
 });
 
 test("an extraction failure releases the reservation and marks the batch failed", async () => {

@@ -12,6 +12,7 @@
     "start": "tsx src/start.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@byok/approval-queue": "*",
     "@byok/auth": "*",
     "@byok/cost-gate": "*",
