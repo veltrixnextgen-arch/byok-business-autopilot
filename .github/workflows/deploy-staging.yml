@@ -363,19 +363,23 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          # Caught live during STEP 5 verification: a deploy whose only
-          # source diff was one unrelated apps/api dependency line came
-          # back with the client+SSR bundles both wrongly containing
-          # react/jsx-dev-runtime (jsxDEV) instead of the production jsx
-          # runtime — every page that actually renders (not just an
-          # early-redirect route) 500'd with "jsxDEV is not a function".
-          # The build log showed "Restored build cache from previous
-          # deployment" right before it; a corrupted/stale Vercel build
-          # cache is the only plausible cause given the source diff.
-          # --force without --with-cache discards that cache and forces
-          # a fresh build every deploy — this project's build takes ~6s,
-          # so the cost of never trusting a stale cache is negligible.
-          vercel deploy --prod --yes --force --token="$VERCEL_TOKEN" \
+          # KNOWN FRAGILITY (see docs/DECISIONS.md ADR-016, and the
+          # tracking issue it links): a clean/forced install of apps/web's
+          # current toolchain pin (nitro 3.0.260610-beta + vite 8.2.0 +
+          # @vitejs/plugin-react 6.0.5) produces an SSR bundle that calls
+          # jsxDEV instead of the production JSX runtime, crashing every
+          # page that actually renders. Reusing Vercel's build cache
+          # (i.e. NOT forcing a fresh install — no --force here) is
+          # currently the only thing keeping the deployed bundle correct.
+          # Two stable-toolchain fixes were tried and reverted: nitro@3.0.0
+          # needs vite@^7 (breaks TanStack Start's start-plugin-core, which
+          # needs vite@>=7 — compatible in principle, but pairing it with
+          # nitro@3.0.0 left the site silently non-interactive, not just
+          # differently broken); @vitejs/plugin-react@4.7.0 (the last
+          # pre-oxc release) can't resolve against vite@8.2.0 at all. Do
+          # not add --force back without also fixing the underlying jsxDEV
+          # bug — it will reproduce the crash on the very next deploy.
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
             --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
             > /tmp/vercel-deploy-url.txt
           cat /tmp/vercel-deploy-url.txt
