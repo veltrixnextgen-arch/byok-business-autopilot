@@ -164,26 +164,43 @@ jobs:
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
-          # railwayapp/cli#696: `railway up`'s own build succeeds on
-          # Railway's platform, but the CLI's build-log GraphQL
-          # subscription fails intermittently ("Failed to stream build
-          # logs: Failed to retrieve build log"), and the CLI exits 1 on
-          # that even though the deploy itself is fine — reproduced twice
-          # in a row here. Retrying is the documented workaround (Railway's
-          # own support station), not a mask over a real failure: a
-          # genuine build/deploy failure fails the SAME way on retry,
-          # while this flake clears within a couple of attempts.
-          for attempt in 1 2 3; do
-            if railway up --service "$RAILWAY_SERVICE"; then
+          # railwayapp/cli#696: `railway up`'s build succeeds on Railway's
+          # platform, but the CLI's build-log GraphQL subscription fails
+          # intermittently ("Failed to stream build logs: Failed to
+          # retrieve build log"), and the CLI exits 1 on that even though
+          # the deploy itself is fine. A 3x retry of the SAME failing call
+          # did not clear it (confirmed live: v0.3.0-staging and
+          # v0.3.1-staging both failed 3/3 attempts, ~65s each, each
+          # hitting a genuinely fresh build-logs URL — this is not a
+          # transient flake at our usage, it fires every time). `--ci`
+          # doesn't avoid it either (Railway's own support station: the
+          # equivalent log-stream path is "implemented but currently
+          # broken" under CI tokens). `--detach` sidesteps the bug
+          # entirely by never opening that subscription — it returns as
+          # soon as the build is queued, which is also why STEP 2 removed
+          # it originally (an old container can keep answering traffic
+          # during the swap, making a fast health check falsely
+          # "pass" against stale code). The fixed wait below plus the
+          # SECOND deploy further down plus the health-check loop plus
+          # the real functional checks (signup, org creation) after it
+          # give the swap several minutes of real elapsed time before
+          # anything is trusted — mitigating that race without depending
+          # on the broken log stream.
+          for attempt in 1 2; do
+            if railway up --service "$RAILWAY_SERVICE" --detach; then
               break
             fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::railway up failed 3 times in a row — not the known log-streaming flake."
+            if [ "$attempt" -eq 2 ]; then
+              echo "::error::railway up --detach failed twice in a row (this is upload/API failure, not the log-streaming bug — --detach never opens that subscription)."
               exit 1
             fi
-            echo "railway up failed (attempt $attempt/3) — retrying in case this is the known build-log-streaming flake (railwayapp/cli#696)..."
+            echo "railway up --detach failed (attempt $attempt/2) — retrying..."
             sleep 5
           done
+
+          echo "Deploy queued (--detach); giving the build time to land before continuing."
+          sleep 60
+          railway status || true
 
       - name: Generate Railway's public domain for apps/api
         id: railway_domain
@@ -217,19 +234,23 @@ jobs:
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
 
-          # Same known CLI log-streaming flake as the first railway up
-          # above (railwayapp/cli#696) — same retry, same reasoning.
-          for attempt in 1 2 3; do
-            if railway up --service "$RAILWAY_SERVICE"; then
+          # Same railwayapp/cli#696 log-streaming bug as the first railway
+          # up above, same --detach fix, same reasoning.
+          for attempt in 1 2; do
+            if railway up --service "$RAILWAY_SERVICE" --detach; then
               break
             fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::railway up failed 3 times in a row — not the known log-streaming flake."
+            if [ "$attempt" -eq 2 ]; then
+              echo "::error::railway up --detach failed twice in a row (upload/API failure, not the log-streaming bug)."
               exit 1
             fi
-            echo "railway up failed (attempt $attempt/3) — retrying in case this is the known build-log-streaming flake (railwayapp/cli#696)..."
+            echo "railway up --detach failed (attempt $attempt/2) — retrying..."
             sleep 5
           done
+
+          echo "Deploy queued (--detach); giving the build time to land before the health check."
+          sleep 60
+          railway status || true
 
       - name: Wait for apps/api to become healthy
         env:
