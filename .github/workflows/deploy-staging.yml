@@ -164,7 +164,26 @@ jobs:
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
-          railway up --service "$RAILWAY_SERVICE"
+          # railwayapp/cli#696: `railway up`'s own build succeeds on
+          # Railway's platform, but the CLI's build-log GraphQL
+          # subscription fails intermittently ("Failed to stream build
+          # logs: Failed to retrieve build log"), and the CLI exits 1 on
+          # that even though the deploy itself is fine — reproduced twice
+          # in a row here. Retrying is the documented workaround (Railway's
+          # own support station), not a mask over a real failure: a
+          # genuine build/deploy failure fails the SAME way on retry,
+          # while this flake clears within a couple of attempts.
+          for attempt in 1 2 3; do
+            if railway up --service "$RAILWAY_SERVICE"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::railway up failed 3 times in a row — not the known log-streaming flake."
+              exit 1
+            fi
+            echo "railway up failed (attempt $attempt/3) — retrying in case this is the known build-log-streaming flake (railwayapp/cli#696)..."
+            sleep 5
+          done
 
       - name: Generate Railway's public domain for apps/api
         id: railway_domain
@@ -197,7 +216,20 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
-          railway up --service "$RAILWAY_SERVICE"
+
+          # Same known CLI log-streaming flake as the first railway up
+          # above (railwayapp/cli#696) — same retry, same reasoning.
+          for attempt in 1 2 3; do
+            if railway up --service "$RAILWAY_SERVICE"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::railway up failed 3 times in a row — not the known log-streaming flake."
+              exit 1
+            fi
+            echo "railway up failed (attempt $attempt/3) — retrying in case this is the known build-log-streaming flake (railwayapp/cli#696)..."
+            sleep 5
+          done
 
       - name: Wait for apps/api to become healthy
         env:
