@@ -5,7 +5,7 @@ import { runCustomizePass } from "./customize.js";
 import { validateCategories } from "./categoryValidator.js";
 import { assembleOrgChart, HandsScopeViolationError } from "./assemble.js";
 import { generateOnboardingBatch } from "./onboardingBatch.js";
-import type { ApiCallUsage, CustomizationLog, InterviewAnswers, OrgChart, OrgChartTask } from "./types.js";
+import type { ApiCallUsage, CustomizationLog, InterviewAnswers, OrgChart, Task } from "./types.js";
 import { CostGuardError, DEFAULT_MAX_COST_USD } from "./costGuard.js";
 
 export interface ExtractOptions {
@@ -13,7 +13,7 @@ export interface ExtractOptions {
   maxCostUsd?: number;
 }
 
-function templateTaskToOrgChartTask(t: TemplateTask): OrgChartTask {
+function templateTaskToTask(t: TemplateTask): Task {
   return { ...t, origin: "template" };
 }
 
@@ -50,22 +50,22 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
   const freqById = new Map((result.frequencyAdjustments ?? []).map((a) => [a.taskId, a.frequency]));
   const frequencyAdjustmentsLog: CustomizationLog["frequencyAdjustments"] = [];
 
-  const keptTasks: OrgChartTask[] = baseTasks
+  const keptTasks: Task[] = baseTasks
     .filter((t) => !removedSet.has(t.id))
     .map((t) => {
       const newFreq = freqById.get(t.id);
       if (newFreq && newFreq !== t.frequency) {
         frequencyAdjustmentsLog.push({ taskId: t.id, from: t.frequency, to: newFreq });
-        return { ...templateTaskToOrgChartTask(t), frequency: newFreq };
+        return { ...templateTaskToTask(t), frequency: newFreq };
       }
-      return templateTaskToOrgChartTask(t);
+      return templateTaskToTask(t);
     });
 
-  const addedTasks: OrgChartTask[] = (result.addTasks ?? []).map((a, idx) => ({
-    id: `customize.${primaryTemplate.id}.${idx + 1}.${a.subAgentType}`,
+  const addedTasks: Task[] = (result.addTasks ?? []).map((a, idx) => ({
+    id: `customize.${primaryTemplate.id}.${idx + 1}.${a.agentType}`,
     text: a.text,
-    subAgentType: a.subAgentType,
-    subAgentLabel: a.subAgentLabel,
+    agentType: a.agentType,
+    agentLabel: a.agentLabel,
     teamHint: a.teamHint,
     frequency: a.frequency,
     stakes: a.stakes,
@@ -123,9 +123,9 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
     notes: result.notes,
   };
 
-  // Steps 3-4: clustering + bottom-up assembly into sub-agents, teams, roles.
+  // Steps 3-4: clustering + bottom-up assembly into agents, teams, roles.
   // The Hands-scope-separation check inside assembleOrgChart is a hard
-  // invariant (never let a client-facing and own-backoffice sub-agent share
+  // invariant (never let a client-facing and own-backoffice agent share
   // a credential identifier) — but a category *correction* from the
   // validation pass can occasionally recreate exactly that collision (e.g.
   // moving a task from "delivery" back to "cfo" while its handsTool string

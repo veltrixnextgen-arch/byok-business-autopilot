@@ -48,10 +48,10 @@ export interface TemplateTask {
   /** Plain-language description — never internal jargon (design law, Part 1). */
   text: string;
   /** Task type. ADR-001: one sub-agent per task type — tasks sharing a
-   *  subAgentType cluster into the same sub-agent. */
-  subAgentType: string;
+   *  agentType cluster into the same sub-agent. */
+  agentType: string;
   /** Human-readable label for the sub-agent this task type clusters into. */
-  subAgentLabel: string;
+  agentLabel: string;
   teamHint: TeamHint;
   frequency: Frequency;
   stakes: Stakes;

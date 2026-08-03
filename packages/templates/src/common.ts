@@ -6,8 +6,8 @@ import type { TemplateTask } from "./types.js";
 export const chiefOfStaffTask: TemplateTask = {
   id: "founder.chief-of-staff.weekly-plan",
   text: "Draft the weekly plan and flag cross-team conflicts for the founder",
-  subAgentType: "chief-of-staff",
-  subAgentLabel: "Chief of Staff",
+  agentType: "chief-of-staff",
+  agentLabel: "Chief of Staff",
   teamHint: "founder",
   frequency: "weekly",
   stakes: "medium",

@@ -27,13 +27,13 @@ const CUSTOMIZE_TOOL = {
           type: "object",
           properties: {
             text: { type: "string", description: "Plain-language task description, no jargon." },
-            subAgentType: {
+            agentType: {
               type: "string",
               description:
                 "Short kebab-case task-type id this task clusters under (reuse an existing template " +
-                "subAgentType if it genuinely fits, otherwise invent a new one).",
+                "agentType if it genuinely fits, otherwise invent a new one).",
             },
-            subAgentLabel: { type: "string", description: "Human-readable label for that sub-agent." },
+            agentLabel: { type: "string", description: "Human-readable label for that sub-agent." },
             teamHint: { type: "string", enum: TEAM_HINTS },
             frequency: { type: "string", enum: ["daily", "weekly", "monthly", "adhoc"] },
             stakes: { type: "string", enum: ["low", "medium", "high"] },
@@ -62,7 +62,7 @@ const CUSTOMIZE_TOOL = {
             rationale: { type: "string", description: "One line: why this idea specifically needs this task." },
           },
           required: [
-            "text", "subAgentType", "subAgentLabel", "teamHint", "frequency", "stakes", "tier", "autonomy",
+            "text", "agentType", "agentLabel", "teamHint", "frequency", "stakes", "tier", "autonomy",
             "handsTool", "rationale",
           ],
         },
@@ -91,7 +91,7 @@ const CUSTOMIZE_TOOL = {
 
 function buildPrompt(idea: string, answers: InterviewAnswers, template: BusinessTemplate): string {
   const taskLines = template.tasks
-    .map((t) => `- ${t.id} | ${t.subAgentType} | ${t.teamHint} | ${t.frequency} | ${t.text}`)
+    .map((t) => `- ${t.id} | ${t.agentType} | ${t.teamHint} | ${t.frequency} | ${t.text}`)
     .join("\n");
 
   return [
@@ -113,7 +113,7 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
       `distinctions are easy to get wrong):`,
     formatCategoryLegend(),
     ``,
-    `Template tasks (id | subAgentType | teamHint | frequency | text):`,
+    `Template tasks (id | agentType | teamHint | frequency | text):`,
     taskLines,
     ``,
     `Customize this template for the idea above. Rules:`,
