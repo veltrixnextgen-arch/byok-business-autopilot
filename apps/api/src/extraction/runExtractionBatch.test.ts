@@ -51,8 +51,10 @@ class FakeTaskLedger implements TaskLedger {
 
 function fakeBatchStore() {
   const calls: string[] = [];
+  const failedWith: string[] = [];
   return {
     calls,
+    failedWith,
     async start(userId: string, idea: string) {
       calls.push("start");
       return { id: "batch-1", userId, idea, status: "running" as const, orgChart: null, costUsd: null, error: null, createdAt: "", updatedAt: "" };
@@ -60,8 +62,9 @@ function fakeBatchStore() {
     async complete() {
       calls.push("complete");
     },
-    async fail() {
+    async fail(_userId: string, _id: string, error: string) {
       calls.push("fail");
+      failedWith.push(error);
     },
   };
 }
@@ -69,6 +72,7 @@ function fakeBatchStore() {
 function buildDeps(overrides: {
   ceilingUsd: number;
   extract: RunExtractionBatchDeps["extract"];
+  apiKey?: string;
 }): { deps: RunExtractionBatchDeps; ledger: FakeTaskLedger; batchStore: ReturnType<typeof fakeBatchStore> } {
   const modelMap: TierModelMap = { T1: "cheap", T2: "claude-sonnet-4-6", T3: "frontier" };
   const pricingTable = new PricingTable({
@@ -89,7 +93,7 @@ function buildDeps(overrides: {
   const ledger = new FakeTaskLedger();
   const batchStore = fakeBatchStore();
   return {
-    deps: { costGate, ledger, batchStore, apiKey: "test-key", extract: overrides.extract },
+    deps: { costGate, ledger, batchStore, apiKey: overrides.apiKey ?? "test-key", extract: overrides.extract },
     ledger,
     batchStore,
   };
@@ -146,4 +150,32 @@ test("an extraction failure releases the reservation and marks the batch failed"
     ["pending", "in_progress", "failed"],
   );
   assert.deepEqual(batchStore.calls, ["start", "fail"]);
+});
+
+// The platform key (ADR-003) is a platform credential, not a user one —
+// it doesn't live in the vault, but it must never leak through the paths
+// that ARE user-visible: the persisted batch record (returned by
+// GET /extraction/batches/latest) and the router's ledger. This is a
+// regression test, not proof the Anthropic SDK itself never echoes a key
+// in an error (out of this repo's control) — it guards the realistic
+// failure mode: something in OUR error handling accidentally
+// interpolating deps.apiKey into a message that then gets persisted.
+test("the platform API key never appears in a persisted error or ledger note, even on failure", async () => {
+  const SECRET = "sk-ant-test-SECRET-do-not-leak-9f8e7d6c";
+  const { deps, ledger, batchStore } = buildDeps({
+    ceilingUsd: 1000,
+    apiKey: SECRET,
+    extract: async () => {
+      throw new Error("upstream request failed: 401 unauthorized");
+    },
+  });
+
+  await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });
+
+  for (const note of ledger.entries.map((e) => e.note).filter((n): n is string => Boolean(n))) {
+    assert.ok(!note.includes(SECRET), `ledger note leaked the API key: ${note}`);
+  }
+  for (const error of batchStore.failedWith) {
+    assert.ok(!error.includes(SECRET), `persisted batch error leaked the API key: ${error}`);
+  }
 });
