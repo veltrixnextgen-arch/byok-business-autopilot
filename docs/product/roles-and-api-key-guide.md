@@ -1,4 +1,4 @@
-# BYOK Business Autopilot — Userflow, Role Catalog & API Key Guide
+# Runwisely — Userflow, Role Catalog & API Key Guide
 **The complete user journey · every recommended role and team · best AI per role · step-by-step key setup**
 *Companion to the Master Plan — July 2026*
 

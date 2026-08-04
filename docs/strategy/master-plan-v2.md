@@ -1,4 +1,4 @@
-# BYOK Business Autopilot — Master Plan v2
+# Runwisely — Master Plan v2
 **Strategy · economics · build plan · MVP ladder — updated to the v2 flow**
 *Supersedes Master Plan v1.0 — July 2026*
 

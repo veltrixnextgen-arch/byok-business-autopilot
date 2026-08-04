@@ -19,7 +19,7 @@ const program = new Command();
 
 program
   .name("extract")
-  .description("BYOK Business Autopilot — Task Extraction Engine v1 (MVP-0)")
+  .description("Runwisely — Task Extraction Engine v1 (MVP-0)")
   .requiredOption("--idea <text>", "The business idea, in the user's own words")
   .requiredOption("--answers <path>", "Path to a JSON file with the 6 interview answers")
   .option("--out <path>", "Write the org chart JSON to this path")

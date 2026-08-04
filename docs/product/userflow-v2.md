@@ -1,4 +1,4 @@
-# BYOK Business Autopilot — Userflow v2 (Final)
+# Runwisely — Userflow v2 (Final)
 **Homepage animation → idea → named team → tool choice per role → keys → Company Charter → CEO-led automation → parallel GitHub/deploy**
 *Supersedes Part 1 of the previous flow doc. Parts 2–3 (role catalog, key guides) still apply. — July 2026*
 

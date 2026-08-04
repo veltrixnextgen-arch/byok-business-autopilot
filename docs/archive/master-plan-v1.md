@@ -1,4 +1,4 @@
-# BYOK Business Autopilot — Master Plan
+# Runwisely — Master Plan
 **360° analysis · build plan · MVP ladder · architecture · security & efficiency protocols**
 *Version 1.0 — July 2026*
 
