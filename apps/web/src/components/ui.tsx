@@ -5,7 +5,7 @@ export function cx(...classes: Array<string | false | null | undefined>): string
   return classes.filter(Boolean).join(" ");
 }
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "gradient";
 
 export function Button({
   variant = "primary",
@@ -15,10 +15,15 @@ export function Button({
   return (
     <button
       className={cx(
-        "inline-flex items-center justify-center rounded-full px-5 py-2.5 font-body text-sm font-medium transition-[transform,background-color,border-color,box-shadow] duration-calm-fast ease-calm disabled:cursor-not-allowed disabled:opacity-50",
-        variant === "primary" && "bg-accent text-bg hover:-translate-y-px hover:shadow-glow-accent",
-        variant === "secondary" && "border border-border bg-bg-glass text-text hover:border-border-strong",
-        variant === "ghost" && "text-text-secondary hover:text-text",
+        "inline-flex items-center justify-center font-body text-sm font-medium transition-[transform,background-color,border-color,box-shadow] duration-calm-fast ease-calm disabled:cursor-not-allowed disabled:opacity-50",
+        variant === "primary" && "rounded-full px-5 py-2.5 bg-accent text-bg hover:-translate-y-px hover:shadow-glow-accent",
+        variant === "secondary" && "rounded-full px-5 py-2.5 border border-border bg-bg-glass text-text hover:border-border-strong",
+        variant === "ghost" && "rounded-full px-5 py-2.5 text-text-secondary hover:text-text",
+        // The one or two primary actions per screen that move a signup
+        // forward (STEP 7 design fidelity pass) — the reference's own
+        // gradient CTA treatment: 12px radius, not a pill, plus its glow.
+        variant === "gradient" &&
+          "rounded-lg px-6 py-3.5 font-semibold text-white bg-gradient-to-br from-accent-strong to-cta-warm hover:-translate-y-px hover:shadow-glow-cta",
         className,
       )}
       {...props}
@@ -34,7 +39,7 @@ export function Card({ className, children }: { className?: string; children: Re
   );
 }
 
-type BadgeTone = "accent" | "money" | "clients" | "marketing" | "operations" | "danger";
+export type BadgeTone = "accent" | "money" | "clients" | "marketing" | "operations" | "danger";
 
 const badgeToneClasses: Record<BadgeTone, string> = {
   accent: "bg-accent/15 text-accent border-accent/30",

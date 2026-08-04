@@ -48,6 +48,11 @@
   --color-marketing: #f0a6ca;
   --color-operations: #6ee7b7;
   --color-danger: #ff7a7a;
+  /* The reference's primary-CTA gradient runs accent-strong -> this warm
+     orange, distinct from --color-money (#ffb86b) despite being close —
+     confirmed against the reference's own computed styles (STEP 7 design
+     fidelity pass), not eyeballed. Used only as the gradient's warm end. */
+  --color-cta-warm: #ff9d5c;
 
   /* --- Radius --- */
   --radius-sm: 7px;
@@ -64,6 +69,11 @@
   --shadow-card: 0 12px 40px -18px rgba(0, 0, 0, 0.8);
   --shadow-card-lg: 0 18px 50px -18px rgba(0, 0, 0, 0.7);
   --shadow-glow-accent: 0 0 30px -10px rgba(124, 92, 255, 0.35);
+  /* The reference's gradient-CTA-pill glow — stronger/wider than
+     --shadow-glow-accent, reserved for the one or two primary gradient
+     actions per screen (never the whole page), plus its own ambient drop
+     shadow layered underneath. */
+  --shadow-glow-cta: 0 0 60px -12px rgba(124, 92, 255, 0.45), 0 24px 60px -30px rgba(0, 0, 0, 0.8);
   --shadow-glow-money: 0 0 34px -8px rgba(255, 184, 107, 0.12);
   --shadow-glow-clients: 0 0 34px -8px rgba(125, 211, 252, 0.1);
   --shadow-glow-marketing: 0 0 34px -8px rgba(240, 166, 202, 0.1);
