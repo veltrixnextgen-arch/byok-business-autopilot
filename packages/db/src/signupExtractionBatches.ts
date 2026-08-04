@@ -1,4 +1,5 @@
 import type { OrgChart } from "@byok/contracts";
+import { withInternalMetricsScope } from "./signupMetrics.js";
 import { withUserScope } from "./userContext.js";
 import type { PoolLike } from "./tenantContext.js";
 
@@ -111,6 +112,25 @@ export class SignupExtractionBatchStore {
         [id, userId],
       )) as unknown as { rows: SignupExtractionBatchRow[] };
       return result.rows[0] ? rowToBatch(result.rows[0]) : null;
+    });
+  }
+
+  /** For the internal metrics route (Phase B Step 6C) only — every user's
+   *  most recent batch, via the same internal_metrics RLS exception
+   *  0005_signup_metrics.sql adds to this table's policy. Not exposed
+   *  through any endpoint a tester's own session can reach. */
+  async allLatestBatchSummaries(): Promise<Pick<SignupExtractionBatch, "userId" | "status" | "costUsd" | "createdAt">[]> {
+    return withInternalMetricsScope(this.pool, async (client) => {
+      const result = (await client.query(
+        `SELECT DISTINCT ON (user_id) user_id, status, cost_usd, created_at
+         FROM signup_extraction_batches ORDER BY user_id, created_at DESC`,
+      )) as unknown as { rows: Pick<SignupExtractionBatchRow, "user_id" | "status" | "cost_usd" | "created_at">[] };
+      return result.rows.map((r) => ({
+        userId: r.user_id,
+        status: r.status,
+        costUsd: r.cost_usd === null ? null : Number(r.cost_usd),
+        createdAt: r.created_at,
+      }));
     });
   }
 

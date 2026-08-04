@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { signUp } from "../lib/authClient";
-import { loadIdea } from "../lib/extractionClient";
+import { loadIdea, recordFunnelEvent } from "../lib/extractionClient";
 
 export const Route = createFileRoute("/signup")({
   component: Signup,
@@ -25,6 +25,7 @@ function Signup() {
       setError(signUpError.message ?? "Sign up failed");
       return;
     }
+    recordFunnelEvent("signup");
     // The idea box (route "/") is the normal way to arrive here — carry
     // that idea straight into the interview instead of dropping it on the
     // floor. Visiting /signup directly (no idea saved) falls back to the

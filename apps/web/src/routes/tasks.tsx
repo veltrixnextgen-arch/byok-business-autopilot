@@ -3,7 +3,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Button, Card } from "../components/ui";
 import { authClient } from "../lib/authClient";
-import { getLatestBatch, reassemble } from "../lib/extractionClient";
+import { getLatestBatch, reassemble, recordFunnelEvent } from "../lib/extractionClient";
 
 export const Route = createFileRoute("/tasks")({
   beforeLoad: async () => {
@@ -70,6 +70,7 @@ function TaskList() {
           setState({ kind: "error", message: batch.error ?? "Extraction didn't complete." });
           return;
         }
+        recordFunnelEvent("tasks");
         setState({ kind: "ready", batchId: batch.id, chart: batch.orgChart });
       } catch (err) {
         if (!cancelled) setState({ kind: "error", message: err instanceof Error ? err.message : "Could not load your tasks." });

@@ -79,3 +79,17 @@ export async function renameAgent(batchId: string, agentId: string, name: string
   const { chart } = await res.json();
   return chart as OrgChart;
 }
+
+export type FunnelScreen = "signup" | "interview" | "tasks" | "org_chart";
+
+/** MVP-0 tester gate (Phase B Step 6C) — fire-and-forget on purpose:
+ *  losing a funnel event is a metrics gap, not something worth blocking
+ *  or degrading the actual signup flow over. Swallows its own errors. */
+export function recordFunnelEvent(screen: FunnelScreen): void {
+  apiClient.metrics["funnel-event"].$post({ json: { screen } }).catch(() => {});
+}
+
+export async function submitFeedback(taughtSomething: boolean, freeText?: string): Promise<void> {
+  const res = await apiClient.metrics.feedback.$post({ json: { taughtSomething, freeText } });
+  if (!res.ok) throw new Error(`Could not submit feedback (${res.status}).`);
+}

@@ -5,3 +5,4 @@ export * from "./userContext.js";
 export * from "./migrate.js";
 export * from "./durableAuditLog.js";
 export * from "./signupExtractionBatches.js";
+export * from "./signupMetrics.js";
