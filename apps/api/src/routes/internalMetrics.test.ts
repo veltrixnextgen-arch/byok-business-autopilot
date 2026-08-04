@@ -37,14 +37,43 @@ function fakeDeps(overrides: Partial<InternalMetricsDeps> = {}): InternalMetrics
   };
 }
 
-test("401s with no token", async () => {
+test("401s with no token, body is a plain error with no signup data", async () => {
   const app = internalMetricsRoute(fakeDeps());
   const res = await app.request("/");
   assert.equal(res.status, 401);
+  const body = await res.json();
+  assert.deepEqual(body, { error: "Unauthorized" });
+  const raw = JSON.stringify(body);
+  assert.doesNotMatch(raw, /tester@example\.com/);
+  assert.doesNotMatch(raw, /user-1/);
 });
 
-test("401s with the wrong token", async () => {
+test("401s with the wrong token, body is a plain error with no signup data", async () => {
   const app = internalMetricsRoute(fakeDeps());
+  const res = await app.request("/", { headers: { "x-internal-metrics-token": "wrong" } });
+  assert.equal(res.status, 401);
+  const body = await res.json();
+  assert.deepEqual(body, { error: "Unauthorized" });
+  const raw = JSON.stringify(body);
+  assert.doesNotMatch(raw, /tester@example\.com/);
+  assert.doesNotMatch(raw, /user-1/);
+});
+
+// Belt-and-suspenders on the route itself: the auth check must run before
+// any query, not just before the response is composed — otherwise a fixed
+// error body could still mask a query that already ran and could throw or
+// leak via timing/logs. Fails deps.pool.connect() outright so any code
+// path that reaches the DB before the token check would blow up instead
+// of quietly succeeding.
+test("rejects unauthorized requests before ever touching the database", async () => {
+  const deps = fakeDeps({
+    pool: {
+      async connect() {
+        throw new Error("must not be called before the token check");
+      },
+    } as never,
+  });
+  const app = internalMetricsRoute(deps);
   const res = await app.request("/", { headers: { "x-internal-metrics-token": "wrong" } });
   assert.equal(res.status, 401);
 });
