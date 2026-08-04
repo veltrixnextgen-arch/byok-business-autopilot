@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Card } from "../components/ui";
 import { apiClient } from "../lib/apiClient";
 import { authClient } from "../lib/authClient";
 
@@ -27,7 +28,9 @@ interface Me {
 
 // Foundation only — this route's entire job is to prove auth + tenant +
 // API work end to end (session -> tenantMiddleware -> RLS-scoped /me
-// call). No product content; that starts at Step 5+.
+// call). No product content; that starts at Step 5+. Styled just enough
+// to not look broken (STEP 7 auth-pages pass) — the real dashboard is a
+// later step, not this one.
 function Dashboard() {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,18 +49,28 @@ function Dashboard() {
   }, []);
 
   return (
-    <main>
-      <h1>Dashboard</h1>
-      {error && <p role="alert">{error}</p>}
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-16">
+      <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Dashboard</h1>
+      {error && (
+        <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
+          {error}
+        </p>
+      )}
       {me ? (
-        <dl>
-          <dt>Signed in as</dt>
-          <dd>{me.email}</dd>
-          <dt>Tenant</dt>
-          <dd>{me.tenantId}</dd>
-        </dl>
+        <Card>
+          <dl className="space-y-3 font-mono text-sm">
+            <div>
+              <dt className="text-text-muted">Signed in as</dt>
+              <dd className="text-text">{me.email}</dd>
+            </div>
+            <div>
+              <dt className="text-text-muted">Tenant</dt>
+              <dd className="text-text">{me.tenantId}</dd>
+            </div>
+          </dl>
+        </Card>
       ) : (
-        !error && <p>Loading…</p>
+        !error && <p className="text-text-muted">Loading…</p>
       )}
     </main>
   );
