@@ -26,9 +26,21 @@ export interface QuestionsResponse {
   guess: Partial<InterviewAnswers>;
 }
 
+/** Carries the HTTP status so callers can distinguish "session expired"
+ *  (401) from a generic network/5xx failure without parsing message text. */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function fetchQuestions(idea: string, answers?: Partial<InterviewAnswers>): Promise<QuestionsResponse> {
   const res = await apiClient.extraction.questions.$post({ json: { idea, answers } });
-  if (!res.ok) throw new Error(`Could not load interview questions (${res.status}).`);
+  if (!res.ok) throw new ApiError(res.status, `Could not load interview questions (${res.status}).`);
   return res.json();
 }
 

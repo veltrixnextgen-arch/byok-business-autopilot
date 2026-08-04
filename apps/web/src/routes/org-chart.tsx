@@ -112,6 +112,11 @@ function useRevealStage(): number {
 
 type EditMode = { kind: "none" } | { kind: "merge"; selected: Set<string> } | { kind: "split"; agentId: string; selected: Set<string>; label: string };
 
+// Shown briefly after a failed save (rename/merge/split) — the edit is
+// simply not applied, the chart underneath stays exactly as it was, so
+// "try again" is always literally true, not just reassuring copy.
+const SAVE_ERROR_MESSAGE = "Couldn't save that — try again.";
+
 function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialChart: OrgChart }) {
   const stage = useRevealStage();
   const [chart, setChart] = useState(initialChart);
@@ -119,6 +124,7 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
   const [editMode, setEditMode] = useState<EditMode>({ kind: "none" });
   const [busy, setBusy] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const nonHumanTeams = chart.teams.filter((t) => !t.isHuman);
   const agentsById = new Map(chart.agents.map((a) => [a.id, a]));
@@ -127,8 +133,11 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
     setRenamingId(null);
     if (!name.trim()) return;
     setBusy(true);
+    setSaveError(null);
     try {
       setChart(await renameAgent(batchId, agentId, name.trim()));
+    } catch {
+      setSaveError(SAVE_ERROR_MESSAGE);
     } finally {
       setBusy(false);
     }
@@ -144,9 +153,12 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
       mergedTaskIds.has(t.id) ? { ...t, agentType: first.id, agentLabel: first.title } : t,
     );
     setBusy(true);
+    setSaveError(null);
     try {
       setChart(await reassemble(batchId, tasks));
       setEditMode({ kind: "none" });
+    } catch {
+      setSaveError(SAVE_ERROR_MESSAGE);
     } finally {
       setBusy(false);
     }
@@ -160,9 +172,12 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
       editMode.selected.has(t.id) ? { ...t, agentType: newAgentType, agentLabel: editMode.label.trim() } : t,
     );
     setBusy(true);
+    setSaveError(null);
     try {
       setChart(await reassemble(batchId, tasks));
       setEditMode({ kind: "none" });
+    } catch {
+      setSaveError(SAVE_ERROR_MESSAGE);
     } finally {
       setBusy(false);
     }
@@ -252,6 +267,12 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
         </div>
       )}
 
+      {saveError && (
+        <p role="alert" className="mt-6 text-sm text-danger">
+          {saveError}
+        </p>
+      )}
+
       {stage >= 2 && (
         <div className="mt-10 flex flex-wrap items-center gap-3 duration-calm-base ease-calm">
           {editMode.kind === "none" && (
@@ -305,13 +326,17 @@ function FeedbackPrompt() {
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleAnswer(taughtSomething: boolean) {
     setAnswer(taughtSomething);
     setSubmitting(true);
+    setSaveError(null);
     try {
       await submitFeedback(taughtSomething);
       setSubmitted(true);
+    } catch {
+      setSaveError(SAVE_ERROR_MESSAGE);
     } finally {
       setSubmitting(false);
     }
@@ -320,9 +345,12 @@ function FeedbackPrompt() {
   async function handleFreeTextSubmit() {
     if (answer === null) return;
     setSubmitting(true);
+    setSaveError(null);
     try {
       await submitFeedback(answer, freeText.trim() || undefined);
       setSubmitted(true);
+    } catch {
+      setSaveError(SAVE_ERROR_MESSAGE);
     } finally {
       setSubmitting(false);
     }
@@ -361,6 +389,11 @@ function FeedbackPrompt() {
             Submit
           </Button>
         </div>
+      )}
+      {saveError && (
+        <p role="alert" className="text-sm text-danger">
+          {saveError}
+        </p>
       )}
     </Card>
   );
