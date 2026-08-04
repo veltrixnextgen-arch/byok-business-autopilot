@@ -425,7 +425,16 @@ jobs:
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}
         run: |
-          npx --yes playwright@1.49.1 install --with-deps chromium
+          # `npx playwright install` alone only downloads the browser
+          # binary into npx's temp cache — it does NOT leave `playwright`
+          # resolvable as an importable package, so the script's own
+          # `import { chromium } from "playwright"` 404'd on the very
+          # first real run (ERR_MODULE_NOT_FOUND) despite the browser
+          # download itself succeeding. Installing it for real first
+          # (--no-save: CI-only tooling, not a committed dependency,
+          # same as the Railway/Vercel CLIs above) fixes the import.
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
           node apps/web/scripts/verify-staging-interactive.mjs "$WEB_URL"
 
       - name: Summary

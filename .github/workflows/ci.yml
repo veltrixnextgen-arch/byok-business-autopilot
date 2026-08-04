@@ -32,7 +32,7 @@ jobs:
       - run: npm run lint
       # docs/TRACKING.md rule 9: apps/web's initial JS bundle stays under
       # 150KB gzipped. Runs after typecheck (which already did a real
-      # `vite build`), reads its .output/public/assets directly.
+      # `vite build`), reads its .vercel/output/static/assets directly.
       - run: npm run check-bundle-size --workspace @byok/web
 
   secret-scan:

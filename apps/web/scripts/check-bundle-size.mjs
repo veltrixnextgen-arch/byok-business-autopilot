@@ -13,7 +13,11 @@ import { fileURLToPath } from "node:url";
 
 const BUDGET_BYTES = 150 * 1024;
 const webRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const assetsDir = path.join(webRoot, ".output", "public", "assets");
+// vite.config.ts pins nitroV2Plugin's preset to "vercel" unconditionally
+// (STEP 6 / ADR-016 / issue #39) — every build (local or CI) always
+// produces Vercel's Build Output API layout, never the classic
+// `.output/public` Nitro default.
+const assetsDir = path.join(webRoot, ".vercel", "output", "static", "assets");
 const routesDir = path.join(webRoot, "src", "routes");
 
 async function gzipSize(filePath) {

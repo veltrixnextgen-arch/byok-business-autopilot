@@ -21,9 +21,9 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
+    "@tanstack/nitro-v2-vite-plugin": "1.155.0",
     "@tanstack/react-start-plugin": "1.131.50",
     "@types/node": "^20.14.0",
-    "nitro": "3.0.260610-beta",
     "tailwindcss": "4.3.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
