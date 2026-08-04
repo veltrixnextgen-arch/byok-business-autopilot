@@ -407,6 +407,20 @@ jobs:
           echo "::error::apps/web never became reachable at $WEB_URL/dashboard"
           exit 1
 
+      # A 200 status alone isn't enough either — caught live 2026-08-03
+      # (docs/DECISIONS.md ADR-016, issue #39): a broken deploy returned
+      # 200 with zero console errors while being completely
+      # non-interactive (typing into the idea box never revealed the
+      # submit button). This actually drives the page the way a real
+      # visitor would, via a headless browser, and fails if that
+      # doesn't work — not just if the server returns an error status.
+      - name: Verify apps/web is actually interactive, not just reachable
+        env:
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+        run: |
+          npx --yes playwright@1.49.1 install --with-deps chromium
+          node apps/web/scripts/verify-staging-interactive.mjs "$WEB_URL"
+
       - name: Summary
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}
