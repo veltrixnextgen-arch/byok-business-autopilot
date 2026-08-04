@@ -437,6 +437,23 @@ jobs:
           npx playwright install --with-deps chromium
           node apps/web/scripts/verify-staging-interactive.mjs "$WEB_URL"
 
+      # A page can be interactive AND still be broken — the /login
+      # regression this catches (STEP 7 auth-pages PR) was a 200-returning,
+      # fully-functional, zero-console-error page that rendered as
+      # unstyled 1995 HTML. The interactivity check above can't tell that
+      # apart from a real page; this asserts the design tokens actually
+      # reached the DOM as computed styles across /, /login, /signup, and
+      # /dashboard (via a disposable test account, same pattern as the
+      # signup/org-creation verification steps above).
+      - name: Verify apps/web's design tokens are actually applied, not just downloaded
+        env:
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+          node apps/web/scripts/verify-staging-styled.mjs "$WEB_URL" "$RAILWAY_URL"
+
       - name: Summary
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}

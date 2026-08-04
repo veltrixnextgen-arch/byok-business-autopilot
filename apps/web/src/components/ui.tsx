@@ -62,10 +62,35 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   return (
     <input
       className={cx(
-        "w-full rounded-md border border-border bg-bg-glass px-3.5 py-2.5 font-body text-text placeholder:text-text-muted transition-colors duration-calm-fast ease-calm focus:border-accent focus:outline-none",
+        "w-full rounded-md border border-border bg-bg-glass px-3.5 py-2.5 font-body text-text placeholder:text-text-muted transition-colors duration-calm-fast ease-calm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30",
         className,
       )}
       {...props}
     />
+  );
+}
+
+// Label + input, one visual unit — every form that isn't a single bare
+// field (onboarding's name box) wants a visible label above the input,
+// not just an implicit <label> wrapper with no distinguishing style.
+export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5 text-left">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-text-secondary">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// Form-level failure state (wrong password, email taken, etc.) — a
+// bordered, tinted box rather than bare red text, so an error reads as a
+// distinct state of the form, not just a color change.
+export function FormError({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
+      {children}
+    </p>
   );
 }
