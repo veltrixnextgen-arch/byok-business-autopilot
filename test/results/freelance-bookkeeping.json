@@ -1,13 +1,13 @@
 {
   "meta": {
     "idea": "I'm starting a freelance bookkeeping service for local restaurants",
-    "generatedAt": "2026-08-01T09:59:03.196Z",
+    "generatedAt": "2026-08-03T07:32:39.485Z",
     "templateSelection": {
       "primary": "service",
       "blendedWith": null,
       "scores": {
         "ecommerce": 0,
-        "service": 3,
+        "service": 4,
         "saas": 0.5,
         "content": 0,
         "local": 1,
@@ -19,33 +19,33 @@
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3712,
-        "outputTokens": 1360,
-        "costUsd": 0.031536
+        "inputTokens": 3729,
+        "outputTokens": 1500,
+        "costUsd": 0.033687
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2082,
-        "outputTokens": 33,
-        "costUsd": 0.0017976000000000001
+        "inputTokens": 2064,
+        "outputTokens": 103,
+        "costUsd": 0.0020632
       },
       {
         "step": "onboarding-batch",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2259,
-        "outputTokens": 1425,
-        "costUsd": 0.0075072
+        "inputTokens": 2282,
+        "outputTokens": 1417,
+        "costUsd": 0.0074936000000000004
       }
     ],
-    "costUsd": 0.040840800000000003
+    "costUsd": 0.043243800000000006
   },
   "teams": [
     {
       "id": "founder",
       "roleTitle": "Founder / CEO",
       "isHuman": true,
-      "subAgentIds": [
+      "agentIds": [
         "chief-of-staff"
       ]
     },
@@ -53,7 +53,7 @@
       "id": "cfo",
       "roleTitle": "CFO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "invoicing",
         "expense-categorization",
         "cashflow-forecast",
@@ -65,28 +65,30 @@
       "id": "delivery",
       "roleTitle": "Delivery Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "core-service-delivery",
         "delivery-qa",
         "delivery-handoff",
-        "client-expense-categorization",
-        "client-reporting"
+        "pos-reconciliation",
+        "delivery-reporting",
+        "document-collection"
       ]
     },
     {
       "id": "sales",
       "roleTitle": "Sales Lead",
       "isHuman": false,
-      "subAgentIds": [
-        "outreach-drafter",
-        "proposal-builder"
+      "agentIds": [
+        "crm-hygiene",
+        "proposal-builder",
+        "outreach-drafter"
       ]
     },
     {
       "id": "support",
       "roleTitle": "Support Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "onboarding",
         "tier1-triage",
         "escalation"
@@ -96,7 +98,7 @@
       "id": "cmo",
       "roleTitle": "CMO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "social-manager"
       ]
     },
@@ -104,244 +106,347 @@
       "id": "ops",
       "roleTitle": "Ops Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "scheduling"
       ]
     }
   ],
-  "subAgents": [
+  "agents": [
     {
       "id": "chief-of-staff",
-      "label": "Chief of Staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
       "teamId": "founder",
       "taskIds": [
         "founder.chief-of-staff.weekly-plan"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "invoicing",
-      "label": "Invoicing",
+      "name": "Dara",
+      "title": "Invoicing",
       "teamId": "cfo",
       "taskIds": [
         "cfo.invoicing.create",
         "cfo.invoicing.remind"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Stripe"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "expense-categorization",
-      "label": "Expense categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
         "cfo.expenses.categorize"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "cashflow-forecast",
-      "label": "Cash-flow forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
       "teamId": "cfo",
       "taskIds": [
         "cfo.cashflow.forecast"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tax-deadline-tracker",
-      "label": "Tax-deadline tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
       "teamId": "cfo",
       "taskIds": [
         "cfo.tax.tracker"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "core-service-delivery",
-      "label": "Service delivery",
+      "name": "Sam",
+      "title": "Service delivery",
       "teamId": "delivery",
       "taskIds": [
         "delivery.core.execute",
-        "customize.service.1.core-service-delivery"
+        "customize.service.1.core-service-delivery",
+        "customize.service.2.core-service-delivery"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Client-facing systems (per-client, scoped access)",
-        "QuickBooks (client, per-client OAuth)"
-      ]
+        "QuickBooks (client-scoped, per-client OAuth)"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "delivery-qa",
-      "label": "Delivery QA",
+      "name": "Ivy",
+      "title": "Delivery QA",
       "teamId": "delivery",
       "taskIds": [
         "delivery.core.qa"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "delivery-handoff",
-      "label": "Delivery handoff",
+      "name": "Amir",
+      "title": "Delivery handoff",
       "teamId": "delivery",
       "taskIds": [
         "delivery.core.handoff"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Client-facing systems (per-client, scoped access)"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "outreach-drafter",
-      "label": "Outreach drafter",
+      "id": "crm-hygiene",
+      "name": "Mira",
+      "title": "CRM hygiene",
       "teamId": "sales",
       "taskIds": [
-        "sales.outreach.draft",
-        "customize.service.5.outreach-drafter"
+        "sales.crm.hygiene"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
-        "Email"
-      ]
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "CRM"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "proposal-builder",
-      "label": "Proposal builder",
+      "name": "Yuki",
+      "title": "Proposal builder",
       "teamId": "sales",
       "taskIds": [
         "sales.proposal.build"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "CRM"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "onboarding",
-      "label": "Onboarding",
+      "name": "Maya",
+      "title": "Onboarding",
       "teamId": "support",
       "taskIds": [
         "support.onboarding.welcome",
         "support.onboarding.setup"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Email"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tier1-triage",
-      "label": "Tier-1 triage",
+      "name": "Riko",
+      "title": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
         "support.triage.inbound"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shared inbox"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "escalation",
-      "label": "Escalation",
+      "name": "Rhys",
+      "title": "Escalation",
       "teamId": "support",
       "taskIds": [
         "support.escalation.detect"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "compliance-review",
-      "label": "Compliance sub-agent",
+      "name": "Devon",
+      "title": "Compliance sub-agent",
       "teamId": "cfo",
       "taskIds": [
         "compliance.review",
-        "customize.service.4.compliance-review"
+        "customize.service.5.compliance-review"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
     },
     {
       "id": "social-manager",
-      "label": "Social manager",
+      "name": "Nia",
+      "title": "Social manager",
       "teamId": "cmo",
       "taskIds": [
-        "cmo.social.expertise",
-        "customize.service.6.social-manager"
+        "cmo.social.expertise"
       ],
-      "suggestedTier": "T3",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "scheduling",
-      "label": "Scheduling",
+      "name": "Tess",
+      "title": "Scheduling",
       "teamId": "ops",
       "taskIds": [
         "ops.scheduling.calls"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Calendar"
-      ]
-    },
-    {
-      "id": "client-expense-categorization",
-      "label": "Client Expense Categorizer",
-      "teamId": "delivery",
-      "taskIds": [
-        "customize.service.2.client-expense-categorization"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": [
-        "QuickBooks (client, per-client OAuth)"
-      ]
-    },
-    {
-      "id": "client-reporting",
-      "label": "Client P&L Reporter",
-      "teamId": "delivery",
-      "taskIds": [
-        "customize.service.3.client-reporting"
-      ],
-      "suggestedTier": "T2",
       "autonomyDefault": "earnable",
-      "handsTools": [
-        "QuickBooks (client, per-client OAuth)"
-      ]
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "pos-reconciliation",
+      "name": "Felix",
+      "title": "POS Sales Reconciler",
+      "teamId": "delivery",
+      "taskIds": [
+        "customize.service.3.pos-reconciliation"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Toast / Square (client POS export)"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "delivery-reporting",
+      "name": "Nadia",
+      "title": "Restaurant P&L Reporter",
+      "teamId": "delivery",
+      "taskIds": [
+        "customize.service.4.delivery-reporting"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "QuickBooks (client-scoped, per-client OAuth)"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "outreach-drafter",
+      "name": "Jordan",
+      "title": "Local Restaurant Prospector",
+      "teamId": "sales",
+      "taskIds": [
+        "customize.service.6.outreach-drafter"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "document-collection",
+      "name": "Morgan",
+      "title": "Client Document Collector",
+      "teamId": "delivery",
+      "taskIds": [
+        "customize.service.7.document-collection"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Google Drive / Dropbox (client folder)"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     }
   ],
   "tasks": [
     {
       "id": "founder.chief-of-staff.weekly-plan",
       "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
-      "subAgentType": "chief-of-staff",
-      "subAgentLabel": "Chief of Staff",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
       "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
@@ -353,8 +458,8 @@
     {
       "id": "cfo.invoicing.create",
       "text": "Create invoices for client retainers/projects",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "low",
@@ -367,8 +472,8 @@
     {
       "id": "cfo.invoicing.remind",
       "text": "Draft payment reminders matched to client history",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "medium",
@@ -382,8 +487,8 @@
     {
       "id": "cfo.expenses.categorize",
       "text": "Tag business expenses and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "low",
@@ -396,8 +501,8 @@
     {
       "id": "cfo.cashflow.forecast",
       "text": "30/60/90-day cash-flow projection and runway alerts",
-      "subAgentType": "cashflow-forecast",
-      "subAgentLabel": "Cash-flow forecast",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -410,8 +515,8 @@
     {
       "id": "cfo.tax.tracker",
       "text": "Track tax deadlines and prep the accountant handoff packet",
-      "subAgentType": "tax-deadline-tracker",
-      "subAgentLabel": "Tax-deadline tracker",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -423,8 +528,8 @@
     {
       "id": "delivery.core.execute",
       "text": "Do the core paid work for each client",
-      "subAgentType": "core-service-delivery",
-      "subAgentLabel": "Service delivery",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Service delivery",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "high",
@@ -438,8 +543,8 @@
     {
       "id": "delivery.core.qa",
       "text": "Check completed client work for accuracy before it goes out",
-      "subAgentType": "delivery-qa",
-      "subAgentLabel": "Delivery QA",
+      "agentType": "delivery-qa",
+      "agentLabel": "Delivery QA",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "high",
@@ -451,8 +556,8 @@
     {
       "id": "delivery.core.handoff",
       "text": "Package and send finished work to the client",
-      "subAgentType": "delivery-handoff",
-      "subAgentLabel": "Delivery handoff",
+      "agentType": "delivery-handoff",
+      "agentLabel": "Delivery handoff",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "medium",
@@ -463,24 +568,24 @@
       "origin": "template"
     },
     {
-      "id": "sales.outreach.draft",
-      "text": "Draft personalized first-touch and follow-up outreach",
-      "subAgentType": "outreach-drafter",
-      "subAgentLabel": "Outreach drafter",
+      "id": "sales.crm.hygiene",
+      "text": "Log interactions, update deal stages, flag stale deals",
+      "agentType": "crm-hygiene",
+      "agentLabel": "CRM hygiene",
       "teamHint": "sales",
       "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "locked",
-      "autonomyNote": "sending, always",
-      "handsTool": "Email",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10",
+      "handsTool": "CRM",
       "origin": "template"
     },
     {
       "id": "sales.proposal.build",
       "text": "Build quotes/proposals from templates and deal context",
-      "subAgentType": "proposal-builder",
-      "subAgentLabel": "Proposal builder",
+      "agentType": "proposal-builder",
+      "agentLabel": "Proposal builder",
       "teamHint": "sales",
       "frequency": "weekly",
       "stakes": "medium",
@@ -493,8 +598,8 @@
     {
       "id": "support.onboarding.welcome",
       "text": "Draft welcome sequences for new clients",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "low",
@@ -506,8 +611,8 @@
     {
       "id": "support.onboarding.setup",
       "text": "Draft setup guides and check-in messages for new clients",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "low",
@@ -519,10 +624,10 @@
     {
       "id": "support.triage.inbound",
       "text": "Read inbound client messages, tag urgency, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
       "teamHint": "support",
-      "frequency": "daily",
+      "frequency": "weekly",
       "stakes": "low",
       "tier": "T1",
       "autonomy": "earnable",
@@ -533,8 +638,8 @@
     {
       "id": "support.escalation.detect",
       "text": "Detect complex or upset cases and package context for the human",
-      "subAgentType": "escalation",
-      "subAgentLabel": "Escalation",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "high",
@@ -547,8 +652,8 @@
     {
       "id": "compliance.review",
       "text": "Flag contract red-flags and track regulation deadlines",
-      "subAgentType": "compliance-review",
-      "subAgentLabel": "Compliance sub-agent",
+      "agentType": "compliance-review",
+      "agentLabel": "Compliance sub-agent",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -562,8 +667,8 @@
     {
       "id": "cmo.social.expertise",
       "text": "Draft occasional posts establishing professional expertise",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Social manager",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
       "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "low",
@@ -575,8 +680,8 @@
     {
       "id": "ops.scheduling.calls",
       "text": "Manage calendar, booking confirmations and reminders for client calls",
-      "subAgentType": "scheduling",
-      "subAgentLabel": "Scheduling",
+      "agentType": "scheduling",
+      "agentLabel": "Scheduling",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "low",
@@ -588,50 +693,64 @@
     {
       "id": "customize.service.1.core-service-delivery",
       "text": "Reconcile each restaurant client's bank and credit card transactions for the month",
-      "subAgentType": "core-service-delivery",
-      "subAgentLabel": "Client Bookkeeping Reconciler",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Client Bookkeeping Reconciler",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "high",
       "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": "QuickBooks (client, per-client OAuth)",
+      "autonomy": "earnable",
+      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.2.client-expense-categorization",
-      "text": "Categorize each restaurant client's vendor invoices, food/beverage costs, and payroll expenses into their chart of accounts",
-      "subAgentType": "client-expense-categorization",
-      "subAgentLabel": "Client Expense Categorizer",
+      "id": "customize.service.2.core-service-delivery",
+      "text": "Categorize restaurant-specific chart-of-accounts entries (food cost, labor, liquor, etc.) for each client",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Restaurant COA Categorizer",
       "teamHint": "delivery",
-      "frequency": "weekly",
+      "frequency": "monthly",
       "stakes": "high",
       "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": "QuickBooks (client, per-client OAuth)",
+      "autonomy": "earnable",
+      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.3.client-reporting",
-      "text": "Generate a monthly P&L summary report for each restaurant client and flag any unusual variances (e.g. food cost % spike)",
-      "subAgentType": "client-reporting",
-      "subAgentLabel": "Client P&L Reporter",
+      "id": "customize.service.3.pos-reconciliation",
+      "text": "Pull and reconcile POS sales reports against the client's books to catch discrepancies",
+      "agentType": "pos-reconciliation",
+      "agentLabel": "POS Sales Reconciler",
+      "teamHint": "delivery",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Toast / Square (client POS export)",
+      "handsScope": "client-facing",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.service.4.delivery-reporting",
+      "text": "Generate monthly P&L and food/labor cost percentage reports for each restaurant client",
+      "agentType": "delivery-reporting",
+      "agentLabel": "Restaurant P&L Reporter",
       "teamHint": "delivery",
       "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": "QuickBooks (client, per-client OAuth)",
+      "handsTool": "QuickBooks (client-scoped, per-client OAuth)",
       "handsScope": "client-facing",
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.4.compliance-review",
-      "text": "Flag Ohio sales tax obligations for each restaurant client (food, alcohol, taxable vs. exempt items) and track quarterly filing deadlines for human/professional review",
-      "subAgentType": "compliance-review",
-      "subAgentLabel": "Restaurant Tax Compliance Tracker",
+      "id": "customize.service.5.compliance-review",
+      "text": "Flag any Ohio sales-tax filing deadlines for restaurant clients and package reminders for human review",
+      "agentType": "compliance-review",
+      "agentLabel": "OH Sales Tax Deadline Tracker",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
@@ -642,10 +761,10 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.5.outreach-drafter",
-      "text": "Identify and reach out to local restaurant owners via referral partner introductions (e.g. restaurant accountants, POS vendors, food distributors) to build the client pipeline",
-      "subAgentType": "outreach-drafter",
-      "subAgentLabel": "Referral Outreach Drafter",
+      "id": "customize.service.6.outreach-drafter",
+      "text": "Draft targeted outreach to local restaurants (via local business directories, Google Maps, Yelp) to generate leads",
+      "agentType": "outreach-drafter",
+      "agentLabel": "Local Restaurant Prospector",
       "teamHint": "sales",
       "frequency": "weekly",
       "stakes": "medium",
@@ -655,31 +774,32 @@
       "origin": "customize-added"
     },
     {
-      "id": "customize.service.6.social-manager",
-      "text": "Draft one short LinkedIn or local Facebook post showcasing a bookkeeping tip specific to restaurant owners (e.g. managing food cost %, tip reporting) to build credibility",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Restaurant Niche Content Poster",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "low",
-      "tier": "T3",
+      "id": "customize.service.7.document-collection",
+      "text": "Collect and organize source documents (receipts, invoices, bank statements) from each restaurant client",
+      "agentType": "document-collection",
+      "agentLabel": "Client Document Collector",
+      "teamHint": "delivery",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": null,
+      "handsTool": "Google Drive / Dropbox (client folder)",
       "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
       "customize.service.1.core-service-delivery",
-      "customize.service.2.client-expense-categorization",
-      "customize.service.3.client-reporting",
-      "customize.service.4.compliance-review",
-      "customize.service.5.outreach-drafter",
-      "customize.service.6.social-manager"
+      "customize.service.2.core-service-delivery",
+      "customize.service.3.pos-reconciliation",
+      "customize.service.4.delivery-reporting",
+      "customize.service.5.compliance-review",
+      "customize.service.6.outreach-drafter",
+      "customize.service.7.document-collection"
     ],
     "removed": [
       "sales.qualifier.score",
-      "sales.crm.hygiene"
+      "sales.outreach.draft"
     ],
     "frequencyAdjustments": [
       {
@@ -698,7 +818,12 @@
         "to": "monthly"
       },
       {
-        "taskId": "sales.outreach.draft",
+        "taskId": "sales.crm.hygiene",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "support.triage.inbound",
         "from": "daily",
         "to": "weekly"
       },
@@ -708,108 +833,116 @@
         "to": "weekly"
       }
     ],
-    "categoryCorrections": [],
-    "notes": "Core delivery shifted to monthly (bookkeeping cadence); removed lead-scoring and CRM hygiene (referral-only pipeline, no inbound volume); added client reconciliation, expense categorization, and P&L reporting as distinct delivery tasks with client-scoped handsTool; added Ohio restaurant sales-tax compliance flag; boosted social posting to weekly to counter founder's marketing dread; referral outreach drafted weekly."
+    "categoryCorrections": [
+      {
+        "taskId": "customize.service.7.document-collection",
+        "from": "ops",
+        "to": "delivery",
+        "reason": "Collecting and organizing source documents for restaurant clients is part of the paid bookkeeping service delivery workflow, not internal ops logistics."
+      }
+    ]
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Marcus",
-        "subAgentId": "core-service-delivery",
+        "agentId": "core-service-delivery",
         "roleTitle": "Delivery Lead",
-        "summary": "Reconciled bank and credit card transactions for Giuseppe's Trattoria and flagged a $340 duplicate charge for your review"
+        "summary": "Sam reconciled bank and credit card transactions for two restaurant clients and categorized all food-cost and labor entries in their charts of accounts",
+        "agentName": "Sam"
       },
       {
-        "agentName": "Elena",
-        "subAgentId": "invoicing",
+        "agentId": "invoicing",
         "roleTitle": "CFO",
-        "summary": "Created and sent October retainer invoices to all 3 active restaurant clients; payment due by Oct 25"
+        "summary": "Dara sent three client retainer invoices and drafted payment reminders for two clients with upcoming due dates",
+        "agentName": "Dara"
       },
       {
-        "agentName": "David",
-        "subAgentId": "outreach-drafter",
+        "agentId": "outreach-drafter",
         "roleTitle": "Sales Lead",
-        "summary": "Drafted personalized follow-up to the POS vendor referral contact and prepared 2 new restaurant prospect names from local networking list"
+        "summary": "Jordan identified 8 new local restaurants from Google Maps and Yelp and drafted personalized outreach emails to each",
+        "agentName": "Jordan"
       },
       {
-        "agentName": "Sophia",
-        "subAgentId": "compliance-review",
-        "roleTitle": "CFO",
-        "summary": "Updated Ohio sales tax obligations tracker for all clients and flagged that The Rustic Grill's Q4 filing is due in 10 days"
-      },
-      {
-        "agentName": "James",
-        "subAgentId": "client-reporting",
+        "agentId": "delivery-qa",
         "roleTitle": "Delivery Lead",
-        "summary": "Generated September P&L for Bella's Bistro and flagged a 15% spike in food costs for owner discussion"
+        "summary": "Ivy completed QA on four clients' monthly reconciliations and flagged one discrepancy in credit card categorization for Sam to review",
+        "agentName": "Ivy"
+      },
+      {
+        "agentId": "onboarding",
+        "roleTitle": "Support Lead",
+        "summary": "Maya drafted a welcome sequence and setup guide for a new restaurant client signing on this week",
+        "agentName": "Maya"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "Provide reliable monthly bookkeeping and restaurant-specific financial reporting for 2–5 local restaurants, handling bank reconciliation, expense categorization, and P&L summaries to give owners clarity on their numbers.",
-      "mvpDefinition": "Launch with one paying restaurant client who gives you 6–8 hours/month of transaction work (bank/credit reconciliation, expense tagging, monthly P&L). Build repeatable processes for client onboarding, monthly delivery, and invoice reminders. Track your own cash flow and set up basic compliance reminders for Ohio sales tax deadlines so you stay on top of state filing obligations for each restaurant.",
+      "sharpenedIdea": "A freelance bookkeeping service that handles monthly bank reconciliation, transaction categorization, and financial reporting specifically for local restaurants.",
+      "mvpDefinition": "Launch with core bookkeeping for 2–3 initial restaurant clients: monthly bank and credit card reconciliation, restaurant-specific chart-of-accounts categorization (food cost, labor, liquor, etc.), and a simple monthly P&L report. Scope excludes tax prep and payroll initially; focus on accurate, timely month-end close and clear visibility into food and labor costs — the metrics restaurant owners care about most.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft the weekly plan and flag any cross-team conflicts or bottlenecks for the founder to resolve"
+            "Draft the weekly plan and flag any cross-team conflicts that need the founder's attention"
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Create invoices for client retainers and projects, and draft payment reminders matched to each client's payment history",
-            "Tag business expenses and flag any unusual or duplicate charges",
-            "Build and update 30/60/90-day cash-flow projections and alert the founder when runway shortens",
-            "Track tax deadlines throughout the year and prepare packets for the accountant handoff",
-            "Flag contract red-flags during client agreements and track Ohio sales tax and federal filing deadlines; alert the founder on quarterly filing deadlines for each restaurant client so the founder can conduct owner conversations"
+            "Create invoices for client retainers and one-off projects, and draft payment reminders matched to each client's payment history",
+            "Tag all business expenses and flag any unusual or out-of-policy spending",
+            "Build a 30/60/90-day cash-flow projection and send runway alerts if cash is tightening",
+            "Track all tax deadlines (both for the business and for restaurant clients subject to Ohio sales-tax filing) and prepare the accountant handoff packet when tax season approaches",
+            "Review contracts for red flags and track all regulatory deadlines relevant to the bookkeeping service and restaurant clients"
           ]
         },
         {
           "roleTitle": "Delivery Lead",
           "tasks": [
-            "Reconcile bank and credit card transactions for each restaurant client every month and flag unusual or duplicate charges",
-            "Review completed monthly work for accuracy before sending to clients",
-            "Package and deliver finished work to clients on time",
-            "Categorize each restaurant client's vendor invoices, food and beverage costs, and payroll expenses into their chart of accounts",
-            "Generate a monthly P&L summary report for each restaurant client and flag unusual variances such as food cost percentage spikes"
+            "Perform the core paid work for each restaurant client: reconcile bank and credit card transactions monthly, categorize all entries into the restaurant-specific chart of accounts (food cost, labor, liquor, supplies, etc.), and catch any discrepancies",
+            "Check all completed client work for accuracy and catch any errors before it leaves the team",
+            "Pull and reconcile POS sales reports against each client's books to identify discrepancies between what the POS says they sold and what the books show",
+            "Generate a monthly P&L statement and food/labor cost percentage reports for each restaurant client",
+            "Collect and organize all source documents from each restaurant client (receipts, invoices, bank statements) and keep them organized for the month",
+            "Package finished reconciliations, reports, and analysis and send them to the client in a clear, ready-to-use format"
           ]
         },
         {
           "roleTitle": "Sales Lead",
           "tasks": [
-            "Draft personalized first-touch and follow-up messages to restaurant owners; Identify and reach out to local restaurant owners through referral partners such as restaurant accountants, POS vendors, and food distributors to build the pipeline",
-            "Build quotes and proposals from templates using deal context and pricing"
+            "Log all customer interactions, update deal stages in the CRM, and flag deals that haven't moved in a while",
+            "Build quotes and proposals from templates using deal context and discovery notes",
+            "Identify and draft targeted outreach to local restaurants using business directories, Google Maps, Yelp, and local networking to generate qualified leads"
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Draft welcome sequences for newly signed clients and setup guides and check-in messages to help them get started",
-            "Read inbound client messages, tag them by urgency, and draft replies to common or known questions",
-            "Detect complex or upset client cases and package context for the founder to handle directly"
+            "Draft welcome sequences, setup guides, and friendly check-in messages for each new restaurant client",
+            "Read inbound client messages, tag them by urgency, and draft replies to common questions (like turnaround times, what documents to send, how to access reports)",
+            "Spot complex or upset client cases and package all relevant context for the founder to handle directly"
           ]
         },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Draft occasional posts establishing professional expertise; Write and schedule one short LinkedIn or local Facebook post per month showcasing a bookkeeping tip specific to restaurant owners—such as managing food cost percentage or tip reporting—to build credibility and reach"
+            "Draft occasional social media posts that establish the business's expertise in restaurant bookkeeping and financial clarity"
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Manage the founder's calendar, send booking confirmations and reminders for client calls"
+            "Manage the founder's calendar, confirm client call bookings, and send reminders so calls stay on track"
           ]
         }
       ],
       "monthOneGoals": [
-        "Onboard and complete the first month of bookkeeping work for 1–2 restaurant clients with clean deliverables and zero errors",
-        "Create and send invoices and payment reminders to all active clients; track cash in and cash out",
-        "Identify and build an outreach list of 5–10 local restaurants or referral partners (accountants, POS vendors) and send initial introduction messages",
-        "Set up tax deadline tracking and compliance reminders for all client restaurants' Ohio sales tax filings and any federal obligations",
-        "Draft and publish 2–3 social media posts or tips on restaurant bookkeeping to establish credibility and reach"
+        "Onboard and deliver accurate month-end reconciliation for the first 2 restaurant clients",
+        "Establish a repeatable process for collecting documents, reconciling transactions, and generating P&L reports each month",
+        "Identify and contact at least 15 qualified local restaurant prospects via targeted outreach",
+        "Build a template invoice, welcome sequence, and service delivery workflow that can scale as the client base grows",
+        "Confirm that the restaurant-specific chart of accounts (food cost, labor, liquor, etc.) is clear and usable for each client"
       ],
-      "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys — this is a placeholder."
     }
   }
 }

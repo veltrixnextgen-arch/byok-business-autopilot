@@ -125,6 +125,7 @@ jobs:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
           WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           STAGING_KMS_MASTER_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
@@ -142,6 +143,10 @@ jobs:
           railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
           railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"
           railway variable set "WEB_ORIGIN=$WEB_ORIGIN" --service "$RAILWAY_SERVICE"
+          # Onboarding-only platform inference key (ADR-003) — server.ts's
+          # readServerConfigFromEnv throws at boot without it, same
+          # discipline as DATABASE_URL/BETTER_AUTH_SECRET.
+          railway variable set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" --service "$RAILWAY_SERVICE"
           # apps/web (vercel.app) and apps/api (railway.app) are genuinely
           # different sites, not just different ports — the session
           # cookie's default SameSite=Lax is never sent on cross-site
@@ -159,7 +164,43 @@ jobs:
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
 
-          railway up --service "$RAILWAY_SERVICE"
+          # railwayapp/cli#696: `railway up`'s build succeeds on Railway's
+          # platform, but the CLI's build-log GraphQL subscription fails
+          # intermittently ("Failed to stream build logs: Failed to
+          # retrieve build log"), and the CLI exits 1 on that even though
+          # the deploy itself is fine. A 3x retry of the SAME failing call
+          # did not clear it (confirmed live: v0.3.0-staging and
+          # v0.3.1-staging both failed 3/3 attempts, ~65s each, each
+          # hitting a genuinely fresh build-logs URL — this is not a
+          # transient flake at our usage, it fires every time). `--ci`
+          # doesn't avoid it either (Railway's own support station: the
+          # equivalent log-stream path is "implemented but currently
+          # broken" under CI tokens). `--detach` sidesteps the bug
+          # entirely by never opening that subscription — it returns as
+          # soon as the build is queued, which is also why STEP 2 removed
+          # it originally (an old container can keep answering traffic
+          # during the swap, making a fast health check falsely
+          # "pass" against stale code). The fixed wait below plus the
+          # SECOND deploy further down plus the health-check loop plus
+          # the real functional checks (signup, org creation) after it
+          # give the swap several minutes of real elapsed time before
+          # anything is trusted — mitigating that race without depending
+          # on the broken log stream.
+          for attempt in 1 2; do
+            if railway up --service "$RAILWAY_SERVICE" --detach; then
+              break
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              echo "::error::railway up --detach failed twice in a row (this is upload/API failure, not the log-streaming bug — --detach never opens that subscription)."
+              exit 1
+            fi
+            echo "railway up --detach failed (attempt $attempt/2) — retrying..."
+            sleep 5
+          done
+
+          echo "Deploy queued (--detach); giving the build time to land before continuing."
+          sleep 60
+          railway status || true
 
       - name: Generate Railway's public domain for apps/api
         id: railway_domain
@@ -192,7 +233,24 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
-          railway up --service "$RAILWAY_SERVICE"
+
+          # Same railwayapp/cli#696 log-streaming bug as the first railway
+          # up above, same --detach fix, same reasoning.
+          for attempt in 1 2; do
+            if railway up --service "$RAILWAY_SERVICE" --detach; then
+              break
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              echo "::error::railway up --detach failed twice in a row (upload/API failure, not the log-streaming bug)."
+              exit 1
+            fi
+            echo "railway up --detach failed (attempt $attempt/2) — retrying..."
+            sleep 5
+          done
+
+          echo "Deploy queued (--detach); giving the build time to land before the health check."
+          sleep 60
+          railway status || true
 
       - name: Wait for apps/api to become healthy
         env:
@@ -305,6 +363,22 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
+          # KNOWN FRAGILITY (see docs/DECISIONS.md ADR-016, and the
+          # tracking issue it links): a clean/forced install of apps/web's
+          # current toolchain pin (nitro 3.0.260610-beta + vite 8.2.0 +
+          # @vitejs/plugin-react 6.0.5) produces an SSR bundle that calls
+          # jsxDEV instead of the production JSX runtime, crashing every
+          # page that actually renders. Reusing Vercel's build cache
+          # (i.e. NOT forcing a fresh install — no --force here) is
+          # currently the only thing keeping the deployed bundle correct.
+          # Two stable-toolchain fixes were tried and reverted: nitro@3.0.0
+          # needs vite@^7 (breaks TanStack Start's start-plugin-core, which
+          # needs vite@>=7 — compatible in principle, but pairing it with
+          # nitro@3.0.0 left the site silently non-interactive, not just
+          # differently broken); @vitejs/plugin-react@4.7.0 (the last
+          # pre-oxc release) can't resolve against vite@8.2.0 at all. Do
+          # not add --force back without also fixing the underlying jsxDEV
+          # bug — it will reproduce the crash on the very next deploy.
           vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
             --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
             > /tmp/vercel-deploy-url.txt
@@ -314,17 +388,38 @@ jobs:
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}
         run: |
+          # /dashboard alone isn't enough: with no session cookie it
+          # 307-redirects out of its beforeLoad guard before the page ever
+          # actually renders, so an SSR-render bug (e.g. the SSR bundle
+          # crashing on jsxDEV — caught live during STEP 5 verification)
+          # would sail through this check. "/" always renders for real
+          # (no auth guard, no redirect), so check both.
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
-            if [ "$STATUS" -lt 500 ]; then
-              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $STATUS)"
+            DASHBOARD_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
+            ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/")
+            if [ "$DASHBOARD_STATUS" -lt 500 ] && [ "$ROOT_STATUS" -lt 500 ]; then
+              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $DASHBOARD_STATUS) and $WEB_URL/ (HTTP $ROOT_STATUS)"
               exit 0
             fi
-            echo "Waiting for apps/web to come up ($i/30, last status $STATUS)..."
+            echo "Waiting for apps/web to come up ($i/30, last status dashboard=$DASHBOARD_STATUS root=$ROOT_STATUS)..."
             sleep 5
           done
           echo "::error::apps/web never became reachable at $WEB_URL/dashboard"
           exit 1
+
+      # A 200 status alone isn't enough either — caught live 2026-08-03
+      # (docs/DECISIONS.md ADR-016, issue #39): a broken deploy returned
+      # 200 with zero console errors while being completely
+      # non-interactive (typing into the idea box never revealed the
+      # submit button). This actually drives the page the way a real
+      # visitor would, via a headless browser, and fails if that
+      # doesn't work — not just if the server returns an error status.
+      - name: Verify apps/web is actually interactive, not just reachable
+        env:
+          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
+        run: |
+          npx --yes playwright@1.49.1 install --with-deps chromium
+          node apps/web/scripts/verify-staging-interactive.mjs "$WEB_URL"
 
       - name: Summary
         env:

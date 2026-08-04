@@ -94,16 +94,24 @@ function buildPrompt(idea: string, answers: InterviewAnswers, template: Business
     .map((t) => `- ${t.id} | ${t.agentType} | ${t.teamHint} | ${t.frequency} | ${t.text}`)
     .join("\n");
 
+  // Branch answers are keyed by the template's own branchQuestions ids —
+  // rendered here as prompt/answer pairs (not raw ids) so the model gets
+  // the same plain-language context a human reading the interview would.
+  const branchLines = template.branchQuestions
+    .map((q) => `- ${q.prompt} ${answers.branchAnswers[q.id] ?? "(not answered)"}`)
+    .join("\n");
+
   return [
     `Business idea (verbatim from the user): "${idea}"`,
     ``,
     `Interview answers:`,
-    `- Business type (self-described): ${answers.businessType}`,
-    `- Who pays: ${answers.whoPays}`,
-    `- Channels: ${answers.channels}`,
-    `- Current status: ${answers.status}`,
-    `- Biggest dread: ${answers.dread}`,
-    `- Budget: ${answers.budget}`,
+    `- What customers pay for: ${answers.whatCustomersPayFor}`,
+    `- Who the customer is: ${answers.whoTheCustomerIs}`,
+    `- How money arrives: ${answers.howMoneyArrives}`,
+    `- How delivery reaches them: ${answers.howDeliveryReaches}`,
+    `- Stage: ${answers.stage}`,
+    `- Who's working on it: ${answers.whoIsWorkingOnIt}`,
+    ...(branchLines ? [branchLines] : []),
     ``,
     formatJurisdictionPolicy(answers.jurisdiction),
     ``,

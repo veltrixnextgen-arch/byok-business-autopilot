@@ -1,10 +1,14 @@
-# MVP-0 Differentiation Test — Report (v3, six fixtures + onboarding batch)
+# MVP-0 Differentiation Test — Report (v4, Step 5 interview schema)
 
-Run against the three canonical prompts from `docs/product/roles-and-api-key-guide.md` Part 2, plus three additional fixtures, per `docs/strategy/master-plan-v2.md` §5's MVP-0 kill criterion. This run exercises every engine change made since the v2 report: the **template-selection tiebreak fix**, the **physical-space membership template** (6th template, closes issue #2), **jurisdiction-aware compliance** (never guesses named regulations for an unverified jurisdiction), and the **onboarding batch** — the same per-signup run now also emits a simulated-day script and a Company Charter draft (closes issues #3 and #4).
+Rerun after Phase B Step 5's interview redesign: the old 6-question `businessType/whoPays/channels/status/dread/budget` schema is gone, replaced by ADR-011's 5-question universal value-chain spine (`whatCustomersPayFor`, `whoTheCustomerIs`, `howMoneyArrives`, `howDeliveryReaches`, `jurisdiction`), up to 3 template-declared branch questions per business type, and 2 context questions (`stage`, `whoIsWorkingOnIt`). All six fixtures were rewritten to the new `InterviewAnswers` shape (including real `branchAnswers` for their selected template) and rerun for real — this is not a re-derivation of the v3 report, every number below came from a live `--fresh` run against the actual API.
+
+## A real bug this run caught
+
+The rerun surfaced a genuine correctness bug in `Agent.complianceLocked` (added in Step 4, ADR-013): it was derived from `autonomyDefault === "locked"`, but plenty of tasks are locked for caution unrelated to compliance (a `tax-deadline-tracker` agent came back `complianceLocked: true` with `requiresProfessionalVerification: false` — exactly backwards). Fixed in `assemble.ts` to derive `complianceLocked` from `requiresProfessionalVerification` directly (the two are meant to be the same fact, not independently-derived ones). Reran fresh after the fix; **zero mismatches between `complianceLocked` and `requiresProfessionalVerification` across all 118 agents in all six charts.**
 
 ## Per-signup cost — the real CAC number
 
-**$0.0411 average per signup, $0.2468 total across all six fixtures**, well under the $0.25/run cap on every single run. Each signup is 2–3 API calls: `customize` (sonnet) + `category-validate` (haiku, skipped when there's nothing to validate) + `onboarding-batch` (haiku, switched from sonnet after a dedicated cost experiment — see [`haiku-batch-experiment.md`](haiku-batch-experiment.md), which also covers a real reliability bug the switch surfaced and fixed). This is comfortably inside master-plan-v2.md §3's $0.03–0.10/signup onboarding CAC target.
+**$0.0407 average per signup, $0.2442 total across all six fixtures**, comfortably inside master-plan-v2.md §3's $0.03–0.10/signup onboarding CAC target and the $0.25/run cap. Same 2–3 API calls per signup as v3 (customize/sonnet → category-validate/haiku → onboarding-batch/haiku) — the new interview schema didn't change the cost shape, only its inputs.
 
 Raw org charts: [`candle-shop.json`](candle-shop.json) · [`freelance-bookkeeping.json`](freelance-bookkeeping.json) · [`mortgage-brokerage.json`](mortgage-brokerage.json) · [`makerspace.json`](makerspace.json) · [`saas-scheduler.json`](saas-scheduler.json) · [`wedding-photographer.json`](wedding-photographer.json). Run state (resumable): [`run-state.json`](run-state.json).
 
@@ -12,57 +16,44 @@ Raw org charts: [`candle-shop.json`](candle-shop.json) · [`freelance-bookkeepin
 
 | | Candles | Bookkeeping | Mortgage (BC) | Makerspace (AU) | SaaS scheduler | Wedding photographer |
 |---|---|---|---|---|---|---|
-| Template | `ecommerce` (score 5, decisive) | `service` (score 3) | `service` (score 3) | **`physical-space`** (score 7, decisive) | `saas` (score 2.5) | `content` + blend `ecommerce` (**tie**, 1-1) |
+| Template | `ecommerce` (score 4, decisive) | `service` (score 4, decisive) | `service` (score 5, decisive) | **`physical-space`** (score 7, decisive) | `saas` (score 2.5, decisive) | `content` + blend `physical-space` (**4-way tie**, 1-1-1-1) |
+| Branch answers used | inventoryModel: own-inventory, sellsThrough: marketplace | billingModel: retainer, deliveryMode: remote | billingModel: per-project, deliveryMode: mixed | safetyRisk: safety-risk, classesOrSelfServe: both | buildStage: idea-only, needsWaitlist: yes | primaryFormat: mixed, brandDealsNow: no |
 | Jurisdiction | US/TX | US/OH | **CA/BC** | **Australia/Victoria** (uncovered) | US/DE | US/CA |
-| Teams | 5 | 7 | 6 | 6 | 5 | 6 |
-| Compliance tasks | 1 (generic) | 2 (generic + finance-adjacent) | **3** (generic + BCFSA + FINTRAC) | **2** (generic + AU-generic-fallback) | 1 (generic) | 2 (generic + CA-specific) |
-| Per-signup cost | $0.0378 | $0.0408 | $0.0414 | $0.0375 | $0.0458 | $0.0435 |
+| Teams / Agents / Tasks | 5 / 18 / 21 | 7 / 20 / 25 | 6 / 16 / 24 | 6 / 23 / 23 | 6 / 15 / 19 | 8 / 26 / 29 |
+| Compliance agents | Sales Tax Compliance Monitor, Product Safety Compliance Monitor | Compliance sub-agent | Compliance sub-agent | Safety & waivers, Licensing & Regulatory Tracker, WHS Compliance Tracker | Platform Policy Monitor | Safety & waivers (see note below), Digital Sales Tax Compliance Flagger |
+| Per-signup cost | $0.0379 | $0.0432 | $0.0442 | $0.0372 | $0.0390 | $0.0426 |
 
-**All 11 compliance tasks across all six charts carry `requiresProfessionalVerification: true`** — the hard invariant in `assembleOrgChart` never fired, meaning the customize pass complied with the rule on every run without needing a correction.
+**All compliance agents across all six charts carry `requiresProfessionalVerification: true` AND `complianceLocked: true`, with zero exceptions among the other ~107 agents** — the fix above holds up across every fixture, not just the one that originally caught it.
 
-## Jurisdiction-aware compliance: the core fix, verified
+## The branch-question mechanism, exercised for real
 
-This was the headline regression from the v2 report: the mortgage fixture had produced US-specific NMLS/RESPA/TILA tasks for a business whose country was never specified. With jurisdiction now a required interview field:
+Every fixture's `branchAnswers` (table above) came from the same template-declared `branchQuestions` apps/web renders — `getInterviewQuestionsForTemplate` in `packages/agents/extraction`, fed into `customize.ts`'s prompt as plain-language context lines. This is the first real (non-mocked) exercise of that mechanism since Step 5 built it: template selection on partial (spine-only) answers correctly identified the right template for all six ideas before any branch question was asked, and the branch answers visibly shaped the resulting charts (e.g. candle shop's `inventoryModel: own-inventory` kept inventory/reorder tasks in the chart; a `dropship-or-pod` answer would plausibly have dropped them, though that's not directly tested here — an opportunity for a future fixture).
 
-- **Mortgage brokerage, switched to Canada/British Columbia**, produces `BCFSA Licence Monitor` ("Flag any missing or expiring BCFSA mortgage broker licence documents and track renewal deadlines") and `FINTRAC / KYC File Checker` — real, correct BC/Canadian frameworks, not the old US ones.
-- **Makerspace, deliberately set to Victoria, Australia** — a jurisdiction with zero coverage in the policy table — to prove the fallback path. It produces `Makerspace Regulatory Tracker`: "Identify and track local licensing and regulatory requirements ... in Victoria, Australia" — **no named regulation or regulator invented**, exactly what the fallback is supposed to do.
+## Wedding photographer: the tie shape changed, not the outcome
 
-## Physical-space template: makerspace now selects decisively
+v3's wedding-photographer fixture tied `content` vs. `ecommerce` 1-1. This run it's a 4-way tie (`content`/`ecommerce`/`local`/`physical-space`, all at 1) — a direct, expected consequence of the new `howDeliveryReaches` spine question replacing the old `channels` field: `howDeliveryReaches: "in-person"` now awards templateSelect.ts's keyword-adjacent bonus to **both** `local` and `physical-space` (previously only `local` got it from `channels: "local"`). The same explicit `TIEBREAK_PRIORITY` still resolves it to `content` primary, but the blend partner shifted from `ecommerce` to `physical-space` — which pulled `physical-space`'s `compliance.safety-waivers` task into the customize pass's base task set. The result: a "Safety & waivers" compliance agent on a wedding-photography chart, which reads oddly for the business (no real safety-waiver concern for a photographer) but isn't wrong per the mechanism — it's an honest, visible consequence of template blending on a genuinely ambiguous idea, not a silent error. Logged under Known limitations below rather than special-cased away.
 
-The v2 report's makerspace fixture picked `ecommerce` over `local` on a 1-1 tie broken by object-key order — a real gap, tracked in issue #2. With the new `physical-space` template (memberships, bookings, facility ops, safety/waivers) and its keyword coverage:
+## Checking the predicted outcomes (carried forward from v1-v3)
 
-**Makerspace now scores `physical-space: 7` vs. `ecommerce: 1` / `local: 1` — a decisive win, `tie: false`.** The resulting chart has an 8-sub-agent Ops team (booking scheduler, membership tracking, facility maintenance, vendor manager, event coordinator plus customize additions) and CFO correctly holds membership/rental billing as the business's own revenue — no `delivery` team needed, confirming the v2 finding that this business's paid work genuinely fits the existing back-office categories once there's a template that describes it.
+**Candles: lacks a Sales team, has heavy fulfillment.** ✅ Still confirmed.
 
-One new tie surfaced this run: **wedding photographer, `content` vs. `ecommerce`, 1-1**, resolved by the new explicit `TIEBREAK_PRIORITY` (content ranks above ecommerce) rather than object-key order, and the `tie: true` flag is now visible in `meta.templateSelection` — a documented, surfaced ambiguity rather than a silent accident. This idea genuinely is a photography *service* wrapped around *digital products*, so a tie between those two template families is the honest answer.
+**Bookkeeping: Delivery team present and substantial.** ✅ Confirmed this run too.
 
-## Onboarding batch
+**Mortgage: compliance attaches, locked defaults, licensing tasks appear — jurisdiction-correct.** ✅ Confirmed; BC-specific compliance agent present, correctly `complianceLocked: true`.
 
-Every chart now carries a `simulatedDay` (3–5 illustrative completed-task cards with invented agent names, per userflow-v2 Stage 2) and a `charterDraft` (sharpened idea → MVP definition → every role's tasks → month-one goals → budget placeholder, per userflow-v2 Stage 4). Sample from the mortgage chart:
+**SaaS: centers on Product/Dev.** ✅ Confirmed.
 
-> Maya · Support Lead: Sent document checklists to 3 new first-time-buyer clients, confirmed 2 complete files, and flagged 1 client missing an employment letter — packaged for your review
+**Makerspace: physical-space fit.** ✅ Decisive template selection (score 7), rich facility-ops coverage, three distinct compliance agents (safety/waivers, licensing, and — new this run — a WHS-specific tracker, Australia's workplace-health-and-safety framework).
 
-Full haiku-vs-sonnet quality comparison, the truncation bug it surfaced, and the fix: [`haiku-batch-experiment.md`](haiku-batch-experiment.md).
-
-## Checking the predicted outcomes (carried forward from v1/v2)
-
-**Candles: lacks a Sales team, has heavy fulfillment.** ✅ Still confirmed — no `sales` team; Ops carries inventory/fulfillment.
-
-**Bookkeeping: Delivery team present and substantial.** ✅ 5 sub-agents in Delivery this run (client-facing reconciliation-shaped work), CFO also at 5 — the delivery/cfo split continues to hold up run over run, though the exact size ranking varies by run depending on what customize judges necessary (same caveat as v2).
-
-**Mortgage: compliance attaches, locked defaults, licensing tasks appear — jurisdiction-correct.** ✅ Confirmed, with jurisdiction verification above.
-
-**SaaS: centers on Product/Dev.** ✅ Product/Dev is the largest team (5 sub-agents) with the only build/deploy machinery and `GitHub` Hands tool.
-
-**Makerspace: physical-space fit.** ✅ Decisive template selection, rich facility-ops coverage (8 Ops sub-agents).
-
-**Wedding photographer: hybrid product lines coexist.** ✅ CMO and CFO both carry distinct sub-agents per product line (photography vs. digital products) rather than collapsing them together.
+**Wedding photographer: hybrid product lines coexist.** ✅ CMO/CFO still carry distinct sub-agents per product line; see the tie-shape note above for the one new wrinkle.
 
 ## Known limitations
 
-1. Delivery/CFO/Sales relative sizing for the bookkeeping-shaped businesses still varies run to run depending on customize's judgment calls — not a convergence problem, but not perfectly stable either.
-2. The category validator occasionally proposes corrections that are debatable rather than clearly right — normal noise at this batch size, spot-check rather than trust blindly.
-3. Template selection still has no keyword signal for genuinely novel business shapes beyond the six templates — expected, and the tie flag now surfaces it honestly rather than hiding it.
+1. Template blending can pull an unrelated compliance task into a chart when the tied second-place template contributes one the primary template wouldn't have needed on its own (wedding photographer's "Safety & waivers", this run) — visible and traceable in `meta.templateSelection`, not silently wrong, but not filtered out either.
+2. Delivery/CFO/Sales relative sizing for the bookkeeping-shaped businesses still varies run to run depending on customize's judgment calls.
+3. The category validator occasionally proposes corrections that are debatable rather than clearly right — normal noise at this batch size.
+4. Template selection still has no keyword signal for genuinely novel business shapes beyond the six templates.
 
 ## Verdict: **PASS**
 
-All six charts remain structurally distinct, and every fix from this round is independently verified against the actually-committed chart data: jurisdiction switch produces correct BC frameworks and a correct generic fallback for an uncovered jurisdiction, the physical-space template resolves what was previously a coin-flip into a decisive 7-vs-1 win, the tiebreak is explicit and surfaced rather than accidental, every compliance task carries its mandatory verification flag, and the onboarding batch produces coherent, company-specific content on every run — at $0.0411/signup average, inside the platform's own CAC target.
+All six charts remain structurally distinct under the new interview schema, the real `complianceLocked` bug this run caught is fixed and verified with zero mismatches across every agent in every chart, the branch-question mechanism is exercised for real (not just typechecked) and visibly shapes chart content, jurisdiction handling is unchanged and correct, and the average per-signup cost ($0.0407) stays inside the platform's own CAC target.

@@ -1,10 +1,12 @@
 import type { Auth } from "@byok/auth";
-import type { PoolLike } from "@byok/db";
+import type { PoolLike, SignupExtractionBatchStore } from "@byok/db";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppEnv, TrustCoreDeps } from "./context.js";
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
+import { userMiddleware } from "./middleware/user.js";
+import { extractionRoute } from "./routes/extraction.js";
 import { healthRoute } from "./routes/health.js";
 import { meRoute } from "./routes/me.js";
 import { tasksRoute } from "./routes/tasks.js";
@@ -18,6 +20,14 @@ export interface CreateAppOptions {
    *  Better Auth sets only gets sent cross-origin if CORS explicitly
    *  allows this exact origin with credentials. */
   webOrigin: string;
+  /** The idea -> interview -> extraction -> org-chart flow (ADR-014,
+   *  ADR-015) — separate from trustCore because it's user-scoped, not
+   *  tenant-scoped, and needs its own store plus the platform's onboarding
+   *  key (ADR-003), neither of which the rest of trustCore needs. */
+  extraction: {
+    batchStore: SignupExtractionBatchStore;
+    apiKey: string;
+  };
 }
 
 /**
@@ -40,12 +50,22 @@ export function createApp(options: CreateAppOptions) {
     .use("/me/*", tenantMiddleware(options.pool, options.auth))
     .route("/me", meRoute)
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))
-    .route("/tasks", tasksRoute(options.trustCore));
+    .route("/tasks", tasksRoute(options.trustCore))
+    .use("/extraction/*", userMiddleware(options.auth))
+    .route(
+      "/extraction",
+      extractionRoute({
+        batchStore: options.extraction.batchStore,
+        costGate: options.trustCore.costGate,
+        ledger: options.trustCore.ledger,
+        apiKey: options.extraction.apiKey,
+      }),
+    );
 
   return app;
 }
 
 export type AppType = ReturnType<typeof createApp>;
 
-export { requireStepUp, tenantMiddleware };
+export { requireStepUp, tenantMiddleware, userMiddleware };
 export type { AppEnv, AppSession, TrustCoreDeps } from "./context.js";

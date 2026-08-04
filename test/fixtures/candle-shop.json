@@ -1,12 +1,16 @@
 {
   "idea": "I want to sell handmade candles online through Etsy",
   "answers": {
-    "businessType": "Handmade candle shop selling on Etsy",
-    "whoPays": "consumers",
-    "channels": "online",
-    "status": "nothing-yet",
-    "dread": "admin",
-    "budget": "25",
-    "jurisdiction": { "country": "US", "stateOrProvince": "TX" }
+    "whatCustomersPayFor": "Handmade candles",
+    "whoTheCustomerIs": "consumers",
+    "howMoneyArrives": "one-time",
+    "howDeliveryReaches": "shipped",
+    "jurisdiction": { "country": "US", "stateOrProvince": "TX" },
+    "stage": "nothing-yet",
+    "whoIsWorkingOnIt": "solo",
+    "branchAnswers": {
+      "inventoryModel": "own-inventory",
+      "sellsThrough": "marketplace"
+    }
   }
 }

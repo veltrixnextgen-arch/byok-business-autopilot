@@ -1,7 +1,7 @@
 {
   "meta": {
     "idea": "I have an idea for a SaaS tool that schedules social media posts — nothing is built yet",
-    "generatedAt": "2026-08-01T10:01:09.896Z",
+    "generatedAt": "2026-08-03T07:34:41.456Z",
     "templateSelection": {
       "primary": "saas",
       "blendedWith": null,
@@ -19,33 +19,33 @@
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3571,
-        "outputTokens": 1397,
-        "costUsd": 0.031668
+        "inputTokens": 3597,
+        "outputTokens": 1205,
+        "costUsd": 0.028865999999999996
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2123,
-        "outputTokens": 204,
-        "costUsd": 0.0025144
+        "inputTokens": 2072,
+        "outputTokens": 132,
+        "costUsd": 0.0021856
       },
       {
         "step": "onboarding-batch",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2200,
-        "outputTokens": 2460,
-        "costUsd": 0.0116
+        "inputTokens": 2160,
+        "outputTokens": 1560,
+        "costUsd": 0.007968
       }
     ],
-    "costUsd": 0.0457824
+    "costUsd": 0.039019599999999995
   },
   "teams": [
     {
       "id": "founder",
       "roleTitle": "Founder / CEO",
       "isHuman": true,
-      "subAgentIds": [
+      "agentIds": [
         "chief-of-staff"
       ]
     },
@@ -53,257 +53,306 @@
       "id": "product-dev",
       "roleTitle": "Product/Dev Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "spec-writer",
         "build-agent",
         "qa-smoke-test",
-        "deploy-coordinator",
-        "api-health-monitor"
+        "deploy-coordinator"
       ]
     },
     {
       "id": "cmo",
       "roleTitle": "CMO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "content-writer",
         "social-manager",
         "seo-agent",
-        "competitor-research",
-        "onboarding-email"
+        "market-research"
       ]
     },
     {
       "id": "cfo",
       "roleTitle": "CFO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "expense-categorization",
         "cashflow-forecast",
-        "compliance-flag"
+        "compliance-monitor"
       ]
     },
     {
       "id": "support",
       "roleTitle": "Support Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "onboarding",
-        "tier1-triage",
-        "help-doc-writer"
+        "tier1-triage"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "agentIds": [
+        "email-list-ops"
       ]
     }
   ],
-  "subAgents": [
+  "agents": [
     {
       "id": "chief-of-staff",
-      "label": "Chief of Staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
       "teamId": "founder",
       "taskIds": [
         "founder.chief-of-staff.weekly-plan"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "spec-writer",
-      "label": "Spec writer",
+      "name": "Rhys",
+      "title": "Spec writer",
       "teamId": "product-dev",
       "taskIds": [
         "productdev.spec.write",
-        "customize.saas.5.spec-writer",
-        "customize.saas.6.spec-writer"
+        "customize.saas.2.spec-writer",
+        "customize.saas.3.spec-writer"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [
+        "Stripe"
+      ],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "build-agent",
-      "label": "Build agent",
+      "name": "Jordan",
+      "title": "Build agent",
       "teamId": "product-dev",
       "taskIds": [
         "productdev.build.propose"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "GitHub"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "qa-smoke-test",
-      "label": "QA/smoke-test agent",
+      "name": "Leo",
+      "title": "QA/smoke-test agent",
       "teamId": "product-dev",
       "taskIds": [
         "productdev.qa.smoketest"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "GitHub"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "deploy-coordinator",
-      "label": "Deploy coordinator",
+      "name": "Noor",
+      "title": "Deploy coordinator",
       "teamId": "product-dev",
       "taskIds": [
         "productdev.deploy.coordinate"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "GitHub"
-      ]
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "content-writer",
-      "label": "Content writer",
+      "name": "Casey",
+      "title": "Content writer",
       "teamId": "cmo",
       "taskIds": [
         "cmo.content.buildinpublic",
         "cmo.content.landing"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Twitter/X"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "social-manager",
-      "label": "Social manager",
+      "name": "Nia",
+      "title": "Social manager",
       "teamId": "cmo",
       "taskIds": [
         "cmo.social.waitlist"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "seo-agent",
-      "label": "SEO agent",
+      "name": "Ana",
+      "title": "SEO agent",
       "teamId": "cmo",
       "taskIds": [
         "cmo.seo.landing"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "expense-categorization",
-      "label": "Expense categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
         "cfo.expenses.categorize"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "cashflow-forecast",
-      "label": "Cash-flow forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
       "teamId": "cfo",
       "taskIds": [
         "cfo.cashflow.runway"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "onboarding",
-      "label": "Onboarding",
+      "name": "Maya",
+      "title": "Onboarding",
       "teamId": "support",
       "taskIds": [
-        "support.waitlist.updates"
+        "support.waitlist.updates",
+        "customize.saas.6.onboarding"
       ],
-      "suggestedTier": "T1",
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Email",
+        "Mailchimp"
+      ],
       "autonomyDefault": "earnable",
-      "handsTools": [
-        "Email"
-      ]
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tier1-triage",
-      "label": "Tier-1 triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
         "support.triage.inbound"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shared inbox"
-      ]
-    },
-    {
-      "id": "api-health-monitor",
-      "label": "Platform API Monitor",
-      "teamId": "product-dev",
-      "taskIds": [
-        "customize.saas.1.api-health-monitor"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "locked",
-      "handsTools": []
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "competitor-research",
-      "label": "Competitor Researcher",
+      "id": "market-research",
+      "name": "Felix",
+      "title": "Market Researcher",
       "teamId": "cmo",
       "taskIds": [
-        "customize.saas.2.competitor-research"
+        "customize.saas.1.market-research"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "eligible-early",
-      "handsTools": []
-    },
-    {
-      "id": "onboarding-email",
-      "label": "Onboarding Email Writer",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.saas.3.onboarding-email"
-      ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "help-doc-writer",
-      "label": "Help Doc Writer",
-      "teamId": "support",
+      "id": "email-list-ops",
+      "name": "Zara",
+      "title": "Waitlist List Manager",
+      "teamId": "ops",
       "taskIds": [
-        "customize.saas.4.help-doc-writer"
+        "customize.saas.4.email-list-ops"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Mailchimp"
+      ],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "compliance-flag",
-      "label": "Data Privacy Compliance Flagger",
+      "id": "compliance-monitor",
+      "name": "Lena",
+      "title": "Platform Policy Monitor",
       "teamId": "cfo",
       "taskIds": [
-        "customize.saas.7.compliance-flag"
+        "customize.saas.5.compliance-monitor"
       ],
-      "suggestedTier": "T1",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
     }
   ],
   "tasks": [
     {
       "id": "founder.chief-of-staff.weekly-plan",
       "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
-      "subAgentType": "chief-of-staff",
-      "subAgentLabel": "Chief of Staff",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
       "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
@@ -315,8 +364,8 @@
     {
       "id": "productdev.spec.write",
       "text": "Write feature specs from the founder's goals",
-      "subAgentType": "spec-writer",
-      "subAgentLabel": "Spec writer",
+      "agentType": "spec-writer",
+      "agentLabel": "Spec writer",
       "teamHint": "product-dev",
       "frequency": "weekly",
       "stakes": "high",
@@ -328,8 +377,8 @@
     {
       "id": "productdev.build.propose",
       "text": "Propose code changes through the sandboxed build pipeline",
-      "subAgentType": "build-agent",
-      "subAgentLabel": "Build agent",
+      "agentType": "build-agent",
+      "agentLabel": "Build agent",
       "teamHint": "product-dev",
       "frequency": "weekly",
       "stakes": "high",
@@ -342,8 +391,8 @@
     {
       "id": "productdev.qa.smoketest",
       "text": "Run automated smoke-tests on proposed changes",
-      "subAgentType": "qa-smoke-test",
-      "subAgentLabel": "QA/smoke-test agent",
+      "agentType": "qa-smoke-test",
+      "agentLabel": "QA/smoke-test agent",
       "teamHint": "product-dev",
       "frequency": "weekly",
       "stakes": "medium",
@@ -355,8 +404,8 @@
     {
       "id": "productdev.deploy.coordinate",
       "text": "Coordinate the staging preview and deploy pipeline",
-      "subAgentType": "deploy-coordinator",
-      "subAgentLabel": "Deploy coordinator",
+      "agentType": "deploy-coordinator",
+      "agentLabel": "Deploy coordinator",
       "teamHint": "product-dev",
       "frequency": "weekly",
       "stakes": "high",
@@ -369,8 +418,8 @@
     {
       "id": "cmo.content.buildinpublic",
       "text": "Draft build-in-public progress updates",
-      "subAgentType": "content-writer",
-      "subAgentLabel": "Content writer",
+      "agentType": "content-writer",
+      "agentLabel": "Content writer",
       "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "low",
@@ -382,8 +431,8 @@
     {
       "id": "cmo.content.landing",
       "text": "Write landing-page and launch copy in brand voice",
-      "subAgentType": "content-writer",
-      "subAgentLabel": "Content writer",
+      "agentType": "content-writer",
+      "agentLabel": "Content writer",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "low",
@@ -395,8 +444,8 @@
     {
       "id": "cmo.social.waitlist",
       "text": "Draft platform-sized posts promoting the waitlist",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Social manager",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
       "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "low",
@@ -408,8 +457,8 @@
     {
       "id": "cmo.seo.landing",
       "text": "Light keyword research and meta drafts for the landing page",
-      "subAgentType": "seo-agent",
-      "subAgentLabel": "SEO agent",
+      "agentType": "seo-agent",
+      "agentLabel": "SEO agent",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "low",
@@ -422,8 +471,8 @@
     {
       "id": "cfo.expenses.categorize",
       "text": "Tag expenses (hosting, tooling) and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "low",
@@ -436,8 +485,8 @@
     {
       "id": "cfo.cashflow.runway",
       "text": "Project runway against current burn",
-      "subAgentType": "cashflow-forecast",
-      "subAgentLabel": "Cash-flow forecast",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -450,8 +499,8 @@
     {
       "id": "support.waitlist.updates",
       "text": "Draft waitlist confirmation and update messages",
-      "subAgentType": "onboarding",
-      "subAgentLabel": "Onboarding",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "low",
@@ -463,8 +512,8 @@
     {
       "id": "support.triage.inbound",
       "text": "Read inbound questions from the waitlist/early users, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
       "teamHint": "support",
       "frequency": "daily",
       "stakes": "low",
@@ -475,107 +524,93 @@
       "origin": "template"
     },
     {
-      "id": "customize.saas.1.api-health-monitor",
-      "text": "Monitor social media platform API status pages and changelog announcements (Twitter/X, LinkedIn, Instagram, etc.) and flag any breaking changes that could affect the scheduler",
-      "subAgentType": "api-health-monitor",
-      "subAgentLabel": "Platform API Monitor",
-      "teamHint": "product-dev",
-      "frequency": "daily",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.2.competitor-research",
-      "text": "Research competitor social media scheduling tools (pricing, feature sets, positioning gaps) and summarize findings for the founder",
-      "subAgentType": "competitor-research",
-      "subAgentLabel": "Competitor Researcher",
+      "id": "customize.saas.1.market-research",
+      "text": "Research competing social media scheduling tools (features, pricing, positioning) and summarize gaps the product can own",
+      "agentType": "market-research",
+      "agentLabel": "Market Researcher",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "medium",
       "tier": "T2",
-      "autonomy": "eligible-early",
+      "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.saas.3.onboarding-email",
-      "text": "Draft onboarding email sequences for trial users connecting their first social media account",
-      "subAgentType": "onboarding-email",
-      "subAgentLabel": "Onboarding Email Writer",
-      "teamHint": "cmo",
+      "id": "customize.saas.2.spec-writer",
+      "text": "Write the spec for the core post-scheduling engine: queue logic, platform connectors (Twitter/X, LinkedIn, Instagram), timezone handling, and retry on failure",
+      "agentType": "spec-writer",
+      "agentLabel": "Core Scheduler Spec Writer",
+      "teamHint": "product-dev",
       "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.3.spec-writer",
+      "text": "Write the spec for the subscription billing and plan-gating layer (free trial, paid tiers, usage limits)",
+      "agentType": "spec-writer",
+      "agentLabel": "Billing & Gating Spec Writer",
+      "teamHint": "product-dev",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": "Stripe",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.4.email-list-ops",
+      "text": "Set up and monitor the waitlist sign-up form and subscriber list; flag drop-off or delivery issues",
+      "agentType": "email-list-ops",
+      "agentLabel": "Waitlist List Manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
       "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
-      "handsTool": null,
+      "handsTool": "Mailchimp",
       "origin": "customize-added"
     },
     {
-      "id": "customize.saas.4.help-doc-writer",
-      "text": "Write and update documentation (help articles, FAQs) covering how to connect social accounts, schedule posts, and troubleshoot common OAuth errors",
-      "subAgentType": "help-doc-writer",
-      "subAgentLabel": "Help Doc Writer",
-      "teamHint": "support",
-      "frequency": "weekly",
-      "stakes": "low",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.5.spec-writer",
-      "text": "Draft a feature spec for the social account OAuth connection flow (authorization, token storage, refresh logic) for each supported platform",
-      "subAgentType": "spec-writer",
-      "subAgentLabel": "OAuth Flow Spec Writer",
-      "teamHint": "product-dev",
-      "frequency": "adhoc",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.6.spec-writer",
-      "text": "Draft a feature spec for the post scheduling queue engine — including queue management, timezone handling, retry logic on API failure, and post status tracking",
-      "subAgentType": "spec-writer",
-      "subAgentLabel": "Scheduler Engine Spec Writer",
-      "teamHint": "product-dev",
-      "frequency": "adhoc",
-      "stakes": "high",
-      "tier": "T1",
-      "autonomy": "locked",
-      "handsTool": null,
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.saas.7.compliance-flag",
-      "text": "Flag any data privacy or terms-of-service compliance risks related to storing user social media OAuth tokens and accessing user account data on third-party platforms — summarize for legal review",
-      "subAgentType": "compliance-flag",
-      "subAgentLabel": "Data Privacy Compliance Flagger",
+      "id": "customize.saas.5.compliance-monitor",
+      "text": "Review platform developer-policy pages (Twitter/X, Meta, LinkedIn) for any API usage restrictions or OAuth requirements that could block the scheduling product; flag items for legal/founder review",
+      "agentType": "compliance-monitor",
+      "agentLabel": "Platform Policy Monitor",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
-      "tier": "T1",
+      "tier": "T2",
       "autonomy": "locked",
       "handsTool": null,
       "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.saas.6.onboarding",
+      "text": "Draft onboarding email sequence for converted waitlist subscribers (welcome, setup guide, first-post walkthrough)",
+      "agentType": "onboarding",
+      "agentLabel": "User Onboarding Emailer",
+      "teamHint": "cmo",
+      "frequency": "adhoc",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Mailchimp",
       "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
-      "customize.saas.1.api-health-monitor",
-      "customize.saas.2.competitor-research",
-      "customize.saas.3.onboarding-email",
-      "customize.saas.4.help-doc-writer",
-      "customize.saas.5.spec-writer",
-      "customize.saas.6.spec-writer",
-      "customize.saas.7.compliance-flag"
+      "customize.saas.1.market-research",
+      "customize.saas.2.spec-writer",
+      "customize.saas.3.spec-writer",
+      "customize.saas.4.email-list-ops",
+      "customize.saas.5.compliance-monitor",
+      "customize.saas.6.onboarding"
     ],
     "removed": [
       "cfo.invoicing.create"
@@ -599,194 +634,157 @@
     ],
     "categoryCorrections": [
       {
-        "taskId": "customize.saas.1.api-health-monitor",
-        "from": "ops",
-        "to": "product-dev",
-        "reason": "Monitoring social media platform APIs for breaking changes that affect the scheduler is infrastructure/integration work required to maintain the software product's functionality — this is product-dev concern, not ops."
-      },
-      {
-        "taskId": "customize.saas.3.onboarding-email",
+        "taskId": "customize.saas.6.onboarding",
         "from": "support",
         "to": "cmo",
-        "reason": "Drafting onboarding email sequences for new users is marketing/user growth and engagement work (nurturing trial users), not support — support handles problem-resolution, not product marketing campaigns."
+        "reason": "Drafting an onboarding email sequence is audience-growth and customer-engagement content work (promoting product value to users), which belongs to cmo, not support—support handles problem-resolution and customer-facing issues, not proactive product marketing emails."
       }
     ],
-    "notes": "Nothing is built yet (MVP-0): build/QA/deploy cadence dialed back to weekly. Invoicing removed (no paying users yet). Added platform API monitoring (core dependency risk), competitor research (crowded market), OAuth and scheduler engine specs (foundational product-specific work), onboarding emails and help docs (conversion/support), and a data privacy compliance flag (OAuth token storage + GDPR/DE jurisdiction)."
+    "notes": "Nothing is built yet — daily build/QA/deploy cadence is premature at idea-only stage, dialed back to weekly. Invoicing removed as there are no paying subscribers yet. Added foundational specs for the scheduler engine and billing layer, competitor research, waitlist list-ops, platform API compliance monitoring, and a waitlist-to-user onboarding email sequence — all concrete gaps for this specific pre-launch SaaS idea."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Maya",
-        "subAgentId": "spec-writer",
-        "roleTitle": "Spec Writer",
-        "summary": "Drafted the OAuth token storage and refresh logic spec for Twitter/X, including secure handling of access tokens and expiration patterns"
+        "agentId": "spec-writer",
+        "roleTitle": "Product/Dev Lead",
+        "summary": "Drafted the spec for the post-scheduling engine including queue logic, platform connectors for Twitter/X and LinkedIn, and timezone handling.",
+        "agentName": "Rhys"
       },
       {
-        "agentName": "Jordan",
-        "subAgentId": "competitor-research",
-        "roleTitle": "Competitor Researcher",
-        "summary": "Analyzed 4 competitor tools (Buffer, Later, SproutSocial) and flagged that none offer native timezone handling—positioning gap for v1"
+        "agentId": "market-research",
+        "roleTitle": "CMO",
+        "summary": "Completed competitive analysis of 5 existing scheduling tools and identified 3 positioning gaps around multi-platform simplicity.",
+        "agentName": "Felix"
       },
       {
-        "agentName": "Casey",
-        "subAgentId": "build-agent",
-        "roleTitle": "Build Agent",
-        "summary": "Proposed initial Next.js + Supabase stack setup and pushed schema design for post queue table through the pipeline"
+        "agentId": "cashflow-forecast",
+        "roleTitle": "CFO",
+        "summary": "Projected 18-month runway based on current burn rate and flagged when paid tier revenue would be needed to sustain operations.",
+        "agentName": "Sana"
       },
       {
-        "agentName": "Priya",
-        "subAgentId": "compliance-flag",
-        "roleTitle": "Data Privacy Compliance Flagger",
-        "summary": "Flagged that storing unencrypted OAuth tokens violates most platform ToS—recommended end-to-end encryption approach for legal review"
+        "agentId": "compliance-monitor",
+        "roleTitle": "CFO",
+        "summary": "Reviewed Twitter/X and Meta API policy pages and summarized OAuth requirements and rate-limit implications for the scheduling service.",
+        "agentName": "Lena"
       },
       {
-        "agentName": "Sam",
-        "subAgentId": "content-writer",
-        "roleTitle": "Content Writer",
-        "summary": "Drafted landing page headline and value prop copy emphasizing the timezone scheduling feature as differentiator vs competitors"
+        "agentId": "email-list-ops",
+        "roleTitle": "Ops Lead",
+        "summary": "Set up the waitlist sign-up form and configured automated confirmation emails; current list: 47 subscribers.",
+        "agentName": "Zara"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "A SaaS tool that lets creators and small businesses schedule social media posts across multiple platforms with built-in timezone intelligence and intelligent retry logic for failed posts.",
-      "mvpDefinition": "Version 1 launches with OAuth integration for Twitter/X and LinkedIn (read: post scheduling, no analytics). Users can connect one account per platform, write or paste posts, set a scheduled time in their local timezone, and the tool queues and publishes them at the exact time. The system retries failed posts once and notifies the user of any delivery errors. No custom graphics, video, or carousel support—text and link posts only. Waitlist signup and email-based onboarding for trial users.",
+      "sharpenedIdea": "A social media scheduling SaaS tool that lets creators and small businesses schedule posts across Twitter/X, LinkedIn, and Instagram from a single dashboard.",
+      "mvpDefinition": "Version 1 is a web app where users sign up free, connect one social platform (starting with Twitter/X), draft a post, pick a publish time, and let the system post it automatically. Includes basic analytics (impressions, engagement) and a free tier with 10 posts/month. No multi-platform support, AI copywriting, or team collaboration in v1 — just reliable, simple scheduling.",
       "roleTasks": [
         {
           "roleTitle": "Spec Writer",
           "tasks": [
-            "Write detailed feature specifications from the founder's monthly goals, translating business requirements into technical requirements the build team can execute against",
-            "Draft a complete feature spec for the social account OAuth connection flow for each supported platform (Twitter/X, LinkedIn, and any others added later)—covering authorization handshake, secure token storage, and token refresh logic",
-            "Draft a feature spec for the post scheduling queue engine, including queue management, timezone conversion and storage, retry logic on API failure, post status tracking (pending, published, failed), and error notification to the user"
+            "Write feature specs from the founder's goals and priorities.",
+            "Write the spec for the core post-scheduling engine covering queue logic, platform connectors (Twitter/X, LinkedIn, Instagram), timezone handling, and retry on failure.",
+            "Write the spec for the subscription billing and plan-gating layer including free trial, paid tiers, and usage limits."
           ]
         },
         {
           "roleTitle": "Build Agent",
           "tasks": [
-            "Review specifications and propose code changes through the sandboxed build pipeline",
-            "Implement core backend services: OAuth authorization endpoints, token encryption and storage, the scheduling queue engine, and social media platform API clients",
-            "Implement frontend components: account connection flows, post composition form, scheduled post calendar view, and post status/error display"
+            "Propose code changes through the sandboxed build pipeline."
           ]
         },
         {
-          "roleTitle": "QA/Smoke Test Agent",
+          "roleTitle": "QA/Smoke-Test Agent",
           "tasks": [
-            "Run automated smoke tests against all proposed code changes before they merge",
-            "Test OAuth token refresh cycles, timezone conversion accuracy, queue retry behavior, and platform API error handling",
-            "Verify that posts actually publish to live social accounts at the scheduled time and that failed posts trigger user notifications"
+            "Run automated smoke-tests on proposed code changes."
           ]
         },
         {
           "roleTitle": "Deploy Coordinator",
           "tasks": [
-            "Coordinate staging environment preview deployments and gather founder feedback before production releases",
-            "Manage the deployment pipeline from staging to production, ensuring zero-downtime rollouts",
-            "Monitor deployment logs and rollback if critical errors occur in production"
-          ]
-        },
-        {
-          "roleTitle": "Platform API Monitor",
-          "tasks": [
-            "Continuously monitor Twitter/X, LinkedIn, Instagram, and other social platform API status pages and changelog announcements for breaking changes or deprecations",
-            "Flag any changes that could affect the scheduler's ability to post or refresh tokens, summarizing impact for the build team",
-            "Maintain a document of current API rate limits and known platform quirks for each platform"
+            "Coordinate the staging preview and deploy pipeline to move changes from development to production."
           ]
         },
         {
           "roleTitle": "Content Writer",
           "tasks": [
-            "Draft build-in-public progress updates showcasing new features and milestones as they ship, in authentic and conversational brand voice",
-            "Write landing page copy and call-to-action text that clearly explain what the tool does and why it's different from competitors",
-            "Create launch announcement copy announcing waitlist opening, beta availability, and public launch"
+            "Draft build-in-public progress updates sharing development milestones and behind-the-scenes work.",
+            "Write landing-page copy and launch messaging in a consistent brand voice."
           ]
         },
         {
           "roleTitle": "Social Manager",
           "tasks": [
-            "Draft platform-sized social media posts (Twitter/X, LinkedIn, etc.) promoting the waitlist and new feature releases",
-            "Coordinate timing of promotional posts to drive early signups",
-            "Monitor engagement and reply to early community feedback across social channels"
+            "Draft platform-sized posts to promote the waitlist across social channels."
           ]
         },
         {
           "roleTitle": "SEO Agent",
           "tasks": [
-            "Conduct light keyword research around 'social media scheduler,' 'post scheduling tool,' and related long-tail phrases to inform landing page and blog content",
-            "Draft meta titles, descriptions, and heading hierarchy for the landing page to improve search visibility",
-            "Suggest foundational SEO structure and any early blog topics (e.g., 'how to schedule posts across timezones')"
+            "Conduct light keyword research around social media scheduling and related terms.",
+            "Draft meta tags and descriptions for the landing page to improve search visibility."
           ]
         },
         {
-          "roleTitle": "Competitor Researcher",
+          "roleTitle": "Market Researcher",
           "tasks": [
-            "Research 5–10 competitor social media scheduling tools (Buffer, Later, SproutSocial, Hootsuite, etc.), documenting their pricing, feature sets, and positioning",
-            "Identify gaps and opportunities in the competitor landscape—e.g., which platforms they don't support, which features they charge for, where user complaints surface",
-            "Summarize findings in a weekly competitive landscape briefing for the founder, highlighting positioning angles and feature priorities"
+            "Research competing social media scheduling tools to understand their features, pricing, and positioning.",
+            "Summarize gaps and opportunities the product can own or differentiate on."
           ]
         },
         {
-          "roleTitle": "Onboarding Email Writer",
+          "roleTitle": "Expense Categorization",
           "tasks": [
-            "Draft multi-step onboarding email sequences for trial users and early beta customers, walking them through account setup, first post scheduling, and common next steps",
-            "Write confirmatory and educational emails sent immediately after a user connects their first social account, celebrating the milestone and encouraging the first post",
-            "Create templated responses to common onboarding questions (OAuth errors, timezone confusion, etc.) for the support team to reuse"
+            "Tag all expenses by category such as hosting, tooling, and third-party APIs.",
+            "Flag any unusual or anomalous spending patterns."
           ]
         },
         {
-          "roleTitle": "Expense Categorization Agent",
+          "roleTitle": "Cash-Flow Forecast",
           "tasks": [
-            "Tag all incoming expenses (hosting, API costs, tools, software licenses) with appropriate categories and cost centers",
-            "Flag any unexpected or anomalous charges for the founder's review",
-            "Maintain a clean expense log for monthly reconciliation and financial reporting"
+            "Project runway and cash needs based on current monthly burn rate.",
+            "Flag when paid tier revenue will be needed to sustain the business."
           ]
         },
         {
-          "roleTitle": "Cash Flow Forecast Agent",
+          "roleTitle": "Platform Policy Monitor",
           "tasks": [
-            "Project monthly runway based on current burn rate and available budget",
-            "Flag when burn is on track or trending above or below the monthly budget ceiling",
-            "Forecast cash position 3–6 months forward to guide hiring, marketing spend, and infrastructure decisions"
+            "Review official API policy pages for Twitter/X, Meta, and LinkedIn for any restrictions on scheduling or automation.",
+            "Flag OAuth requirements, rate limits, and other technical constraints that could affect the product.",
+            "Escalate compliance or legal concerns to the founder."
           ]
         },
         {
-          "roleTitle": "Data Privacy Compliance Flagger",
+          "roleTitle": "Onboarding",
           "tasks": [
-            "Continuously review data privacy regulations (GDPR, CCPA, etc.) and social platform terms of service regarding OAuth token storage and user data access",
-            "Flag any compliance risks related to how the tool stores, encrypts, or accesses user social media credentials and account data",
-            "Summarize findings and recommended mitigations for legal review, ensuring the product and policies remain compliant before launch"
+            "Draft waitlist confirmation messages that set expectations for early access.",
+            "Draft the onboarding email sequence for converted waitlist subscribers including welcome, setup guide, and first-post walkthrough."
           ]
         },
         {
-          "roleTitle": "Onboarding Lead",
+          "roleTitle": "Tier-1 Triage",
           "tasks": [
-            "Draft waitlist confirmation emails acknowledging new signups and setting expectations for beta access timeline",
-            "Create waitlist status update emails as the product progresses toward launch, maintaining interest and engagement",
-            "Write early-access invitation emails when beta slots open, including first-time login instructions and success metrics"
+            "Read inbound questions and feedback from the waitlist and early users.",
+            "Draft clear, helpful replies to common questions and route complex issues to the founder."
           ]
         },
         {
-          "roleTitle": "Tier-1 Triage Agent",
+          "roleTitle": "Waitlist List Manager",
           "tasks": [
-            "Read all inbound support questions from waitlist subscribers and early trial users",
-            "Draft thoughtful, helpful replies to common questions (e.g., 'Which platforms do you support?' 'Can I schedule recurring posts?' 'How secure is my login?')",
-            "Route complex or product-blocking issues to the founder with a summary of the problem and suggested solutions"
-          ]
-        },
-        {
-          "roleTitle": "Help Doc Writer",
-          "tasks": [
-            "Write and maintain a growing library of help articles and FAQs covering how to connect social accounts, schedule posts, troubleshoot OAuth errors, and understand timezone handling",
-            "Create video or screenshot-based tutorials for the most common workflows (first-time setup, scheduling a post, handling a failed post)",
-            "Update documentation whenever a new platform is added or an existing feature changes"
+            "Set up and configure the waitlist sign-up form.",
+            "Monitor subscriber list health, delivery rates, and drop-off points.",
+            "Flag any technical issues with the form or email delivery."
           ]
         }
       ],
       "monthOneGoals": [
-        "Complete OAuth integration for Twitter/X and LinkedIn with secure token encryption, allowing users to safely connect their accounts",
-        "Build and ship the core post scheduling queue engine with timezone intelligence and single-retry logic for failed posts",
-        "Launch a simple landing page and waitlist signup flow, with initial messaging emphasizing timezone scheduling as the key differentiator",
-        "Onboard 3–5 beta users and gather feedback on the account connection and post scheduling workflows",
-        "Document all critical data privacy and compliance requirements for future legal review before public launch"
+        "Launch the landing page and start building the waitlist to 500+ subscribers.",
+        "Complete the spec for the core scheduling engine and begin development on the Twitter/X connector.",
+        "Review all relevant platform API policies and confirm there are no blocking restrictions on the scheduling model.",
+        "Set up free trial billing logic and define the free tier (10 posts/month) and paid tier structure.",
+        "Onboard the first 10–20 waitlist members to alpha-test post scheduling and gather early feedback."
       ],
-      "budgetCeilingPlaceholder": "$50+/month (from your interview answer — adjust anytime)"
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys — for now plan for infrastructure, API credits, and third-party tools."
     }
   }
 }

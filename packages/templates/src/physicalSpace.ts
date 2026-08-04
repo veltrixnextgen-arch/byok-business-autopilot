@@ -246,4 +246,26 @@ export const physicalSpaceTemplate: BusinessTemplate = {
     "A business built around a shared physical space or equipment — memberships, bookings/rentals, and " +
     "events/classes (gyms, makerspaces, coworking spaces, studios).",
   tasks,
+  branchQuestions: [
+    {
+      id: "safetyRisk",
+      prompt:
+        "Does your space involve physical safety risk (e.g. climbing, fitness equipment), or is it purely space rental (e.g. coworking, studio time)?",
+      kind: "single-select",
+      options: [
+        { value: "safety-risk", label: "Real physical safety risk" },
+        { value: "low-risk", label: "Mostly space rental, low risk" },
+      ],
+    },
+    {
+      id: "classesOrSelfServe",
+      prompt: "Do you offer classes/events, or purely self-serve access?",
+      kind: "single-select",
+      options: [
+        { value: "classes-and-events", label: "Classes and events" },
+        { value: "self-serve", label: "Self-serve access only" },
+        { value: "both", label: "Both" },
+      ],
+    },
+  ],
 };

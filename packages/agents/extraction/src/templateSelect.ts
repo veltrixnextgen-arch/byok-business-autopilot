@@ -1,11 +1,12 @@
 import type { BusinessTemplateId } from "@byok/templates";
 import type { InterviewAnswers, TemplateSelection } from "./types.js";
 
-// v1 template selection: keyword scoring against the idea text + business
-// type answer, with light signal from channels/status. This is deliberately
-// simple (no ML) — good enough to route the three canonical differentiation-
-// test ideas cleanly, and blends when two templates are close instead of
-// forcing a single guess.
+// v1 template selection: keyword scoring against the idea text + the
+// "what customers pay for" spine answer, with light signal from
+// howDeliveryReaches/stage. This is deliberately simple (no ML) — good
+// enough to route the three canonical differentiation-test ideas cleanly,
+// and blends when two templates are close instead of forcing a single
+// guess.
 const KEYWORDS: Record<BusinessTemplateId, string[]> = {
   ecommerce: [
     "sell", "shop", "store", "etsy", "shopify", "product", "products", "goods",
@@ -54,8 +55,15 @@ function tiebreakRank(id: BusinessTemplateId): number {
   return idx === -1 ? TIEBREAK_PRIORITY.length : idx;
 }
 
-export function selectTemplate(idea: string, answers: InterviewAnswers): TemplateSelection {
-  const haystack = `${idea} ${answers.businessType}`.toLowerCase();
+// Partial, not InterviewAnswers: template selection only ever reads
+// whatCustomersPayFor/howDeliveryReaches/stage (see below), so it's safe —
+// and needed — to call this on just the 5-question spine, before branch or
+// context questions are answered, to decide which template's branch
+// questions to show next (getInterviewQuestionsForTemplate). pipeline.ts's
+// own later call, after every answer is in, benefits from the full object
+// but doesn't require it.
+export function selectTemplate(idea: string, answers: Partial<InterviewAnswers>): TemplateSelection {
+  const haystack = `${idea} ${answers.whatCustomersPayFor ?? ""}`.toLowerCase();
 
   const scores = Object.fromEntries(
     (Object.keys(KEYWORDS) as BusinessTemplateId[]).map((id) => {
@@ -63,10 +71,10 @@ export function selectTemplate(idea: string, answers: InterviewAnswers): Templat
       for (const kw of KEYWORDS[id]) {
         if (haystack.includes(kw)) score += 1;
       }
-      // Light channel/status signal.
-      if (id === "local" && answers.channels === "local") score += 1;
-      if (id === "physical-space" && answers.channels === "local") score += 1;
-      if (id === "saas" && answers.status === "nothing-yet") score += 0.5;
+      // Light delivery/stage signal.
+      if (id === "local" && answers.howDeliveryReaches === "in-person") score += 1;
+      if (id === "physical-space" && answers.howDeliveryReaches === "in-person") score += 1;
+      if (id === "saas" && answers.stage === "nothing-yet") score += 0.5;
       return [id, score];
     }),
   ) as Record<BusinessTemplateId, number>;

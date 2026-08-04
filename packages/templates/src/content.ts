@@ -188,4 +188,27 @@ export const contentTemplate: BusinessTemplate = {
   name: "Content / creator business",
   description: "A business whose product is the content itself (newsletter, YouTube, podcast, course creator).",
   tasks,
+  branchQuestions: [
+    {
+      id: "primaryFormat",
+      prompt: "What's your main content format?",
+      kind: "single-select",
+      options: [
+        { value: "written", label: "Written (newsletter, blog)" },
+        { value: "video", label: "Video" },
+        { value: "audio", label: "Audio (podcast)" },
+        { value: "mixed", label: "A mix of formats" },
+      ],
+    },
+    {
+      id: "brandDealsNow",
+      prompt: "Do brand deals or sponsorships matter yet?",
+      kind: "single-select",
+      options: [
+        { value: "yes", label: "Yes, already doing them" },
+        { value: "not-yet", label: "Not yet, but hoping to" },
+        { value: "no", label: "No, not the plan" },
+      ],
+    },
+  ],
 };

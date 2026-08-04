@@ -1,12 +1,16 @@
 {
   "idea": "I'm a wedding photographer who also sells Lightroom presets and online editing courses.",
   "answers": {
-    "businessType": "Wedding photography plus Lightroom presets and online editing courses",
-    "whoPays": "consumers",
-    "channels": "online",
-    "status": "live-business",
-    "dread": "admin",
-    "budget": "25",
-    "jurisdiction": { "country": "US", "stateOrProvince": "CA" }
+    "whatCustomersPayFor": "Wedding photography plus Lightroom presets and online editing courses",
+    "whoTheCustomerIs": "consumers",
+    "howMoneyArrives": "one-time",
+    "howDeliveryReaches": "in-person",
+    "jurisdiction": { "country": "US", "stateOrProvince": "CA" },
+    "stage": "live-business",
+    "whoIsWorkingOnIt": "solo",
+    "branchAnswers": {
+      "primaryFormat": "mixed",
+      "brandDealsNow": "no"
+    }
   }
 }

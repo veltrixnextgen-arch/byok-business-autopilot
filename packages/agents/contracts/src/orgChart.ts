@@ -1,4 +1,4 @@
-import type { AutonomyDefault, BusinessTemplateId, Frequency, HandsScope, Stakes, TeamHint, Tier } from "@byok/templates";
+import type { AutonomyDefault, BusinessTemplateId, Frequency, HandsScope, Stakes, TeamHint, Tier } from "./primitives.js";
 import type { OnboardingBatch } from "./charter.js";
 
 // ADR-013: this file is the single source of truth for what extraction
@@ -52,16 +52,22 @@ export interface Agent {
   hands: string[];
   autonomyDefault: AutonomyDefault;
   /** True when this agent cannot be granted autonomy without a licensed
-   *  professional's sign-off. Derived from autonomyDefault === "locked" —
-   *  kept as its own field so the UI doesn't need to know that "locked"
-   *  specifically means a compliance hold. */
+   *  professional's sign-off — always equal to requiresProfessionalVerification
+   *  below (a UI-friendly name for the same fact, not a derived/different
+   *  one). NOT derived from autonomyDefault === "locked": plenty of tasks
+   *  are locked for caution unrelated to compliance (a deploy-coordinator
+   *  where "the human approves every production deploy, always", a
+   *  vendor-manager where "ordering never autonomous") — confirmed for
+   *  real running the six fixtures, where that derivation produced a
+   *  tax-deadline-tracker agent with complianceLocked: true and
+   *  requiresProfessionalVerification: false, exactly backwards. */
   complianceLocked: boolean;
   /** True when at least one of this agent's tasks requires professional
-   *  verification — the *reason* complianceLocked would be set, not the
-   *  same thing as it: assemble.ts's validateComplianceMetadata invariant
-   *  is exactly what keeps these two in sync today, but they're separate
-   *  concerns (why vs. current state) and the UI shouldn't assume they're
-   *  interchangeable. */
+   *  verification — the compliance-category invariant assemble.ts's
+   *  validateComplianceMetadata enforces at the task level, surfaced here
+   *  at the agent level so the UI doesn't need to inspect individual
+   *  tasks to know whether to show the "review with your professional"
+   *  banner. */
   requiresProfessionalVerification: boolean;
 }
 

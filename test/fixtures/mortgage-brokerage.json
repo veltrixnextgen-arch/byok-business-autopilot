@@ -1,12 +1,16 @@
 {
   "idea": "I want to start a small mortgage brokerage helping first-time homebuyers get approved.",
   "answers": {
-    "businessType": "Mortgage brokerage for first-time homebuyers",
-    "whoPays": "consumers",
-    "channels": "referrals",
-    "status": "nothing-yet",
-    "dread": "admin",
-    "budget": "50+",
-    "jurisdiction": { "country": "CA", "stateOrProvince": "BC" }
+    "whatCustomersPayFor": "Mortgage brokerage services for first-time homebuyers",
+    "whoTheCustomerIs": "consumers",
+    "howMoneyArrives": "one-time",
+    "howDeliveryReaches": "online",
+    "jurisdiction": { "country": "CA", "stateOrProvince": "BC" },
+    "stage": "nothing-yet",
+    "whoIsWorkingOnIt": "solo",
+    "branchAnswers": {
+      "billingModel": "per-project",
+      "deliveryMode": "mixed"
+    }
   }
 }

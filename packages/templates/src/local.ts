@@ -225,4 +225,26 @@ export const localTemplate: BusinessTemplate = {
   name: "Local brick-and-mortar",
   description: "A foot-traffic-driven local business (shop, cafe, salon), often with staff.",
   tasks,
+  branchQuestions: [
+    {
+      id: "staffing",
+      prompt: "Do you have staff beyond yourself?",
+      kind: "single-select",
+      options: [
+        { value: "solo", label: "Just me" },
+        { value: "a-few-staff", label: "A few staff" },
+        { value: "many-staff", label: "A larger staff" },
+      ],
+    },
+    {
+      id: "customerFlow",
+      prompt: "Do customers walk in or book ahead?",
+      kind: "single-select",
+      options: [
+        { value: "walk-in", label: "Walk-in" },
+        { value: "appointments", label: "Appointments" },
+        { value: "both", label: "Both" },
+      ],
+    },
+  ],
 };

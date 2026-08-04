@@ -1,12 +1,12 @@
 {
   "meta": {
     "idea": "I want to sell handmade candles online through Etsy",
-    "generatedAt": "2026-08-01T09:58:24.327Z",
+    "generatedAt": "2026-08-03T07:31:56.296Z",
     "templateSelection": {
       "primary": "ecommerce",
       "blendedWith": null,
       "scores": {
-        "ecommerce": 5,
+        "ecommerce": 4,
         "service": 0,
         "saas": 0.5,
         "content": 0,
@@ -19,33 +19,33 @@
       {
         "step": "customize",
         "model": "claude-sonnet-4-6",
-        "inputTokens": 3661,
-        "outputTokens": 1093,
-        "costUsd": 0.027378
+        "inputTokens": 3687,
+        "outputTokens": 1155,
+        "costUsd": 0.028386
       },
       {
         "step": "category-validate",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2010,
-        "outputTokens": 182,
-        "costUsd": 0.002336
+        "inputTokens": 2051,
+        "outputTokens": 115,
+        "costUsd": 0.0021008
       },
       {
         "step": "onboarding-batch",
         "model": "claude-haiku-4-5-20251001",
-        "inputTokens": 2168,
-        "outputTokens": 1579,
-        "costUsd": 0.008050400000000001
+        "inputTokens": 2195,
+        "outputTokens": 1425,
+        "costUsd": 0.007456
       }
     ],
-    "costUsd": 0.037764400000000004
+    "costUsd": 0.0379428
   },
   "teams": [
     {
       "id": "founder",
       "roleTitle": "Founder / CEO",
       "isHuman": true,
-      "subAgentIds": [
+      "agentIds": [
         "chief-of-staff"
       ]
     },
@@ -53,276 +53,343 @@
       "id": "cfo",
       "roleTitle": "CFO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "invoicing",
         "expense-categorization",
         "cashflow-forecast",
         "tax-deadline-tracker",
-        "cogs-tracker"
+        "sales-tax-compliance",
+        "product-safety-compliance"
       ]
     },
     {
       "id": "cmo",
       "roleTitle": "CMO",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "social-manager",
-        "content-writer",
-        "email-marketing",
         "seo-agent",
-        "trend-researcher",
-        "review-manager"
+        "trend-spotter",
+        "visual-content-planner"
       ]
     },
     {
       "id": "ops",
       "roleTitle": "Ops Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "inventory",
         "fulfillment",
         "vendor-manager",
-        "marketplace-analytics"
+        "review-monitor",
+        "production-tracker"
       ]
     },
     {
       "id": "support",
       "roleTitle": "Support Lead",
       "isHuman": false,
-      "subAgentIds": [
+      "agentIds": [
         "tier1-triage",
         "escalation"
       ]
     }
   ],
-  "subAgents": [
+  "agents": [
     {
       "id": "chief-of-staff",
-      "label": "Chief of Staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
       "teamId": "founder",
       "taskIds": [
         "founder.chief-of-staff.weekly-plan"
       ],
-      "suggestedTier": "T3",
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "invoicing",
-      "label": "Invoicing",
+      "name": "Dara",
+      "title": "Invoicing",
       "teamId": "cfo",
       "taskIds": [
         "cfo.invoicing.create"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Stripe"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "expense-categorization",
-      "label": "Expense categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
       "teamId": "cfo",
       "taskIds": [
         "cfo.expenses.categorize"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Stripe"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "cashflow-forecast",
-      "label": "Cash-flow forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
       "teamId": "cfo",
       "taskIds": [
         "cfo.cashflow.forecast"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "earnable",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tax-deadline-tracker",
-      "label": "Tax-deadline tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
       "teamId": "cfo",
       "taskIds": [
-        "cfo.tax.tracker",
-        "customize.ecommerce.5.tax-deadline-tracker"
+        "cfo.tax.tracker"
       ],
-      "suggestedTier": "T2",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "social-manager",
-      "label": "Social manager",
+      "name": "Rhys",
+      "title": "Social manager",
       "teamId": "cmo",
       "taskIds": [
         "cmo.social.posts"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Instagram/Meta"
-      ]
-    },
-    {
-      "id": "content-writer",
-      "label": "Content writer",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.content.blog"
       ],
-      "suggestedTier": "T2",
       "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "email-marketing",
-      "label": "Email marketing",
-      "teamId": "cmo",
-      "taskIds": [
-        "cmo.email.campaigns"
-      ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": [
-        "Resend"
-      ]
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "seo-agent",
-      "label": "SEO agent",
+      "name": "Ana",
+      "title": "SEO agent",
       "teamId": "cmo",
       "taskIds": [
         "cmo.seo.listings"
       ],
-      "suggestedTier": "T1",
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "eligible-early",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "inventory",
-      "label": "Inventory",
+      "name": "Tess",
+      "title": "Inventory",
       "teamId": "ops",
       "taskIds": [
         "ops.inventory.levels",
         "ops.inventory.reorder"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "eligible-early",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shopify/Etsy"
-      ]
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "fulfillment",
-      "label": "Fulfillment/logistics",
+      "name": "Amir",
+      "title": "Fulfillment/logistics",
       "teamId": "ops",
       "taskIds": [
         "ops.fulfillment.status",
         "ops.fulfillment.delay"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shipping carrier"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "vendor-manager",
-      "label": "Vendor manager",
+      "name": "Morgan",
+      "title": "Vendor manager",
       "teamId": "ops",
       "taskIds": [
         "ops.vendor.tracking",
         "ops.vendor.comms"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "tier1-triage",
-      "label": "Tier-1 triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
       "teamId": "support",
       "taskIds": [
         "support.triage.inbound"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T1",
+      "brain": null,
+      "hands": [
         "Shared inbox"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
       "id": "escalation",
-      "label": "Escalation",
+      "name": "Nia",
+      "title": "Escalation",
       "teamId": "support",
       "taskIds": [
         "support.escalation.detect"
       ],
-      "suggestedTier": "T2",
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
       "autonomyDefault": "locked",
-      "handsTools": []
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "trend-researcher",
-      "label": "Trend Researcher",
-      "teamId": "cmo",
-      "taskIds": [
-        "customize.ecommerce.1.trend-researcher"
-      ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": []
-    },
-    {
-      "id": "marketplace-analytics",
-      "label": "Etsy Analytics Monitor",
+      "id": "review-monitor",
+      "name": "Theo",
+      "title": "Review Monitor",
       "teamId": "ops",
       "taskIds": [
-        "customize.ecommerce.2.marketplace-analytics"
+        "customize.ecommerce.1.review-monitor"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
+      "tier": "T2",
+      "brain": null,
+      "hands": [
         "Etsy API"
-      ]
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "review-manager",
-      "label": "Review Response Drafter",
+      "id": "trend-spotter",
+      "name": "Casey",
+      "title": "Trend Spotter",
       "teamId": "cmo",
       "taskIds": [
-        "customize.ecommerce.3.review-manager"
+        "customize.ecommerce.2.trend-spotter"
       ],
-      "suggestedTier": "T1",
-      "autonomyDefault": "earnable",
-      "handsTools": [
-        "Etsy API"
-      ]
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     },
     {
-      "id": "cogs-tracker",
-      "label": "COGS & Margin Tracker",
+      "id": "production-tracker",
+      "name": "Zara",
+      "title": "Production Tracker",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.ecommerce.3.production-tracker"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "sales-tax-compliance",
+      "name": "Jordan",
+      "title": "Sales Tax Compliance Monitor",
       "teamId": "cfo",
       "taskIds": [
-        "customize.ecommerce.4.cogs-tracker"
+        "customize.ecommerce.4.sales-tax-compliance"
       ],
-      "suggestedTier": "T2",
-      "autonomyDefault": "earnable",
-      "handsTools": []
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "product-safety-compliance",
+      "name": "Owen",
+      "title": "Product Safety Compliance Monitor",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.ecommerce.5.product-safety-compliance"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "visual-content-planner",
+      "name": "Priya",
+      "title": "Visual Content Planner",
+      "teamId": "cmo",
+      "taskIds": [
+        "customize.ecommerce.6.visual-content-planner"
+      ],
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
     }
   ],
   "tasks": [
     {
       "id": "founder.chief-of-staff.weekly-plan",
       "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
-      "subAgentType": "chief-of-staff",
-      "subAgentLabel": "Chief of Staff",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
       "teamHint": "founder",
       "frequency": "weekly",
       "stakes": "medium",
@@ -334,10 +401,10 @@
     {
       "id": "cfo.invoicing.create",
       "text": "Create invoices/receipts for orders",
-      "subAgentType": "invoicing",
-      "subAgentLabel": "Invoicing",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
       "teamHint": "cfo",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "low",
       "tier": "T2",
       "autonomy": "earnable",
@@ -347,8 +414,8 @@
     {
       "id": "cfo.expenses.categorize",
       "text": "Tag every transaction and flag anomalies",
-      "subAgentType": "expense-categorization",
-      "subAgentLabel": "Expense categorization",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
       "teamHint": "cfo",
       "frequency": "weekly",
       "stakes": "low",
@@ -361,8 +428,8 @@
     {
       "id": "cfo.cashflow.forecast",
       "text": "30/60/90-day cash-flow projection with runway alerts",
-      "subAgentType": "cashflow-forecast",
-      "subAgentLabel": "Cash-flow forecast",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -375,8 +442,8 @@
     {
       "id": "cfo.tax.tracker",
       "text": "Track tax deadlines and prep the document checklist",
-      "subAgentType": "tax-deadline-tracker",
-      "subAgentLabel": "Tax-deadline tracker",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
       "teamHint": "cfo",
       "frequency": "monthly",
       "stakes": "medium",
@@ -388,8 +455,8 @@
     {
       "id": "cmo.social.posts",
       "text": "Draft platform-sized social posts for the shop (Instagram, Pinterest, TikTok)",
-      "subAgentType": "social-manager",
-      "subAgentLabel": "Social manager",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
       "teamHint": "cmo",
       "frequency": "daily",
       "stakes": "low",
@@ -400,37 +467,10 @@
       "origin": "template"
     },
     {
-      "id": "cmo.content.blog",
-      "text": "Write occasional blog/newsletter content in brand voice",
-      "subAgentType": "content-writer",
-      "subAgentLabel": "Content writer",
-      "teamHint": "cmo",
-      "frequency": "monthly",
-      "stakes": "low",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "handsTool": null,
-      "origin": "template"
-    },
-    {
-      "id": "cmo.email.campaigns",
-      "text": "Draft email marketing sequences and campaign copy",
-      "subAgentType": "email-marketing",
-      "subAgentLabel": "Email marketing",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T2",
-      "autonomy": "earnable",
-      "autonomyNote": "drafts only — sending stays locked",
-      "handsTool": "Resend",
-      "origin": "template"
-    },
-    {
       "id": "cmo.seo.listings",
       "text": "Light keyword and listing-title research for marketplace SEO",
-      "subAgentType": "seo-agent",
-      "subAgentLabel": "SEO agent",
+      "agentType": "seo-agent",
+      "agentLabel": "SEO agent",
       "teamHint": "cmo",
       "frequency": "weekly",
       "stakes": "low",
@@ -443,8 +483,8 @@
     {
       "id": "ops.inventory.levels",
       "text": "Track stock levels per product/SKU",
-      "subAgentType": "inventory",
-      "subAgentLabel": "Inventory",
+      "agentType": "inventory",
+      "agentLabel": "Inventory",
       "teamHint": "ops",
       "frequency": "daily",
       "stakes": "low",
@@ -457,8 +497,8 @@
     {
       "id": "ops.inventory.reorder",
       "text": "Flag reorder points for raw materials and packaging",
-      "subAgentType": "inventory",
-      "subAgentLabel": "Inventory",
+      "agentType": "inventory",
+      "agentLabel": "Inventory",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
@@ -471,8 +511,8 @@
     {
       "id": "ops.fulfillment.status",
       "text": "Post order status and shipping updates to customers",
-      "subAgentType": "fulfillment",
-      "subAgentLabel": "Fulfillment/logistics",
+      "agentType": "fulfillment",
+      "agentLabel": "Fulfillment/logistics",
       "teamHint": "ops",
       "frequency": "daily",
       "stakes": "low",
@@ -485,10 +525,10 @@
     {
       "id": "ops.fulfillment.delay",
       "text": "Draft delay/backorder communications",
-      "subAgentType": "fulfillment",
-      "subAgentLabel": "Fulfillment/logistics",
+      "agentType": "fulfillment",
+      "agentLabel": "Fulfillment/logistics",
       "teamHint": "ops",
-      "frequency": "weekly",
+      "frequency": "daily",
       "stakes": "medium",
       "tier": "T1",
       "autonomy": "earnable",
@@ -498,8 +538,8 @@
     {
       "id": "ops.vendor.tracking",
       "text": "Track supplier orders for raw materials",
-      "subAgentType": "vendor-manager",
-      "subAgentLabel": "Vendor manager",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "low",
@@ -511,8 +551,8 @@
     {
       "id": "ops.vendor.comms",
       "text": "Draft reorder communications to vendors",
-      "subAgentType": "vendor-manager",
-      "subAgentLabel": "Vendor manager",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
@@ -525,8 +565,8 @@
     {
       "id": "support.triage.inbound",
       "text": "Read inbound customer messages, tag urgency/topic, draft replies to known questions",
-      "subAgentType": "tier1-triage",
-      "subAgentLabel": "Tier-1 triage",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
       "teamHint": "support",
       "frequency": "daily",
       "stakes": "low",
@@ -539,8 +579,8 @@
     {
       "id": "support.escalation.detect",
       "text": "Detect angry or complex cases and package context for the human",
-      "subAgentType": "escalation",
-      "subAgentLabel": "Escalation",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
       "teamHint": "support",
       "frequency": "weekly",
       "stakes": "high",
@@ -551,202 +591,212 @@
       "origin": "template"
     },
     {
-      "id": "customize.ecommerce.1.trend-researcher",
+      "id": "customize.ecommerce.1.review-monitor",
+      "text": "Monitor Etsy shop reviews and flag any negative feedback for prompt human response",
+      "agentType": "review-monitor",
+      "agentLabel": "Review Monitor",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Etsy API",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.2.trend-spotter",
       "text": "Research trending candle scents, styles, and seasonal themes to inform new product ideas",
-      "subAgentType": "trend-researcher",
-      "subAgentLabel": "Trend Researcher",
+      "agentType": "trend-spotter",
+      "agentLabel": "Trend Spotter",
       "teamHint": "cmo",
       "frequency": "monthly",
       "stakes": "low",
-      "tier": "T1",
-      "autonomy": "earnable",
+      "tier": "T2",
+      "autonomy": "eligible-early",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.2.marketplace-analytics",
-      "text": "Monitor Etsy shop stats (views, favorites, conversion rate) and summarize weekly performance highlights and drops",
-      "subAgentType": "marketplace-analytics",
-      "subAgentLabel": "Etsy Analytics Monitor",
+      "id": "customize.ecommerce.3.production-tracker",
+      "text": "Track batch production runs: log wax, fragrance, and wick quantities used per candle SKU to maintain accurate ingredient inventory",
+      "agentType": "production-tracker",
+      "agentLabel": "Production Tracker",
       "teamHint": "ops",
       "frequency": "weekly",
       "stakes": "medium",
-      "tier": "T1",
-      "autonomy": "earnable",
-      "handsTool": "Etsy API",
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.ecommerce.3.review-manager",
-      "text": "Draft responses to Etsy product reviews, especially mixed or negative ones, to maintain shop reputation",
-      "subAgentType": "review-manager",
-      "subAgentLabel": "Review Response Drafter",
-      "teamHint": "cmo",
-      "frequency": "weekly",
-      "stakes": "medium",
-      "tier": "T1",
-      "autonomy": "earnable",
-      "handsTool": "Etsy API",
-      "origin": "customize-added"
-    },
-    {
-      "id": "customize.ecommerce.4.cogs-tracker",
-      "text": "Track raw material batch costs (wax, wicks, fragrance oils, containers, labels) per candle SKU to protect margins",
-      "subAgentType": "cogs-tracker",
-      "subAgentLabel": "COGS & Margin Tracker",
-      "teamHint": "cfo",
-      "frequency": "monthly",
-      "stakes": "medium",
       "tier": "T2",
       "autonomy": "earnable",
       "handsTool": null,
       "origin": "customize-added"
     },
     {
-      "id": "customize.ecommerce.5.tax-deadline-tracker",
-      "text": "Flag Texas sales-tax collection and remittance obligations for online sales, and surface any upcoming filing deadlines for professional review",
-      "subAgentType": "tax-deadline-tracker",
-      "subAgentLabel": "TX Sales Tax Compliance Monitor",
+      "id": "customize.ecommerce.4.sales-tax-compliance",
+      "text": "Check Texas sales tax collection and remittance obligations for online marketplace sales, and flag any upcoming filing deadlines for professional review",
+      "agentType": "sales-tax-compliance",
+      "agentLabel": "Sales Tax Compliance Monitor",
       "teamHint": "compliance",
       "frequency": "monthly",
       "stakes": "high",
-      "tier": "T2",
+      "tier": "T1",
       "autonomy": "locked",
       "handsTool": null,
       "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.5.product-safety-compliance",
+      "text": "Review product labels and listings for any required candle safety warnings (burn time, wick trimming, warning labels) and flag gaps for human review",
+      "agentType": "product-safety-compliance",
+      "agentLabel": "Product Safety Compliance Monitor",
+      "teamHint": "compliance",
+      "frequency": "adhoc",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.ecommerce.6.visual-content-planner",
+      "text": "Draft product photography shot-list and lifestyle image concepts aligned with seasonal campaigns",
+      "agentType": "visual-content-planner",
+      "agentLabel": "Visual Content Planner",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T3",
+      "autonomy": "eligible-early",
+      "handsTool": null,
       "origin": "customize-added"
     }
   ],
   "customization": {
     "added": [
-      "customize.ecommerce.1.trend-researcher",
-      "customize.ecommerce.2.marketplace-analytics",
-      "customize.ecommerce.3.review-manager",
-      "customize.ecommerce.4.cogs-tracker",
-      "customize.ecommerce.5.tax-deadline-tracker"
+      "customize.ecommerce.1.review-monitor",
+      "customize.ecommerce.2.trend-spotter",
+      "customize.ecommerce.3.production-tracker",
+      "customize.ecommerce.4.sales-tax-compliance",
+      "customize.ecommerce.5.product-safety-compliance",
+      "customize.ecommerce.6.visual-content-planner"
     ],
     "removed": [
-      "cfo.invoicing.remind"
+      "cfo.invoicing.remind",
+      "cmo.content.blog",
+      "cmo.email.campaigns"
     ],
     "frequencyAdjustments": [
-      {
-        "taskId": "cfo.invoicing.create",
-        "from": "daily",
-        "to": "weekly"
-      },
       {
         "taskId": "cmo.seo.listings",
         "from": "monthly",
         "to": "weekly"
+      },
+      {
+        "taskId": "ops.fulfillment.delay",
+        "from": "weekly",
+        "to": "daily"
       }
     ],
     "categoryCorrections": [
       {
-        "taskId": "customize.ecommerce.2.marketplace-analytics",
-        "from": "cmo",
-        "to": "ops",
-        "reason": "Monitoring shop stats and summarizing performance is internal logistics/mechanics of running the business day-to-day, not audience-growth marketing work."
-      },
-      {
-        "taskId": "customize.ecommerce.3.review-manager",
+        "taskId": "customize.ecommerce.1.review-monitor",
         "from": "support",
-        "to": "cmo",
-        "reason": "Drafting responses to product reviews is marketing/audience-growth work that affects shop reputation and perception, not customer support problem-resolution."
+        "to": "ops",
+        "reason": "Monitoring reviews and flagging negatives is internal logistics/operational triage, not customer-facing problem resolution (support) — no active customer communication or issue resolution occurs here."
       }
     ],
-    "notes": "Etsy handles checkout/invoicing automatically so daily invoice creation is overkill — weekly reconciliation fits better. Listing SEO is bumped to weekly because Etsy search ranking responds quickly to title/tag tweaks. Payment reminders removed (Etsy collects payment upfront). No sales/BD tasks added — this is a B2C marketplace shop with no direct outbound selling. Added Etsy-specific analytics, review management, trend research, COGS tracking, and a TX sales-tax compliance monitor."
+    "notes": "Removed B2B-flavored tasks (payment reminders, email campaigns) and blog writing that don't fit a solo Etsy shop at MVP-0. Bumped Etsy SEO to weekly since listing optimization is a primary growth lever on the marketplace. Added candle-specific production tracking, Etsy review monitoring, trend research, visual content planning, and two compliance monitors for TX sales tax and CPSC candle safety labeling."
   },
   "onboardingBatch": {
     "simulatedDay": [
       {
-        "agentName": "Maya",
-        "subAgentId": "social-manager",
+        "agentId": "inventory",
+        "roleTitle": "Ops Lead",
+        "summary": "Logged 48 units of vanilla bean wax and 120 cotton wicks received from supplier; flagged lavender scent stock dropping to 3 bottles.",
+        "agentName": "Tess"
+      },
+      {
+        "agentId": "social-manager",
         "roleTitle": "CMO",
-        "summary": "Drafted 3 Instagram carousel posts showcasing your best-selling lavender candles with lifestyle photography angles"
+        "summary": "Drafted 3 Instagram carousel posts featuring seasonal spring scents and scheduled them for next week.",
+        "agentName": "Rhys"
       },
       {
-        "agentName": "James",
-        "subAgentId": "invoicing",
-        "roleTitle": "CFO",
-        "summary": "Processed invoices for 7 orders received yesterday and flagged a bulk wholesale inquiry for your review"
-      },
-      {
-        "agentName": "Sophie",
-        "subAgentId": "inventory",
+        "agentId": "fulfillment",
         "roleTitle": "Ops Lead",
-        "summary": "Flagged that soy wax stock is down to 3 kg — below your reorder threshold — and drafted a vendor message to replenish"
+        "summary": "Posted shipping notifications for 7 orders and drafted a delay message for 1 shipment pending carrier pickup.",
+        "agentName": "Amir"
       },
       {
-        "agentName": "David",
-        "subAgentId": "marketplace-analytics",
-        "roleTitle": "Ops Lead",
-        "summary": "Pulled this week's Etsy shop stats: 240 views, 18 favorites, 3.2% conversion rate — up from last week"
-      },
-      {
-        "agentName": "Carmen",
-        "subAgentId": "tier1-triage",
+        "agentId": "tier1-triage",
         "roleTitle": "Support Lead",
-        "summary": "Triaged 5 inbound messages: 3 shipping questions, 1 custom order request, 1 scent recommendation — drafted replies for your approval"
+        "summary": "Processed 5 inbound customer messages about candle scent strength and burn time; drafted replies to 4 based on common FAQ.",
+        "agentName": "Sam"
+      },
+      {
+        "agentId": "product-safety-compliance",
+        "roleTitle": "CFO",
+        "summary": "Reviewed 2 new candle listings for burn-time warnings and wick-trimming language; flagged 1 listing missing required safety callouts.",
+        "agentName": "Owen"
       }
     ],
     "charterDraft": {
-      "sharpenedIdea": "Launch a handmade candle shop on Etsy selling artisanal, small-batch candles with a focus on premium scents and sustainable materials.",
-      "mvpDefinition": "Version 1 is a live Etsy shop with 5–8 core candle SKUs (distinct scent/size combinations), high-quality product photos, basic shop branding, and the operational backbone to fulfill orders within 5 business days. No custom orders, no wholesale, no brick-and-mortar initially — just reliable direct-to-consumer candle sales on the marketplace.",
+      "sharpenedIdea": "Handmade candles sold directly to customers through Etsy, starting with a curated collection of seasonal scents.",
+      "mvpDefinition": "Launch with 5–8 core candle SKUs (scent and size combinations) on Etsy, including product photography, descriptions optimized for Etsy search, and operational systems to handle orders, inventory, fulfillment, and customer support without custom integrations. Focus on a single sales channel (Etsy) to minimize complexity and validate product-market fit before expanding.",
       "roleTasks": [
         {
           "roleTitle": "Chief of Staff",
           "tasks": [
-            "Draft a rolling weekly plan each Sunday flagging what each team needs to accomplish",
-            "Monitor cross-team dependencies (e.g., ops waiting on new product photos from marketing) and escalate bottlenecks to you for decision-making",
-            "Maintain a weekly summary of key metrics and wins to keep the business narrative clear"
+            "Draft a weekly plan each Monday that sequences production runs, marketing pushes, and cross-team dependencies.",
+            "Flag any conflicts between teams (e.g., production bottleneck vs. marketing overcommitment) for founder review and resolution."
           ]
         },
         {
           "roleTitle": "CFO",
           "tasks": [
-            "Process and record invoices for every customer order, organizing by date and SKU",
-            "Tag every business transaction (material purchases, Etsy fees, shipping supplies, marketing spend) with a category and flag any unusual expenses that look out of line",
-            "Build a 30/60/90-day cash-flow forecast showing expected revenue, material costs, and burn rate, plus alert you if the runway is getting tight",
-            "Track all tax deadlines and prep the documentation checklist; specifically monitor Texas sales-tax collection and remittance requirements for your online sales, and surface upcoming filing deadlines for your review",
-            "Calculate the cost of goods sold for each candle SKU by tracking raw material batches (wax, wicks, fragrance oils, containers, labels) and protect your profit margins by catching any cost creep"
+            "Create invoices and receipts for each Etsy order to maintain a clear record of revenue.",
+            "Tag every business transaction (wax purchases, shipping labels, packaging) with the appropriate expense category and alert the founder to unusual spending.",
+            "Project cash flow for the next 30, 60, and 90 days; alert the founder if runway is below 3 months.",
+            "Track all relevant tax deadlines (quarterly sales tax, annual income tax) and prepare a checklist of documents needed for filing.",
+            "Monitor Texas online marketplace sales tax collection obligations; flag upcoming filing deadlines and any compliance gaps.",
+            "Review all product labels and Etsy listings to ensure they include required candle safety warnings (burn time, wick trimming, warning labels); escalate any gaps for founder action."
           ]
         },
         {
           "roleTitle": "CMO",
           "tasks": [
-            "Draft platform-sized social posts for Instagram, Pinterest, and TikTok that showcase new candle releases, behind-the-scenes creation, and seasonal themes",
-            "Write occasional blog posts or newsletter content in your brand voice to deepen customer connection and drive repeat visits",
-            "Draft email marketing sequences (welcome series for new subscribers, abandoned cart recovery, repeat-purchase incentives) and campaign copy for new launches",
-            "Research light keyword improvements and Etsy listing-title optimization to help your candles surface higher in marketplace searches",
-            "Track trending candle scents, vessel styles, color palettes, and seasonal themes (e.g., holiday spice blends in fall) to inform your new product roadmap",
-            "Draft thoughtful, professional responses to Etsy product reviews, especially mixed or negative feedback, to maintain your shop reputation and show responsive customer care"
+            "Draft Instagram, Pinterest, and TikTok posts sized and formatted for each platform, with a focus on product highlights and behind-the-scenes candle-making content.",
+            "Research keywords and Etsy listing titles to improve search visibility for candle categories and scent names.",
+            "Identify trending candle scents, color palettes, and seasonal themes (e.g., fall spice, winter evergreen) and flag promising ideas to inform new product development.",
+            "Create a shot-list and visual concept ideas for product photography and lifestyle images that align with seasonal marketing campaigns."
           ]
         },
         {
           "roleTitle": "Ops Lead",
           "tasks": [
-            "Track stock levels for each candle SKU and raw material (wax, fragrance oils, containers, labels); flag reorder points before you run out and trigger vendor communications",
-            "Post order status updates and shipping confirmations to customers as orders move through production and fulfillment; draft any delay or backorder messages with transparency and alternatives",
-            "Manage all vendor orders for raw materials and packaging; monitor delivery dates, flag delays, and draft reorder communications to keep supply chains on schedule",
-            "Pull weekly Etsy shop analytics (views, favorites, conversion rate, best-selling SKUs) and summarize performance highlights and any notable drops that might need marketing response"
+            "Track inventory levels for each raw material (wax, fragrance oils, wicks) and finished candle SKU; flag when stock approaches reorder thresholds.",
+            "Post order status updates and shipping tracking information to each customer; draft clear, friendly messages for any delays or backorders.",
+            "Track all supplier orders for raw materials and manage reorder communication with vendors to ensure production continuity.",
+            "Monitor Etsy shop reviews and flag negative or concerning feedback for the founder to review and respond to promptly.",
+            "Log each batch production run, recording wax weight, fragrance oil quantity, and wick count per candle SKU to maintain an accurate ingredient and cost baseline."
           ]
         },
         {
           "roleTitle": "Support Lead",
           "tasks": [
-            "Read all inbound customer messages; triage by urgency (shipping question vs. product defect vs. custom request) and topic, then draft replies to common or routine questions",
-            "Identify angry or complex customer cases and package the full context and history for your review so you can handle them personally with care"
+            "Triage all inbound customer messages, tag them by topic (scent questions, shipping, returns) and urgency, and draft responses to routine inquiries.",
+            "Identify angry or complex customer cases and package the context in a brief summary for the founder to handle directly."
           ]
         }
       ],
       "monthOneGoals": [
-        "Launch 5–8 core candle SKUs on Etsy with high-quality product photography, compelling descriptions, and all tax/legal compliance in place",
-        "Fulfill the first 50 orders reliably within 5 business days and achieve at least a 4.5-star average rating",
-        "Set up basic financial tracking (invoicing, expense categorization, COGS per SKU) so you have clarity on profitability by end of month",
-        "Establish a weekly social media rhythm (3 posts per week across Instagram and TikTok) to build initial audience momentum",
-        "Document your core processes (candle-making workflow, materials ordering, customer communication templates) so you can scale without recreating work"
+        "Finalize and photograph 5–8 core candle SKUs and publish them on Etsy with optimized titles and descriptions.",
+        "Set up all operational systems (inventory tracking, order processing, fulfillment workflow, and customer communication templates).",
+        "Source and validate raw materials (wax, fragrance oils, wicks, packaging) and run 2–3 test production batches to confirm yield and pricing.",
+        "Establish baseline tax and compliance checklist (sales tax registration, product safety label requirements, Etsy terms of service).",
+        "Generate 5–10 social media posts and schedule content across Instagram and Pinterest to drive initial awareness."
       ],
-      "budgetCeilingPlaceholder": "$25/month (from your interview answer — adjust anytime)"
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys; use this space to track raw materials, packaging, Etsy fees, shipping supplies, and any contractor costs."
     }
   }
 }

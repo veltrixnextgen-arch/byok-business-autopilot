@@ -43,3 +43,20 @@ Per ADR-010 — these apply for the whole Phase B build, not just the first step
 9. **Performance budget, enforced in CI: apps/web's initial JS bundle stays under 150KB gzipped** — the build fails if it's exceeded. Report the bundle size in every UI PR.
 10. **Every screen renders from server data via route loaders.** No screen holds duplicate business logic — if the engine decides it, the screen displays it, it doesn't re-derive it.
 11. **Delete rather than comment out.** No dead code, no "we might need this."
+
+## Known state: apps/web's build toolchain (unresolved as of 2026-08-03)
+
+**Staging is currently broken.** Every page that actually renders (not an early-redirect route) 500s with `TypeError: jsxDEV is not a function` — the deployed SSR bundle calls React's development-only JSX factory instead of the production one. Confirmed via Vercel's runtime error log, `lastDeployment` still pointing at the current `phase-b-step-5-interview-extraction-org-chart` HEAD.
+
+**Read this before touching `apps/web/package.json`'s `vite`/`nitro`/`@vitejs/plugin-react` pins again — four combinations were tried in one session (2026-08-03) and all four failed, so don't re-walk them from scratch:**
+
+| Combination | Result |
+|---|---|
+| `nitro@3.0.260610-beta` + `vite@8.2.0` + `@vitejs/plugin-react@6.0.5`, installed via a clean/forced `npm install` or `npm ci` | Reliably reproduces the `jsxDEV` crash on Vercel's Linux build machines. Does **not** reproduce locally on Windows with an identical lockfile-accurate install — the crash is specific to Vercel's build environment. |
+| Same combination, installed via Vercel's **cached, incremental** `npm install` (no `--force`, default install command) | Was the only thing that had ever produced a correct build — until today's several forced/clean rebuilds overwrote that cache with a broken resolution. There is no way back to the old cache; it's gone. This is the combination currently deployed, and it is currently broken (see above). |
+| `nitro@3.0.0` (its only non-prerelease 3.x release) + `vite@7.3.6` (`nitro@3.0.0`'s required peer) + `@vitejs/plugin-react@6.0.5` | Builds clean locally, zero `jsxDEV` anywhere in output. Deployed live: stopped crashing, but the site went **silently non-interactive** instead — no console errors, but typing in the idea box never revealed the submit button and clicking "Sign in" did nothing. The client bundle still called `jsxDEV` directly under this pairing too. Worse than the crash it replaced — looked healthy, was dead. |
+| `@vitejs/plugin-react@4.7.0` (the last pre-oxc/Rolldown release — the one variable present, unchanged, across both failures above) + `vite@8.2.0` | Doesn't resolve at all: peer range tops out at `vite@^7.0.0`, `ERESOLVE` against `vite@8.2.0`. Never reached a deploy attempt. |
+
+**Leading suspect, unconfirmed:** `@vitejs/plugin-react@6.0.5` uses an experimental oxc/Rolldown-based JSX transform, not the traditional esbuild/Babel path — the one constant across every failure. Root-causing this needs a build environment that actually matches Vercel's Linux build image (the bug has never reproduced on Windows), not another version-pin guess.
+
+Full incident detail: docs/DECISIONS.md ADR-016. Tracking issue: #39 (blocks trusting staging as "verified working" until closed — does not block this PR, which discloses the outage rather than papering over it).
