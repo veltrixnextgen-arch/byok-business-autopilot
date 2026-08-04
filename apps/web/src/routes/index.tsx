@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({
 // there's something to carry forward. A signed-in user who lands here
 // again (e.g. a bookmark) skips straight to the interview instead of
 // being sent through signup a second time.
-function Index() {
+export function Index() {
   const navigate = useNavigate();
   const [idea, setIdea] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +31,15 @@ function Index() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-10 px-6 text-center">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 py-16 text-center sm:gap-10">
       <div className="space-y-4 duration-ceremony-slow ease-ceremony">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Runwisely</p>
-        <h1 className="font-display text-5xl font-semibold">
-          Describe your idea. <span className="text-accent">Meet your company.</span>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+          Describe your idea.
+          <br />
+          <span className="bg-gradient-to-r from-accent from-20% to-money to-80% bg-clip-text text-transparent">
+            Meet your company.
+          </span>
         </h1>
         <p className="text-text-secondary">
           One line is enough. We'll turn it into a task list, a team, and an org chart — before you even sign up.
@@ -43,20 +47,27 @@ function Index() {
       </div>
 
       <form onSubmit={handleSubmit} className="w-full space-y-4">
-        <textarea
-          value={idea}
-          onChange={(e) => setIdea(e.target.value)}
-          placeholder="I want to sell handmade candles online…"
-          rows={3}
-          autoFocus
-          className="w-full resize-none rounded-2xl border border-border bg-bg-glass px-5 py-4 text-center font-body text-lg text-text placeholder:text-text-muted transition-colors duration-calm-fast ease-calm focus:border-accent focus:outline-none"
-        />
-        {idea.trim() && (
-          <Button type="submit" disabled={submitting} className="w-full duration-calm-base ease-calm">
-            {submitting ? "One sec…" : "Meet your company"}
+        <div className="flex flex-col gap-2 rounded-2xl border border-accent/35 bg-bg-glass-strong p-2 shadow-glow-cta sm:flex-row sm:items-center">
+          <textarea
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            placeholder="I want to sell handmade candles online…"
+            rows={1}
+            autoFocus
+            className="w-full resize-none bg-transparent px-3.5 py-3 font-body text-base text-text placeholder:text-text-muted focus:outline-none sm:py-2.5"
+          />
+          <Button
+            type="submit"
+            variant="gradient"
+            disabled={submitting || !idea.trim()}
+            className="w-full shrink-0 duration-calm-base ease-calm sm:w-auto"
+          >
+            {submitting ? "One sec…" : "Meet your company →"}
           </Button>
-        )}
+        </div>
       </form>
+
+      <p className="font-mono text-xs text-text-muted">No credit card · your own AI key, at cost · walls against surprise bills</p>
 
       <nav className="text-sm text-text-muted">
         Already have an account? <Link to="/login" className="text-text-secondary underline underline-offset-4">Sign in</Link>

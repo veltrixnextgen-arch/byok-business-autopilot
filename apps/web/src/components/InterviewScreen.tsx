@@ -2,7 +2,7 @@ import type { InterviewAnswers, InterviewQuestion } from "@byok/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ApiError, fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
-import { Button } from "./ui";
+import { Button, cx } from "./ui";
 
 // A 401 here means the session that passed the route's beforeLoad has
 // since expired — the only correct move is signing back in, not retrying
@@ -257,25 +257,34 @@ export function InterviewScreen() {
           {guessedIds.has(q.id) && (
             <p className="font-mono text-xs uppercase tracking-wide text-accent">We read your idea as this — confirm or correct</p>
           )}
-          <h1 className="font-display text-2xl font-semibold">{q.prompt}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-balance sm:text-4xl">{q.prompt}</h1>
 
           {q.kind === "text" && (
             <TextQuestion value={answers[q.id] ?? ""} onSubmit={(v) => answerCurrent(v)} />
           )}
 
           {q.kind === "single-select" && (
-            <div className="flex flex-wrap gap-2">
-              {q.options?.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => answerCurrent(opt.value)}
-                  className="rounded-full border border-border bg-bg-glass px-4 py-2 text-sm text-text transition-colors duration-calm-fast ease-calm hover:border-accent hover:text-accent data-[selected=true]:border-accent data-[selected=true]:text-accent"
-                  data-selected={answers[q.id] === opt.value}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="space-y-3">
+              {q.options?.map((opt) => {
+                const selected = answers[q.id] === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => answerCurrent(opt.value)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-border bg-bg-glass px-5 py-4 text-left text-text transition-colors duration-calm-fast ease-calm hover:border-accent/50 data-[selected=true]:border-accent"
+                    data-selected={selected}
+                  >
+                    <span>{opt.label}</span>
+                    <span
+                      className={cx(
+                        "size-5 shrink-0 rounded-full border-2",
+                        selected ? "border-accent bg-accent" : "border-border-strong",
+                      )}
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -301,9 +310,16 @@ export function InterviewScreen() {
         </div>
       )}
 
-      <button type="button" onClick={skipTheRest} className="text-sm text-text-muted underline underline-offset-4 hover:text-text-secondary">
-        Skip the rest — use defaults
-      </button>
+      <div className="space-y-2 text-center">
+        <p className="text-sm text-text-muted">One question at a time. Your answers shape the team.</p>
+        <button
+          type="button"
+          onClick={skipTheRest}
+          className="font-medium text-accent transition-colors duration-calm-fast ease-calm hover:text-accent-strong"
+        >
+          Skip the rest — figure it out from my description →
+        </button>
+      </div>
     </main>
   );
 }
