@@ -11,7 +11,13 @@ const TRUST_CORE_PACKAGES = ["@byok/router", "@byok/vault", "@byok/cost-gate", "
 
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/routeTree.gen.ts"],
+    // .output/.vercel/.nitro are build artifacts (see .gitignore) — CI
+    // runs `npm run typecheck` (a real `vite build`) before `npm run lint`,
+    // so these exist on disk at lint time. Nitro's own generated chunks
+    // carry inline eslint-disable comments for rules (eslint-plugin-unicorn)
+    // this repo's config never loads, which ESLint treats as an error for
+    // an unknown rule ID, not a no-op.
+    ignores: ["**/dist/**", "**/node_modules/**", "**/routeTree.gen.ts", "**/.output/**", "**/.vercel/**", "**/.nitro/**"],
   },
   {
     files: ["apps/api/**/*.ts", "apps/web/**/*.ts", "apps/web/**/*.tsx"],
