@@ -3,7 +3,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Badge, Button, Card } from "../components/ui";
 import { authClient } from "../lib/authClient";
-import { getLatestBatch, reassemble, renameAgent } from "../lib/extractionClient";
+import { getLatestBatch, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
 
 export const Route = createFileRoute("/org-chart")({
   beforeLoad: async () => {
@@ -42,6 +42,7 @@ function OrgChartPage() {
           setState({ kind: "error", message: batch.error ?? "Extraction didn't complete." });
           return;
         }
+        recordFunnelEvent("org_chart");
         setState({ kind: "ready", batchId: batch.id, chart: batch.orgChart });
       } catch (err) {
         if (!cancelled) setState({ kind: "error", message: err instanceof Error ? err.message : "Could not load your org chart." });
@@ -275,6 +276,8 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
         </div>
       )}
 
+      {stage >= 2 && <FeedbackPrompt />}
+
       {editMode.kind === "split" && (
         <SplitPanel
           agent={agentsById.get(editMode.agentId)}
@@ -289,6 +292,77 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
         />
       )}
     </main>
+  );
+}
+
+// MVP-0 tester gate (Phase B Step 6C): the one feedback question, asked
+// once the reveal has actually settled (stage >= 2 — matching where the
+// merge/share controls appear, i.e. once there's something real to react
+// to). No dashboard polish, no vendor — a plain inline block that submits
+// to the internal metrics store and then gets out of the way.
+function FeedbackPrompt() {
+  const [answer, setAnswer] = useState<boolean | null>(null);
+  const [freeText, setFreeText] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleAnswer(taughtSomething: boolean) {
+    setAnswer(taughtSomething);
+    setSubmitting(true);
+    try {
+      await submitFeedback(taughtSomething);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleFreeTextSubmit() {
+    if (answer === null) return;
+    setSubmitting(true);
+    try {
+      await submitFeedback(answer, freeText.trim() || undefined);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <Card className="mt-6">
+        <p className="text-sm text-text-secondary">Thanks — that helps.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-6 space-y-3">
+      <p className="text-sm text-text">Did this teach you something about your business you hadn't thought about?</p>
+      {answer === null ? (
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => handleAnswer(true)} disabled={submitting}>
+            Yes
+          </Button>
+          <Button variant="secondary" onClick={() => handleAnswer(false)} disabled={submitting}>
+            No
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <textarea
+            value={freeText}
+            onChange={(e) => setFreeText(e.target.value)}
+            placeholder="Anything specific? (optional)"
+            rows={2}
+            className="w-full resize-none rounded-md border border-border bg-bg-glass px-3 py-2 text-sm text-text placeholder:text-text-muted focus:border-accent focus:outline-none"
+          />
+          <Button onClick={handleFreeTextSubmit} disabled={submitting}>
+            Submit
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
 

@@ -126,6 +126,7 @@ jobs:
           UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
           WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INTERNAL_METRICS_TOKEN: ${{ secrets.INTERNAL_METRICS_TOKEN }}
         run: |
           BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
           STAGING_KMS_MASTER_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
@@ -147,6 +148,12 @@ jobs:
           # readServerConfigFromEnv throws at boot without it, same
           # discipline as DATABASE_URL/BETTER_AUTH_SECRET.
           railway variable set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" --service "$RAILWAY_SERVICE"
+          # Unlike BETTER_AUTH_SECRET/STAGING_KMS_MASTER_KEY above, this one
+          # is a registered GitHub secret, not generated fresh per deploy —
+          # the founder needs a STABLE token to keep hitting /internal/metrics
+          # with across the whole 20-tester pilot, not one that rotates (and
+          # breaks their bookmarked URL) on every redeploy.
+          railway variable set "INTERNAL_METRICS_TOKEN=$INTERNAL_METRICS_TOKEN" --service "$RAILWAY_SERVICE"
           # apps/web (vercel.app) and apps/api (railway.app) are genuinely
           # different sites, not just different ports — the session
           # cookie's default SameSite=Lax is never sent on cross-site

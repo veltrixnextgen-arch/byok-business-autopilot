@@ -3,7 +3,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui";
 import { authClient } from "../lib/authClient";
-import { fetchQuestions, loadIdea, startBatch } from "../lib/extractionClient";
+import { fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
 
 export const Route = createFileRoute("/interview")({
   beforeLoad: async () => {
@@ -45,6 +45,7 @@ function Interview() {
       void navigate({ to: "/" });
       return;
     }
+    recordFunnelEvent("interview");
     fetchQuestions(idea).then((res) => {
       setQuestions(res.questions);
       const prefilled: Record<string, string> = {};

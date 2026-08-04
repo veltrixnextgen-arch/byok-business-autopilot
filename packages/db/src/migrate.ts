@@ -15,6 +15,7 @@ const MIGRATION_FILES = [
   "0002_durable_storage.sql",
   "0003_better_auth.sql",
   "0004_signup_extraction_batches.sql",
+  "0005_signup_metrics.sql",
 ];
 
 export async function runMigrations(pool: QueryablePool): Promise<void> {
