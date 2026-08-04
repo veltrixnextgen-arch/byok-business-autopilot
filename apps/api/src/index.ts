@@ -1,5 +1,5 @@
 import type { Auth } from "@byok/auth";
-import type { PoolLike, SignupExtractionBatchStore } from "@byok/db";
+import type { PoolLike, SignupExtractionBatchStore, SignupMetricsStore } from "@byok/db";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppEnv, TrustCoreDeps } from "./context.js";
@@ -8,7 +8,9 @@ import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
 import { extractionRoute } from "./routes/extraction.js";
 import { healthRoute } from "./routes/health.js";
+import { internalMetricsRoute } from "./routes/internalMetrics.js";
 import { meRoute } from "./routes/me.js";
+import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
 
 export interface CreateAppOptions {
@@ -27,6 +29,13 @@ export interface CreateAppOptions {
   extraction: {
     batchStore: SignupExtractionBatchStore;
     apiKey: string;
+  };
+  /** MVP-0 tester gate (Phase B Step 6C) — the write side (funnel events,
+   *  feedback) is user-scoped like extraction; the read side
+   *  (internalMetrics) is a separate, token-gated operator view. */
+  metrics: {
+    metricsStore: SignupMetricsStore;
+    internalMetricsToken: string;
   };
 }
 
@@ -59,6 +68,19 @@ export function createApp(options: CreateAppOptions) {
         costGate: options.trustCore.costGate,
         ledger: options.trustCore.ledger,
         apiKey: options.extraction.apiKey,
+      }),
+    )
+    .use("/metrics/*", userMiddleware(options.auth))
+    .route("/metrics", signupMetricsRoute(options.metrics.metricsStore))
+    // Deliberately NOT userMiddleware — this is an operator view across
+    // every signup, gated by its own token instead (see internalMetrics.ts).
+    .route(
+      "/internal/metrics",
+      internalMetricsRoute({
+        pool: options.pool,
+        metricsStore: options.metrics.metricsStore,
+        batchStore: options.extraction.batchStore,
+        token: options.metrics.internalMetricsToken,
       }),
     );
 

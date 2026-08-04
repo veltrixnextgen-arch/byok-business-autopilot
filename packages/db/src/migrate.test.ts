@@ -68,3 +68,29 @@ test("0004_signup_extraction_batches.sql enables and forces RLS keyed on app.use
   assert.match(sql, /WITH CHECK \(user_id = current_setting\('app\.user_id', true\)::uuid\)/);
   assert.doesNotMatch(sql, /app\.tenant_id/);
 });
+
+test("0005_signup_metrics.sql RLS-policies both tables it creates, keyed on app.user_id with an internal-metrics read exception", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0005_signup_metrics.sql"), "utf8");
+
+  for (const table of ["signup_funnel_events", "signup_feedback"]) {
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`), `${table}: missing ENABLE RLS`);
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;`), `${table}: missing FORCE RLS`);
+    assert.match(sql, new RegExp(`CREATE POLICY user_isolation ON ${table}`), `${table}: missing user_isolation policy`);
+  }
+
+  // Also re-declares signup_extraction_batches' (0004) policy to add the
+  // same read exception, since the metrics view needs per-signup cost —
+  // a new migration re-declaring an existing policy name, not an edit to
+  // 0004's already-applied file.
+  assert.match(sql, /CREATE POLICY user_isolation ON signup_extraction_batches/);
+
+  // The internal-metrics read exception must never appear in a WITH CHECK
+  // clause — that would let a tester's own session insert or update rows
+  // under someone else's user_id by also setting app.internal_metrics,
+  // not just read across users.
+  const withChecks = sql.match(/WITH CHECK \([^)]*\)/g) ?? [];
+  assert.ok(withChecks.length === 3, "expected exactly one WITH CHECK per policy (3 tables touched)");
+  for (const clause of withChecks) {
+    assert.doesNotMatch(clause, /internal_metrics/);
+  }
+});

@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { createAuth } from "@byok/auth";
-import { createDb, createPool, SignupExtractionBatchStore } from "@byok/db";
+import { createDb, createPool, SignupExtractionBatchStore, SignupMetricsStore } from "@byok/db";
 import type { TrustCoreDeps } from "./context.js";
 import { createApp } from "./index.js";
 
@@ -20,21 +20,29 @@ export interface ServerConfig {
    *  that can't run the one thing it's the platform's job to pay for
    *  should fail at startup, not on the first signup. */
   anthropicApiKey: string;
+  /** Gates GET /internal/metrics (Phase B Step 6C) — a platform
+   *  credential the founder holds, not a user credential, same
+   *  discipline as anthropicApiKey: a server that can't gate this route
+   *  should fail at startup, not serve it unprotected on the first
+   *  request. */
+  internalMetricsToken: string;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const databaseUrl = env.DATABASE_URL;
   const authSecret = env.BETTER_AUTH_SECRET;
   const anthropicApiKey = env.ANTHROPIC_API_KEY;
+  const internalMetricsToken = env.INTERNAL_METRICS_TOKEN;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   if (!authSecret) throw new Error("BETTER_AUTH_SECRET is required");
   if (!anthropicApiKey) throw new Error("ANTHROPIC_API_KEY is required");
+  if (!internalMetricsToken) throw new Error("INTERNAL_METRICS_TOKEN is required");
 
   const port = Number(env.PORT ?? 3000);
   const authBaseUrl = env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
   const webOrigin = env.WEB_ORIGIN ?? "http://localhost:3002";
   const crossSiteCookies = env.CROSS_SITE_COOKIES === "true";
-  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies, anthropicApiKey };
+  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies, anthropicApiKey, internalMetricsToken };
 }
 
 /**
@@ -56,12 +64,14 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps) {
     crossSiteCookies: config.crossSiteCookies,
   });
   const batchStore = new SignupExtractionBatchStore(pool);
+  const metricsStore = new SignupMetricsStore(pool);
   const app = createApp({
     pool,
     auth,
     trustCore,
     webOrigin: config.webOrigin,
     extraction: { batchStore, apiKey: config.anthropicApiKey },
+    metrics: { metricsStore, internalMetricsToken: config.internalMetricsToken },
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
