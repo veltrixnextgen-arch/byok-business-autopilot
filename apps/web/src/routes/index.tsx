@@ -33,7 +33,7 @@ function Index() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-10 px-6 text-center">
       <div className="space-y-4 duration-ceremony-slow ease-ceremony">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">BYOK Business Autopilot</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Runwisely</p>
         <h1 className="font-display text-5xl font-semibold">
           Describe your idea. <span className="text-accent">Meet your company.</span>
         </h1>

@@ -1,4 +1,4 @@
-# BYOK Business Autopilot — Security Architecture
+# Runwisely — Security Architecture
 **Threat model · key lifecycle · isolation · injection defense · spend security · deploy security**
 *Companion to Master Plan v2 and System Architecture v6 — July 2026*
 
