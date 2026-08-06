@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { Button } from "../components/ui";
-import { saveIdea } from "../lib/extractionClient";
 import { authClient } from "../lib/authClient";
+import { saveIdea } from "../lib/extractionClient";
+import { LandingStory } from "../components/LandingStory";
+import { Button } from "../components/ui";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -31,47 +32,49 @@ export function Index() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 py-16 text-center sm:gap-10">
-      <div className="space-y-4 duration-ceremony-slow ease-ceremony">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Runwisely</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          Describe your idea.
-          <br />
-          <span className="bg-gradient-to-r from-accent from-20% to-money to-80% bg-clip-text text-transparent">
-            Meet your company.
-          </span>
-        </h1>
-        <p className="text-text-secondary">
-          One line is enough. We'll turn it into a task list, a team, and an org chart — before you even sign up.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="w-full space-y-4">
-        <div className="flex flex-col gap-2 rounded-2xl border border-accent/35 bg-bg-glass-strong p-2 shadow-glow-cta sm:flex-row sm:items-center">
-          <textarea
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            placeholder="I want to sell handmade candles online…"
-            rows={1}
-            autoFocus
-            className="w-full resize-none bg-transparent px-3.5 py-3 font-body text-base text-text placeholder:text-text-muted focus:outline-none sm:py-2.5"
-          />
-          <Button
-            type="submit"
-            variant="gradient"
-            disabled={submitting || !idea.trim()}
-            className="w-full shrink-0 duration-calm-base ease-calm sm:w-auto"
-          >
-            {submitting ? "One sec…" : "Meet your company →"}
-          </Button>
+    <>
+      <LandingStory />
+      <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-6 py-16 text-center sm:gap-10">
+        <div className="space-y-4 duration-ceremony-slow ease-ceremony">
+          <p className="font-mono text-xs uppercase tracking-[0.24em] text-accent/75">Act V · Your turn</p>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+            Describe your idea.
+            <br />
+            <span className="bg-gradient-to-r from-accent from-20% to-money to-80% bg-clip-text text-transparent">
+              Meet your company.
+            </span>
+          </h1>
+          <p className="text-text-secondary">
+            One line is enough. We'll turn it into a task list, a team, and an org chart — before you even sign up.
+          </p>
         </div>
-      </form>
 
-      <p className="font-mono text-xs text-text-muted">No credit card · your own AI key, at cost · walls against surprise bills</p>
+        <form onSubmit={handleSubmit} className="w-full space-y-4">
+          <div className="flex flex-col gap-2 rounded-2xl border border-accent/35 bg-bg-glass-strong p-2 shadow-glow-cta sm:flex-row sm:items-center">
+            <textarea
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              placeholder="I want to sell handmade candles online…"
+              rows={1}
+              className="w-full resize-none bg-transparent px-3.5 py-3 font-body text-base text-text placeholder:text-text-muted focus:outline-none sm:py-2.5"
+            />
+            <Button
+              type="submit"
+              variant="gradient"
+              disabled={submitting || !idea.trim()}
+              className="w-full shrink-0 duration-calm-base ease-calm sm:w-auto"
+            >
+              {submitting ? "One sec…" : "Meet your company →"}
+            </Button>
+          </div>
+        </form>
 
-      <nav className="text-sm text-text-muted">
-        Already have an account? <Link to="/login" className="text-text-secondary underline underline-offset-4">Sign in</Link>
-      </nav>
-    </main>
+        <p className="font-mono text-xs text-text-muted">No credit card · your own AI key, at cost · walls against surprise bills</p>
+
+        <nav className="text-sm text-text-muted">
+          Already have an account? <Link to="/login" className="text-text-secondary underline underline-offset-4">Sign in</Link>
+        </nav>
+      </main>
+    </>
   );
 }

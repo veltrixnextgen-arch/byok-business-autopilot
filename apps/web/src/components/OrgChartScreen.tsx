@@ -2,7 +2,7 @@ import type { Agent, OrgChart, Task } from "@byok/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
-import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
+import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { Badge, type BadgeTone, Button, Card } from "./ui";
 
 type LoadState = { kind: "loading" } | { kind: "waiting" } | { kind: "error"; message: string } | { kind: "ready"; batchId: string; chart: OrgChart };
@@ -415,15 +415,6 @@ function toggled(set: Set<string>, id: string): Set<string> {
   else next.add(id);
   return next;
 }
-
-const AVATAR_RING_CLASSES: Record<BadgeTone, string> = {
-  accent: "border-accent/50 bg-accent/15 text-accent",
-  money: "border-money/50 bg-money/15 text-money",
-  clients: "border-clients/50 bg-clients/15 text-clients",
-  marketing: "border-marketing/50 bg-marketing/15 text-marketing",
-  operations: "border-operations/50 bg-operations/15 text-operations",
-  danger: "border-danger/50 bg-danger/15 text-danger",
-};
 
 function AgentCard({
   agent,
