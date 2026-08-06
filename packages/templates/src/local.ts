@@ -145,7 +145,13 @@ const tasks: TemplateTask[] = [
     teamHint: "ops",
     frequency: "weekly",
     stakes: "medium",
-    tier: "T1",
+    // T2, matching ecommerce.ts's identical task id: drafting an external
+    // communication is consistently T2 everywhere else in the catalog
+    // (invoicing reminders, outreach drafts, onboarding sequences) — this
+    // was T1 here with no stated reason, found by the cross-template tier
+    // audit (2026-08-06). See tests/consistency.test.ts for the regression
+    // guard.
+    tier: "T2",
     autonomy: "locked",
     autonomyNote: "ordering never autonomous",
     handsTool: "POS",
