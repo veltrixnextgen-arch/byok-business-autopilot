@@ -32,3 +32,15 @@ export const DOT_TONE_CLASSES: Record<BadgeTone, string> = {
   operations: "bg-operations",
   danger: "bg-danger",
 };
+
+/** Avatar-circle ring/fill/text per tone (STEP 7 design fidelity pass) —
+ *  shared between the org chart reveal and the landing story's Act III
+ *  teaser so both draw agent cards from the same visual vocabulary. */
+export const AVATAR_RING_CLASSES: Record<BadgeTone, string> = {
+  accent: "border-accent/50 bg-accent/15 text-accent",
+  money: "border-money/50 bg-money/15 text-money",
+  clients: "border-clients/50 bg-clients/15 text-clients",
+  marketing: "border-marketing/50 bg-marketing/15 text-marketing",
+  operations: "border-operations/50 bg-operations/15 text-operations",
+  danger: "border-danger/50 bg-danger/15 text-danger",
+};
