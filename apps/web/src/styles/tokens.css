@@ -104,6 +104,18 @@
   --duration-calm-base: 180ms;
   --duration-calm-slow: 260ms;
   --ease-calm: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Landing-only motion override (ADR-018 addendum, 2026-08-07): the
+     landing route (apps/web/src/components/landing/) follows the
+     Emergent reference's own actual timing/easing instead of the app's
+     ceremony/calm registers above — reproducing the design meant
+     reproducing how it moves, not just how it looks, once the ceremony/
+     calm curves were confirmed as the wrong feel for this one route.
+     Nothing outside components/landing/ reads these three. */
+  --duration-landing-entrance: 0.7s;
+  --duration-landing-hover: 0.3s;
+  --duration-landing-button: 0.25s;
+  --ease-landing: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
@@ -151,6 +163,71 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 64px 64px;
+}
+
+/* Landing scroll-entrance reveal, matching the reference's own two-part
+   mechanism exactly: .rw-reveal is the permanent "not yet shown" resting
+   state (opacity 0, translateY(18px)); .rw-reveal-in is added once the
+   element's section scrolls into view (useRevealOnScroll,
+   components/landing/primitives.tsx) and plays a single 100%-only
+   keyframe forward-filled from wherever .rw-reveal left it — so the
+   same base class works whether the animation has fired yet or not.
+   prefers-reduced-motion's global transition/animation-duration
+   override below already collapses this to instant. */
+@keyframes rw-rise {
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rw-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+.rw-reveal-in {
+  animation: rw-rise var(--duration-landing-entrance) var(--ease-landing) forwards;
+}
+
+/* Landing ambient-motion layer — continuous, independent of scroll or
+   hover, matching the reference's own three loops exactly (durations,
+   easing, and keyframe math all read directly off its stylesheet, not
+   estimated). prefers-reduced-motion's animation-iteration-count: 1
+   override below turns each of these into a single, ~instant frame
+   instead of an infinite loop — "ambient loops disabled", not just
+   slowed down. */
+@keyframes rw-kenburns {
+  0%,
+  100% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.11) translate3d(-1.2%, -1.6%, 0);
+  }
+}
+@keyframes rw-orbit {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes rw-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.06);
+  }
+}
+.rw-kenburns {
+  animation: rw-kenburns 22s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.rw-orbit {
+  animation: rw-orbit 28s linear infinite;
+}
+.rw-breathe {
+  animation: rw-breathe 7s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

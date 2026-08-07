@@ -1,4 +1,4 @@
-import { RwCard, SectionContainer, SectionEyebrow, SectionHeading } from "./primitives";
+import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnScroll } from "./primitives";
 
 const RULES = ["Approval rules", "Daily spend limits", "Payment permissions", "Customer-contact permissions"] as const;
 
@@ -19,10 +19,12 @@ const STATUS_CLASSES: Record<(typeof PERMISSION_ROWS)[number]["status"], string>
 };
 
 export function ControlSafety() {
+  const [ref, revealed] = useRevealOnScroll<HTMLElement>();
+
   return (
-    <SectionContainer>
+    <SectionContainer ref={ref}>
       <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-        <div className="space-y-4">
+        <Reveal revealed={revealed} className="space-y-4">
           <SectionEyebrow>Control &amp; safety</SectionEyebrow>
           <SectionHeading>
             Your company works for you.
@@ -41,24 +43,26 @@ export function ControlSafety() {
               </li>
             ))}
           </ul>
-        </div>
+        </Reveal>
 
-        <RwCard className="space-y-3">
-          {PERMISSION_ROWS.map((row) => (
-            <div
-              key={`${row.agent}-${row.action}`}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-bg-glass-subtle px-4 py-3"
-            >
-              <div>
-                <p className="text-sm font-medium text-text">{row.agent}</p>
-                <p className="text-xs text-text-muted">{row.action}</p>
+        <Reveal revealed={revealed} delay={80}>
+          <RwCard className="space-y-3">
+            {PERMISSION_ROWS.map((row) => (
+              <div
+                key={`${row.agent}-${row.action}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-bg-glass-subtle px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-text">{row.agent}</p>
+                  <p className="text-xs text-text-muted">{row.action}</p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] ${STATUS_CLASSES[row.status]}`}>
+                  {row.status}
+                </span>
               </div>
-              <span className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] ${STATUS_CLASSES[row.status]}`}>
-                {row.status}
-              </span>
-            </div>
-          ))}
-        </RwCard>
+            ))}
+          </RwCard>
+        </Reveal>
       </div>
     </SectionContainer>
   );

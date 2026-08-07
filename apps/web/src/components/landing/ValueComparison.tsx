@@ -1,5 +1,5 @@
 import { cx } from "../ui";
-import { RwCard, SectionContainer, SectionEyebrow, SectionHeading } from "./primitives";
+import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnScroll } from "./primitives";
 
 const COLUMNS = ["Traditional hiring", "Freelancers", "Generic AI chat", "Runwisely"] as const;
 
@@ -19,46 +19,50 @@ function Mark({ present, strong }: { present: boolean; strong: boolean }) {
 }
 
 export function ValueComparison() {
+  const [ref, revealed] = useRevealOnScroll<HTMLElement>();
+
   return (
-    <SectionContainer>
-      <div className="mx-auto max-w-2xl space-y-3 text-center">
+    <SectionContainer ref={ref}>
+      <Reveal revealed={revealed} className="mx-auto max-w-2xl space-y-3 text-center">
         <SectionEyebrow>Value</SectionEyebrow>
         <SectionHeading>What actually gets you a company.</SectionHeading>
         <p className="text-text-secondary">Structural comparison of common approaches to getting the work of a business done.</p>
-      </div>
+      </Reveal>
 
-      <RwCard className="mt-10 overflow-x-auto p-0">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-border-subtle">
-              <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">Capability</th>
-              {COLUMNS.map((col) => (
-                <th
-                  key={col}
-                  className={cx(
-                    "px-6 py-4 font-mono text-[10px] uppercase tracking-[0.1em]",
-                    col === "Runwisely" ? "text-accent" : "text-text-muted",
-                  )}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((row) => (
-              <tr key={row.capability} className="border-b border-border-subtle last:border-0">
-                <td className="px-6 py-4 text-text">{row.capability}</td>
-                {row.values.map((present, i) => (
-                  <td key={COLUMNS[i]} className="px-6 py-4">
-                    <Mark present={present} strong={i === 3} />
-                  </td>
+      <Reveal revealed={revealed} delay={80}>
+        <RwCard className="mt-10 overflow-x-auto p-0">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">Capability</th>
+                {COLUMNS.map((col) => (
+                  <th
+                    key={col}
+                    className={cx(
+                      "px-6 py-4 font-mono text-[10px] uppercase tracking-[0.1em]",
+                      col === "Runwisely" ? "text-accent" : "text-text-muted",
+                    )}
+                  >
+                    {col}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </RwCard>
+            </thead>
+            <tbody>
+              {ROWS.map((row) => (
+                <tr key={row.capability} className="border-b border-border-subtle last:border-0">
+                  <td className="px-6 py-4 text-text">{row.capability}</td>
+                  {row.values.map((present, i) => (
+                    <td key={COLUMNS[i]} className="px-6 py-4">
+                      <Mark present={present} strong={i === 3} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </RwCard>
+      </Reveal>
     </SectionContainer>
   );
 }

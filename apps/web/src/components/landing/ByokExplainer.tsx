@@ -1,4 +1,4 @@
-import { RwCard, SectionContainer, SectionEyebrow, SectionHeading } from "./primitives";
+import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnScroll } from "./primitives";
 
 const STEPS = [
   { number: "01", title: "Runwisely", body: "Builds and runs the company structure." },
@@ -7,20 +7,24 @@ const STEPS = [
 ] as const;
 
 export function ByokExplainer() {
+  const [ref, revealed] = useRevealOnScroll<HTMLElement>();
+
   return (
-    <SectionContainer>
-      <div className="mx-auto max-w-2xl space-y-3 text-center">
+    <SectionContainer ref={ref}>
+      <Reveal revealed={revealed} className="mx-auto max-w-2xl space-y-3 text-center">
         <SectionEyebrow>Bring your own key</SectionEyebrow>
         <SectionHeading>Your team runs on your key.</SectionHeading>
         <p className="text-text-secondary">At cost. No AI markup. You control your provider and your bill.</p>
-      </div>
+      </Reveal>
       <div className="mt-12 grid gap-5 sm:grid-cols-3">
-        {STEPS.map((step) => (
-          <RwCard key={step.title}>
-            <p className="font-mono text-sm text-text-muted">{step.number}</p>
-            <h3 className="mt-3 font-display text-lg font-semibold text-text">{step.title}</h3>
-            <p className="mt-2 text-sm text-text-secondary">{step.body}</p>
-          </RwCard>
+        {STEPS.map((step, i) => (
+          <Reveal key={step.title} revealed={revealed} delay={i * 80}>
+            <RwCard>
+              <p className="font-mono text-sm text-text-muted">{step.number}</p>
+              <h3 className="mt-3 font-display text-lg font-semibold text-text">{step.title}</h3>
+              <p className="mt-2 text-sm text-text-secondary">{step.body}</p>
+            </RwCard>
+          </Reveal>
         ))}
       </div>
     </SectionContainer>

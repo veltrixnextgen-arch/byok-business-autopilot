@@ -31,4 +31,20 @@ describe("ScrollSequence", () => {
     expect(screen.queryByText("Your company exists.")).toBeNull();
     expect(screen.getAllByRole("heading", { level: 3 }).length).toBe(1);
   });
+
+  // The reference shows a 6-segment progress bar with a cumulative
+  // gradient fill (segments up to and including the active step are
+  // filled) — a gap the earlier computed-style-only pass missed
+  // entirely, since it only shows up as real CSS/DOM, not a static
+  // snapshot of colors and fonts.
+  it("shows a six-segment progress indicator, only the first segment filled at step 1", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+
+    const { container } = render(<ScrollSequence />);
+    const segments = [...container.querySelectorAll("span.h-1.w-8")];
+
+    expect(segments.length).toBe(6);
+    expect(segments[0].className).toContain("from-accent-strong");
+    expect(segments[1].className).not.toContain("from-accent-strong");
+  });
 });

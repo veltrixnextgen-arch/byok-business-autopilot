@@ -1,4 +1,4 @@
-import { RwCard, SectionContainer, SectionEyebrow, SectionHeading } from "./primitives";
+import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnScroll } from "./primitives";
 
 // Illustrative only — the spend-wall gate this depicts is a real
 // trust-core surface (packages/cost-gate, MVP-1) exposed to the user for
@@ -11,21 +11,25 @@ const STATS = [
 ] as const;
 
 export function SpendingWalls() {
+  const [ref, revealed] = useRevealOnScroll<HTMLElement>();
+
   return (
-    <SectionContainer>
+    <SectionContainer ref={ref}>
       <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
         <div className="order-2 grid grid-cols-2 gap-4 lg:order-1">
-          {STATS.map((stat) => (
-            <RwCard key={stat.label}>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">{stat.label}</p>
-              <p className="mt-2 font-display text-2xl font-semibold text-text">
-                {stat.value}
-                {stat.suffix && <span className="ml-1 text-sm font-normal text-text-muted">{stat.suffix}</span>}
-              </p>
-            </RwCard>
+          {STATS.map((stat, i) => (
+            <Reveal key={stat.label} revealed={revealed} delay={i * 80}>
+              <RwCard>
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">{stat.label}</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-text">
+                  {stat.value}
+                  {stat.suffix && <span className="ml-1 text-sm font-normal text-text-muted">{stat.suffix}</span>}
+                </p>
+              </RwCard>
+            </Reveal>
           ))}
         </div>
-        <div className="order-1 space-y-4 lg:order-2">
+        <Reveal revealed={revealed} delay={320} className="order-1 space-y-4 lg:order-2">
           <SectionEyebrow>Spending walls</SectionEyebrow>
           <SectionHeading>
             AI agents can act.
@@ -36,7 +40,7 @@ export function SpendingWalls() {
             Set a company-wide daily ceiling and per-agent limits. When a wall is reached, work stops and you are
             told — before the bill, not after.
           </p>
-        </div>
+        </Reveal>
       </div>
     </SectionContainer>
   );
