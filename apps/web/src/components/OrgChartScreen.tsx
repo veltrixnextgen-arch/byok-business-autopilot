@@ -1,5 +1,5 @@
 import type { Agent, OrgChart, Task } from "@byok/contracts";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
@@ -308,6 +308,7 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
       )}
 
       {stage >= 2 && <FeedbackPrompt />}
+      {stage >= 2 && <ClosingState />}
 
       {editMode.kind === "split" && (
         <SplitPanel
@@ -405,6 +406,33 @@ function FeedbackPrompt() {
           {saveError}
         </p>
       )}
+    </Card>
+  );
+}
+
+// The preview's actual dead end (reported directly by a tester): nothing
+// exists after the org chart, so the feedback prompt just trails off.
+// This is deliberately not a product screen — plain text naming what's
+// true today and what's next by name, one link out. No fake buttons, no
+// screens that don't exist yet (role naming, BYOK, approvals/spend
+// controls, the operating dashboard are all later Phase B/MVP-1 steps).
+// Shown unconditionally alongside FeedbackPrompt, not gated on having
+// answered it — skipping the feedback question shouldn't also hide the
+// only way this page tells you it's actually over.
+function ClosingState() {
+  return (
+    <Card className="mt-6 space-y-2">
+      <p className="text-sm text-text">That's the preview, in full — this is where it stops today.</p>
+      <p className="text-sm text-text-secondary">
+        What's next: naming every agent, connecting your own AI key (BYOK, at cost), approvals and spending
+        controls, and the operating dashboard where your company actually runs.
+      </p>
+      <Link
+        to="/dashboard"
+        className="inline-block text-sm font-medium text-accent transition-colors duration-calm-fast ease-calm hover:text-accent-strong"
+      >
+        Back to your dashboard →
+      </Link>
     </Card>
   );
 }
