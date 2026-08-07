@@ -142,6 +142,17 @@ body {
   }
 }
 
+/* Landing-page background motif (docs/design/reference.html, the
+   Emergent reference) — a barely-there 64px grid of hairlines behind
+   hero-weight sections. A plain utility class, not a component: nothing
+   outside apps/web/src/components/landing uses it. */
+.bg-grid-hairline {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
