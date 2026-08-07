@@ -1,16 +1,16 @@
 import { cx } from "../ui";
 
-// Hand-authored SVG, animated with CSS transform/opacity only — explicitly
-// NOT a port of the reference's own hero graphic, which appears to run a
-// live force-directed simulation (individual node positions visibly drift
-// between screenshots taken seconds apart, independent of scroll). Adding
-// a physics/charting dependency to reproduce that exactly would violate
-// the "no new runtime dependencies" constraint; this reproduces the
-// design instead — a center node, orbiting dust (rw-orbit, unlabeled so
-// rotation never has to fight upside-down text), and four labeled team
-// nodes each breathing on its own, slightly offset duration (rw-breathe)
-// so nothing moves in lockstep. "Alive" via varied CSS timing, not a
-// simulation.
+// Hand-authored SVG, animated with CSS transform/opacity only — not a
+// port of the reference's own hero graphic. Confirmed by reading the
+// reference's bundle (docs/design/reference-emergent.md): it's a plain
+// canvas 2D requestAnimationFrame loop, not a physics simulation — no
+// d3-force or similar dependency involved on either side. This reproduces
+// the same design with CSS instead of a JS draw loop — a center node,
+// orbiting dust (rw-orbit, unlabeled so rotation never has to fight
+// upside-down text), and four labeled team nodes each breathing on its
+// own, slightly offset duration (rw-breathe) so nothing moves in
+// lockstep. "Alive" via varied CSS timing, composited off the main
+// thread.
 //
 // `stage` controls how much of the graphic has "arrived" (used by
 // ScrollSequence to evolve the same illustration across its six steps):
