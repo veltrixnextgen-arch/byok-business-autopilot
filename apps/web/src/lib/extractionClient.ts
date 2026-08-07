@@ -16,8 +16,25 @@ export function saveIdea(idea: string): void {
   sessionStorage.setItem(IDEA_KEY, idea);
 }
 
+// `typeof window` guard: this is called from route `beforeLoad` hooks
+// (dashboard.tsx, onboarding.tsx), which TanStack Start runs during SSR
+// for a direct/reloaded page load, not just client-side navigations —
+// `sessionStorage` doesn't exist there, and an unguarded read would crash
+// the whole SSR render instead of just falling through to "no pending idea".
 export function loadIdea(): string | null {
+  if (typeof window === "undefined") return null;
   return sessionStorage.getItem(IDEA_KEY);
+}
+
+// Called once the interview's extraction actually completes (not on
+// every terminal outcome — "failed"/"queued" leave the user retrying the
+// same interview, so the idea is still live). Without this, a user who
+// finishes onboarding and later revisits /dashboard in the same tab would
+// keep getting bounced back into the interview forever, since the idea
+// they already used would still read as "pending".
+export function clearIdea(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(IDEA_KEY);
 }
 
 export interface QuestionsResponse {
