@@ -67,7 +67,7 @@ export function IdeaForm({
       <label htmlFor={inputId} className="sr-only">
         Your business idea
       </label>
-      <div className="group relative rounded-[22px] border border-white/10 bg-[rgba(16,20,34,0.82)] p-2 shadow-glow-cta backdrop-blur-md transition-colors duration-calm-base ease-calm focus-within:border-accent/50">
+      <div className="group relative rounded-[22px] border border-white/10 bg-[rgba(16,20,34,0.82)] p-2 shadow-glow-cta backdrop-blur-md transition-colors duration-landing-hover ease-landing focus-within:border-accent/50">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <textarea
             id={inputId}
@@ -80,7 +80,7 @@ export function IdeaForm({
           <button
             type="submit"
             disabled={submitting || !idea.trim()}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-accent-strong to-cta-warm px-6 py-3 font-display text-[15px] font-semibold text-[#120c22] shadow-glow-cta transition-transform duration-calm-fast ease-calm hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45 sm:mb-1 sm:mr-1"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-br from-accent-strong to-cta-warm px-6 py-3 font-display text-[15px] font-semibold text-[#120c22] shadow-glow-cta transition-transform duration-landing-button ease-landing hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45 sm:mb-1 sm:mr-1"
           >
             {submitting ? "One sec…" : buttonLabel}
           </button>

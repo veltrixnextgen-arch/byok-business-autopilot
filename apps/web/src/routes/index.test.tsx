@@ -37,6 +37,18 @@ beforeEach(() => {
   // in jsdom (nothing here triggers a real scroll), which is fine — these
   // tests aren't exercising that part.
   vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  // Every marketing section below the hero uses useRevealOnScroll
+  // (IntersectionObserver-based) — jsdom doesn't implement it at all.
+  // A no-op stub is enough: these tests aren't exercising scroll-reveal
+  // timing, just that the page mounts and the idea forms work.
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    },
+  );
 });
 
 afterEach(() => {

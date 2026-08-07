@@ -25,14 +25,14 @@ export function LandingNav() {
             <Link
               key={link.to}
               to={link.to}
-              className="font-body text-sm text-text-secondary transition-colors duration-calm-fast ease-calm hover:text-text"
+              className="font-body text-sm text-text-secondary transition-colors duration-landing-hover ease-landing hover:text-text"
             >
               {link.label}
             </Link>
           ))}
           <Link
             to="/login"
-            className="inline-flex items-center justify-center rounded-full border border-border bg-bg-glass px-5 py-2 font-display text-sm font-medium text-text transition-colors duration-calm-fast ease-calm hover:border-border-strong hover:bg-white/[0.08]"
+            className="inline-flex items-center justify-center rounded-full border border-border bg-bg-glass px-5 py-2 font-display text-sm font-medium text-text transition-colors duration-landing-hover ease-landing hover:border-border-strong hover:bg-white/[0.08]"
           >
             Sign In
           </Link>

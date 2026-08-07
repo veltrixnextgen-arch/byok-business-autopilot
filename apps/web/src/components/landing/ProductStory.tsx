@@ -1,4 +1,4 @@
-import { RwCard, SectionContainer, SectionEyebrow, SectionHeading } from "./primitives";
+import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnScroll } from "./primitives";
 
 const ITEMS = [
   {
@@ -19,23 +19,27 @@ const ITEMS = [
 ] as const;
 
 export function ProductStory() {
+  const [ref, revealed] = useRevealOnScroll<HTMLElement>();
+
   return (
-    <SectionContainer>
-      <div className="mx-auto max-w-2xl space-y-3 text-center">
+    <SectionContainer ref={ref}>
+      <Reveal revealed={revealed} className="mx-auto max-w-2xl space-y-3 text-center">
         <SectionEyebrow>Agents take ownership</SectionEyebrow>
         <SectionHeading>Then Runwisely freezes the chaos.</SectionHeading>
         <p className="text-text-secondary">
           Tasks stream into structure, group into teams, and turn into named agents. Nothing floats. Everything has an
           owner.
         </p>
-      </div>
+      </Reveal>
       <div className="mt-12 grid gap-5 sm:grid-cols-3">
-        {ITEMS.map((item) => (
-          <RwCard key={item.title}>
-            <p className="font-mono text-sm text-text-muted">{item.number}</p>
-            <h3 className="mt-3 font-display text-lg font-semibold text-text">{item.title}</h3>
-            <p className="mt-2 text-sm text-text-secondary">{item.body}</p>
-          </RwCard>
+        {ITEMS.map((item, i) => (
+          <Reveal key={item.title} revealed={revealed} delay={i * 80}>
+            <RwCard>
+              <p className="font-mono text-sm text-text-muted">{item.number}</p>
+              <h3 className="mt-3 font-display text-lg font-semibold text-text">{item.title}</h3>
+              <p className="mt-2 text-sm text-text-secondary">{item.body}</p>
+            </RwCard>
+          </Reveal>
         ))}
       </div>
     </SectionContainer>

@@ -12,7 +12,7 @@ export function ComingSoonPage({ title }: { title: string }) {
         <p className="max-w-md text-text-secondary">We're still building this page. In the meantime, describe your idea and meet your company.</p>
         <Link
           to="/"
-          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-accent-strong to-cta-warm px-6 py-3 font-display text-[15px] font-semibold text-[#120c22] shadow-glow-cta transition-transform duration-calm-fast ease-calm hover:-translate-y-px"
+          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-accent-strong to-cta-warm px-6 py-3 font-display text-[15px] font-semibold text-[#120c22] shadow-glow-cta transition-transform duration-landing-button ease-landing hover:-translate-y-px"
         >
           Back to the idea box →
         </Link>
