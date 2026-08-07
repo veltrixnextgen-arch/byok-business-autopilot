@@ -26,7 +26,12 @@ try {
 
   await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
 
-  const idea = page.locator("textarea");
+  // The landing page has had two idea-input textareas since the landing
+  // redesign (PR #67) — hero and the final-CTA section, both wired to the
+  // same submit logic. `.first()` targets the hero one specifically; a
+  // bare `page.locator("textarea")` throws a Playwright strict-mode
+  // violation the instant there's more than one match on the page.
+  const idea = page.locator("textarea").first();
   await idea.waitFor({ state: "visible", timeout: 10000 });
   await idea.fill("Interactivity check: a mobile pet-grooming business");
 
