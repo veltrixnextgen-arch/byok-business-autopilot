@@ -1,7 +1,7 @@
 import type { InterviewAnswers, InterviewQuestion } from "@byok/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ApiError, fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
+import { ApiError, clearIdea, fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
 import { Button, cx } from "./ui";
 
 // A 401 here means the session that passed the route's beforeLoad has
@@ -152,6 +152,11 @@ export function InterviewScreen() {
     try {
       const result = await startBatch(idea, buildFullAnswers(finalAnswers, finalJurisdiction));
       if (result.status === "completed") {
+        // Done with the idea's one job (getting here) — clear it so a
+        // later visit to /dashboard in this same tab doesn't read a
+        // stale pending idea and bounce a returning user with a real org
+        // chart straight back into the interview.
+        clearIdea();
         await navigate({ to: "/tasks" });
         return;
       }
