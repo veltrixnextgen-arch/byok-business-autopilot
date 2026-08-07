@@ -359,6 +359,34 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"rootDirectory":"apps/web","framework":"tanstack-start"}' > /dev/null
 
+      # Root cause of the stuck-idea-submission bug (2026-08-07): the
+      # `--build-env VITE_API_URL=...` flag on the deploy step below is
+      # ONLY seen by Vercel when it actually re-runs the build — and
+      # ADR-016's own workaround right below (no --force, so a broken
+      # jsxDEV bundle doesn't get reproduced) means Vercel is free to
+      # reuse a cached build instead. When it does, a `--build-env` value
+      # passed on the CLI invocation never reaches the bundle at all,
+      # silently: apps/web shipped with `authClient`'s dev-only
+      # `http://localhost:3000` fallback baked in, so every getSession()
+      # call failed instantly with ERR_CONNECTION_REFUSED — unreachable
+      # from any real visitor's browser, no matter how recent the deploy.
+      # Setting it as a real Vercel *project* environment variable (not
+      # just a transient CLI flag) is the officially supported mechanism
+      # Vercel's own build-cache invalidation is designed to key off —
+      # upsert=true so this is idempotent across every deploy. Kept
+      # alongside the existing --build-env flag below, not instead of it:
+      # belt and suspenders, and neither one touches the no-`--force`
+      # workaround itself.
+      - name: Ensure Vercel's VITE_API_URL env var matches this deploy's Railway URL
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          curl -sf -X POST "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?upsert=true" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"VITE_API_URL\",\"value\":\"${{ steps.railway_domain.outputs.url }}\",\"type\":\"plain\",\"target\":[\"production\"]}" > /dev/null
+
       # Now that Railway's URL is known, build apps/web with it baked in as
       # VITE_API_URL (Vite inlines this at build time, so it must be correct
       # for THIS deploy, not patched in afterward) and promote to Vercel's

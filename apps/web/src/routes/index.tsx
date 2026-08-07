@@ -3,11 +3,33 @@ import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/authClient";
 import { saveIdea } from "../lib/extractionClient";
 import { LandingStory } from "../components/LandingStory";
-import { Button } from "../components/ui";
+import { Button, FormError } from "../components/ui";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
+
+// This await chain (getSession, then navigate) had no error handling at
+// all — the same missing-.catch() pattern issue #45 found on the
+// interview screen's initial load, just one screen earlier this time. A
+// rejected getSession() (wrong API base URL, network blip, a genuinely
+// slow/unresponsive auth server) left setSubmitting(true) as the last
+// state update that ever ran: the button stuck on "One sec…" forever,
+// nothing to click, nothing to read, no way out. getSessionWithTimeout
+// bounds the "slow, not failing" case explicitly — the try/catch below
+// covers the "fails immediately" case (a wrong base URL fails fast with
+// ERR_CONNECTION_REFUSED, not slowly) — both routes end up in the same
+// recoverable error state, never a silent hang.
+const GET_SESSION_TIMEOUT_MS = 15_000;
+
+function getSessionWithTimeout(): Promise<Awaited<ReturnType<typeof authClient.getSession>>> {
+  return Promise.race([
+    authClient.getSession(),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timed out waiting for session")), GET_SESSION_TIMEOUT_MS)),
+  ]);
+}
+
+const SUBMIT_ERROR_MESSAGE = "Couldn't reach the server — check your connection and try again.";
 
 // The idea box IS the start of onboarding (userflow-v2.md Stage 0/1) —
 // typing into it is the whole interaction; "Sign up" only appears once
@@ -18,6 +40,7 @@ export function Index() {
   const navigate = useNavigate();
   const [idea, setIdea] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,10 +48,20 @@ export function Index() {
     if (!trimmed) return;
 
     setSubmitting(true);
+    setError(null);
     saveIdea(trimmed);
 
-    const { data } = await authClient.getSession();
-    await navigate({ to: data ? "/interview" : "/signup" });
+    try {
+      const { data } = await getSessionWithTimeout();
+      await navigate({ to: data ? "/interview" : "/signup" });
+    } catch {
+      // The idea itself is untouched — `idea` state and the textarea
+      // value were never cleared by this path, so a retry (clicking the
+      // same button again, now re-enabled) resubmits exactly what the
+      // user already typed.
+      setSubmitting(false);
+      setError(SUBMIT_ERROR_MESSAGE);
+    }
   }
 
   return (
@@ -67,6 +100,7 @@ export function Index() {
               {submitting ? "One sec…" : "Meet your company →"}
             </Button>
           </div>
+          {error && <FormError>{error}</FormError>}
         </form>
 
         <p className="font-mono text-xs text-text-muted">No credit card · your own AI key, at cost · walls against surprise bills</p>
