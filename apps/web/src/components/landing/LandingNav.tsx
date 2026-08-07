@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { LogoMark } from "./primitives";
 
 const NAV_LINKS = [
   { to: "/how-it-works", label: "How It Works" },
@@ -16,7 +17,8 @@ export function LandingNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border-subtle bg-[rgba(10,13,22,0.72)] backdrop-blur-md">
       <div className="mx-auto flex max-w-[1200px] items-center justify-between px-5 py-4 sm:px-8">
-        <Link to="/" className="font-display text-[17px] font-semibold tracking-tight text-text">
+        <Link to="/" className="flex items-center gap-2.5 font-display text-[17px] font-semibold tracking-tight text-text">
+          <LogoMark />
           Runwisely
         </Link>
 
