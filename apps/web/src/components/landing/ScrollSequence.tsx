@@ -2,6 +2,7 @@ import type { BadgeTone } from "../ui";
 import { useEffect, useRef, useState } from "react";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES } from "../../lib/teamHints";
 import { cx } from "../ui";
+import { type IllustrationStage, NetworkIllustration } from "./NetworkIllustration";
 
 // The core narrative: idea -> tasks -> teams -> agents -> company,
 // matching how extraction actually works bottom-up (master-plan-v2.md).
@@ -58,6 +59,15 @@ const TONES: BadgeTone[] = ["money", "clients", "marketing", "operations"];
 // matching color instead of falling through the generic cycle below.
 const TEAM_TONE: Record<string, BadgeTone> = { Money: "money", Clients: "clients", Marketing: "marketing", Operations: "operations" };
 
+// Idea-only until tasks appear (steps 1-2), teams/agents/company all read
+// as the same "arrived" state (step 3+) — matches NetworkIllustration's
+// three stages, not a 1:1 step mapping.
+function stageForStep(step: number): IllustrationStage {
+  if (step <= 0) return 0;
+  if (step <= 2) return 1;
+  return 2;
+}
+
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -100,10 +110,12 @@ export function ScrollSequence() {
 
   // A reduced-motion visitor never gets the scroll-pinned mechanic at
   // all — just the same six steps as a plain stacked, static list. No
-  // scroll-jacking, nothing to disorient, nothing timed.
+  // scroll-jacking, nothing to disorient, nothing timed. Text-only (no
+  // illustration): the six steps' copy already carries the full
+  // narrative on its own.
   if (reducedMotion) {
     return (
-      <section className="mx-auto max-w-[1200px] space-y-10 px-5 py-24 sm:px-8 lg:py-32">
+      <section className="mx-auto max-w-[1200px] space-y-10 px-5 py-24 text-center sm:px-8 lg:py-32">
         <SequenceEyebrow />
         {STEPS.map((step, i) => (
           <StepContent key={step.heading} step={step} index={i} />
@@ -115,10 +127,17 @@ export function ScrollSequence() {
   return (
     <section ref={containerRef} className="relative h-[420vh]">
       <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden pt-20 sm:pt-24">
-        <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
-          <SequenceEyebrow activeIndex={activeStep} />
-          <CrossfadeStep activeIndex={activeStep} />
-          <StepProgress activeIndex={activeStep} total={STEPS.length} />
+        <div className="mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
+          <div className="text-center lg:text-left">
+            <SequenceEyebrow activeIndex={activeStep} />
+            <CrossfadeStep activeIndex={activeStep} />
+            <StepProgress activeIndex={activeStep} total={STEPS.length} />
+          </div>
+          {/* Hidden below lg: the pinned viewport is height-constrained
+              (h-screen, overflow-hidden) and mobile text alone can
+              already fill it — adding the illustration there risks
+              clipping. The narrative is fully carried by text either way. */}
+          <NetworkIllustration stage={stageForStep(activeStep)} className="hidden lg:block" />
         </div>
       </div>
     </section>
@@ -175,7 +194,7 @@ function CrossfadeStep({ activeIndex }: { activeIndex: number }) {
 
 function StepProgress({ activeIndex, total }: { activeIndex: number; total: number }) {
   return (
-    <div className="mt-6 flex justify-center gap-2" aria-hidden="true">
+    <div className="mt-6 flex justify-center gap-2 lg:justify-start" aria-hidden="true">
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
@@ -191,7 +210,7 @@ function StepProgress({ activeIndex, total }: { activeIndex: number; total: numb
 
 function SequenceEyebrow({ activeIndex }: { activeIndex?: number }) {
   return (
-    <p className="mb-4 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
+    <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
       {activeIndex === undefined ? "Idea → tasks → teams → agents → company" : `Step ${activeIndex + 1} of ${STEPS.length}`}
     </p>
   );
@@ -199,10 +218,10 @@ function SequenceEyebrow({ activeIndex }: { activeIndex?: number }) {
 
 function StepContent({ step, index }: { step: (typeof STEPS)[number]; index: number }) {
   return (
-    <div className="text-center">
+    <div>
       <h3 className="font-display text-3xl font-semibold tracking-tight text-text sm:text-4xl">{step.heading}</h3>
-      <p className="mx-auto mt-3 max-w-lg text-text-secondary">{step.body}</p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+      <p className="mx-auto mt-3 max-w-lg text-text-secondary lg:mx-0">{step.body}</p>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
         {step.chips.map((chip, i) => {
           const tone = TEAM_TONE[chip] ?? TONES[(index + i) % TONES.length];
           return (

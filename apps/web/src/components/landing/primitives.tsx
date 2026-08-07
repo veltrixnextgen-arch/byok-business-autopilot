@@ -16,6 +16,20 @@ export const SectionContainer = forwardRef<HTMLElement, { children: ReactNode; c
   },
 );
 
+// Small gradient rounded-square mark before the "Runwisely" wordmark
+// (LandingNav, LandingFooter) — same gradient as the primary CTA, not a
+// separate brand color.
+export function LogoMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent-strong to-cta-warm font-display text-sm font-bold text-[#120c22]"
+    >
+      R
+    </span>
+  );
+}
+
 export function SectionEyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return <p className={cx("font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted", className)}>{children}</p>;
 }
