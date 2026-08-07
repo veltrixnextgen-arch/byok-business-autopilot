@@ -40,6 +40,8 @@ docker compose up -d --wait # Postgres + Redis, waits for both healthchecks
 npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL — first time only, see below
 ```
 
+**`.env`'s `ANTHROPIC_API_KEY` only matters for two things: `npm run extract` (the extraction CLI, `packages/agents/extraction`) and the fixture/experiment scripts under `test/` (`run-differentiation.ts`, `fix-missing-batch.ts`, `experiment-haiku-batch.ts`) — all of them make real Anthropic calls and need a *valid* key.** `apps/api`'s own server (`npm run dev`) requires the variable to be *present* to boot at all (`readServerConfigFromEnv` in `apps/api/src/server.ts` throws on an empty/missing value), but doesn't need it to be *valid* unless you actually drive an idea through the interview/extraction locally — the auth+tenant `/dashboard` proof below doesn't touch it. `npm test` doesn't depend on it at all (unit tests inject a fake placeholder value, never a real key). Staging reads its own copy from the `ANTHROPIC_API_KEY` GitHub Actions secret, set independently of this file — a stale or broken local `.env` key never affects what's deployed, and a working deploy never means the local key is fine.
+
 Then, day to day:
 
 ```bash
