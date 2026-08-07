@@ -33,3 +33,7 @@ has something concrete to diff against instead of relying on memory or
 screenshots that drift out of sync.
 
 See [ADR-018](../DECISIONS.md) for the rule this file exists to support.
+
+## Landing page: a second reference
+
+As of 2026-08-07, the landing route (`apps/web/src/routes/index.tsx`) is built against a different, newer reference — a live Emergent-generated prototype, not this file. See [reference-emergent.md](reference-emergent.md) for the source URL and what was measured. `reference.html` above remains authoritative for every other screen.
