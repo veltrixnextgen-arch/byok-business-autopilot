@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoonPage } from "../components/landing/ComingSoonPage";
+import { HowItWorksPage } from "../components/landing/HowItWorksPage";
 
 export const Route = createFileRoute("/how-it-works")({
-  component: HowItWorks,
+  component: HowItWorksPage,
 });
-
-function HowItWorks() {
-  return <ComingSoonPage title="How It Works" />;
-}

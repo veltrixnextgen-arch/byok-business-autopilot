@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode, useEffect, useRef, useState } from "react";
+import { forwardRef, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { cx } from "../ui";
 
 // Shared building blocks for the landing page's marketing sections
@@ -127,6 +127,77 @@ export function Reveal({
   return (
     <div className={cx("rw-reveal", revealed && "rw-reveal-in", className)} style={revealed ? { animationDelay: `${delay}ms` } : undefined}>
       {children}
+    </div>
+  );
+}
+
+// Single-open accordion (the reference's "How It Works" steps and
+// "Pricing" FAQ both use this exact interaction: click a closed row, it
+// expands and the previously-open one collapses). One index lives in the
+// parent so both lists can share the same behavior without duplicating
+// the open/close state machine.
+export function useAccordion(defaultOpenIndex: number | null = null): [number | null, (index: number) => void] {
+  const [openIndex, setOpenIndex] = useState(defaultOpenIndex);
+  function toggle(index: number) {
+    setOpenIndex((current) => (current === index ? null : index));
+  }
+  return [openIndex, toggle];
+}
+
+// Height-animates via a 0fr/1fr grid-template-rows track rather than
+// max-height — no arbitrary cap to guess at, and content that grows
+// (e.g. longer FAQ answers) never gets clipped. prefers-reduced-motion's
+// global transition-duration override (tokens.css) collapses this to an
+// instant swap, same as every other landing transition.
+export function AccordionItem({
+  isOpen,
+  onToggle,
+  title,
+  prefix,
+  children,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  title: ReactNode;
+  prefix?: ReactNode;
+  children: ReactNode;
+}) {
+  const contentId = useId();
+  return (
+    <div
+      className={cx(
+        "rounded-[18px] border transition-colors duration-landing-hover ease-landing",
+        isOpen ? "border-accent/30 bg-white/[0.045]" : "border-white/[0.08] bg-white/[0.035]",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
+      >
+        <span className="flex items-center gap-4">
+          {prefix}
+          <span className="font-display text-base font-semibold text-text sm:text-lg">{title}</span>
+        </span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 12 8"
+          className={cx("size-3 shrink-0 text-text-muted transition-transform duration-landing-hover ease-landing", isOpen && "rotate-180")}
+        >
+          <path d="M1 1.5 6 6.5 11 1.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <div
+        id={contentId}
+        role="region"
+        className={cx("grid transition-[grid-template-rows] duration-landing-hover ease-landing", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}
+      >
+        <div className="overflow-hidden">
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
