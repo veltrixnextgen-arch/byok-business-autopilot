@@ -108,7 +108,15 @@ async function reachSubmittingPhase() {
 
   render(<InterviewScreen />);
   fireEvent.change(await screen.findByRole("textbox"), { target: { value: "Grooming appointments" } });
-  fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+  // The Continue button's disabled state is driven by TextQuestion's own
+  // local state update from that change event — waiting for it to
+  // actually reflect (rather than assuming the click follows
+  // synchronously) is what makes this robust under CI's slower/differently
+  // scheduled environment, where a same-tick assumption was observed to
+  // flake even though it never did locally.
+  const continueButton = await screen.findByRole("button", { name: /continue/i });
+  await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false));
+  fireEvent.click(continueButton);
 
   await waitFor(() => expect(screen.getByText("Building your company…")).toBeTruthy());
 }
