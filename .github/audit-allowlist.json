@@ -5,7 +5,7 @@
       "package": "@tanstack/start-server-core",
       "reason": "Vulnerable copy is reached only through apps/web's build-time-only @tanstack/react-start-plugin (already the newest version published — no fix exists to upgrade to). The actual runtime framework, @tanstack/react-start, resolves its own separately-patched copy; apps/web/src has no createServerFn usage. See docs/TRACKING.md for the full trace.",
       "addedAt": "2026-08-07",
-      "expiresAt": "2026-11-05"
+      "expiresAt": "2020-01-01"
     },
     {
       "id": "GHSA-67mh-4wv8-2f99",
