@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { HeroPanel } from "./HeroPanel";
 import { IdeaForm } from "./IdeaForm";
-import { NetworkIllustration } from "./NetworkIllustration";
 import { Reveal, useRevealOnMount } from "./primitives";
+
+const RAIL_STEPS = ["Idea", "Tasks", "Teams", "Agents", "Company"] as const;
 
 export function Hero() {
   const revealed = useRevealOnMount();
@@ -45,12 +47,15 @@ export function Hero() {
           </Reveal>
 
           <Reveal revealed={revealed} delay={300}>
-            <p className="font-mono text-xs text-text-muted">No credit card · your own AI key · at cost · walls against surprise bills</p>
+            <p className="font-mono text-xs text-text-muted">Your own AI key, at cost · no markup on AI · walls against surprise bills</p>
           </Reveal>
         </div>
 
-        <Reveal revealed={revealed} delay={140}>
-          <NetworkIllustration stage={2} />
+        <Reveal revealed={revealed} delay={140} className="w-full">
+          <HeroPanel />
+          <p className="mt-4 text-center font-mono text-[11px] uppercase tracking-[0.15em] text-text-muted">
+            {RAIL_STEPS.join(" → ")}
+          </p>
         </Reveal>
       </div>
     </section>

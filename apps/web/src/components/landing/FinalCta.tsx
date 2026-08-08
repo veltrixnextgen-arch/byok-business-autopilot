@@ -23,7 +23,7 @@ export function FinalCta() {
           <IdeaForm buttonLabel="Build my company" />
         </Reveal>
         <Reveal revealed={revealed} delay={160}>
-          <p className="font-mono text-xs text-text-muted">No credit card · your own AI key · at cost</p>
+          <p className="font-mono text-xs text-text-muted">Your own AI key, at cost · no markup on AI</p>
         </Reveal>
       </div>
     </section>
