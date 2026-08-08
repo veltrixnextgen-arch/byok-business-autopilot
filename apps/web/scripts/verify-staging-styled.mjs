@@ -124,6 +124,12 @@ try {
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
 
+  // Registered *before* the click that triggers navigation to /dashboard
+  // (which is what triggers Dashboard mounting, which is what triggers
+  // its useEffect's GET /me) — a forward-looking listener has to be
+  // armed before the request fires, not checked for after the fact.
+  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 15000 });
+
   await page.getByPlaceholder(/acme studio/i).waitFor({ state: "visible", timeout: 15000 });
   await page.getByPlaceholder(/acme studio/i).fill(`Verify styled ${stamp}`);
   await page.getByRole("button", { name: /^create company$/i }).click();
@@ -144,18 +150,37 @@ try {
   // transparent, not opaque black) background, both of which only come
   // from the `Card` component's own classes, never from browser defaults.
   //
-  // No poll here on purpose (PR #79's 4.5s poll was reverted, not kept in
-  // any form) — it was built on a latency theory two rounds of real
-  // evidence disproved. If this fails now, it fails for a reason worth
-  // seeing immediately, not one worth waiting out.
-  const cardStyled = await page.evaluate(() => {
-    const els = [...document.querySelectorAll("div")];
-    return els.some((el) => {
-      const cs = getComputedStyle(el);
-      const radius = Number.parseFloat(cs.borderRadius);
-      return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
-    });
-  });
+  // The heading renders synchronously on mount; the Card only appears
+  // once dashboard.tsx's own useEffect (a GET /me) resolves — confirmed
+  // live (2026-08-08) via Railway's HTTP logs: /me genuinely dispatches
+  // and would resolve normally, but checking with zero wait caught it
+  // mid-flight and this script's own browser.close() aborted it (a 499
+  // in the logs). Waiting for that specific real response — not an
+  // arbitrary poll — removes the guesswork: if /me never resolves for a
+  // real reason, this still fails, honestly, on a real timeout.
+  const meResponse = await meResponsePromise;
+  console.log(`  /me responded ${meResponse.status()} ✓`);
+
+  // The response resolving doesn't guarantee React has committed the
+  // resulting setMe(...) re-render yet (res.json() itself is another
+  // microtask, then React's own commit) — waitForFunction polls the DOM
+  // until the condition is true or the bounded timeout elapses, rather
+  // than checking once immediately after a promise most of one render
+  // cycle away from actually being reflected.
+  const cardStyled = await page
+    .waitForFunction(
+      () => {
+        const els = [...document.querySelectorAll("div")];
+        return els.some((el) => {
+          const cs = getComputedStyle(el);
+          const radius = Number.parseFloat(cs.borderRadius);
+          return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
+        });
+      },
+      { timeout: 2000 },
+    )
+    .then(() => true)
+    .catch(() => false);
   if (!cardStyled) {
     throw new Error("/dashboard: no element has a rounded, translucent card background — expected the Card component's styling to be present.");
   }
