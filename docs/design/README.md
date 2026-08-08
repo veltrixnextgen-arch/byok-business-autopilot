@@ -34,6 +34,8 @@ screenshots that drift out of sync.
 
 See [ADR-018](../DECISIONS.md) for the rule this file exists to support.
 
-## Landing page: a second reference
+## A second reference, and its real scope
 
-As of 2026-08-07, the landing route (`apps/web/src/routes/index.tsx`) is built against a different, newer reference — a live Emergent-generated prototype, not this file. See [reference-emergent.md](reference-emergent.md) for the source URL and what was measured. `reference.html` above remains authoritative for every other screen.
+As of 2026-08-07, the landing route (`apps/web/src/routes/index.tsx`) is built against a different, newer reference — a live Emergent-generated prototype. See [reference-emergent.md](reference-emergent.md) for the source URL and what was measured on the landing page specifically.
+
+A later inventory (2026-08-07, see ADR-018's third addendum) found that reference actually has complete designs for the whole app — 17 screens, not just marketing. The rule is now per-screen, not per-route-family: **wherever the Emergent reference has a design for an `apps/web` screen, it's authoritative for that screen; `reference.html` above governs only what it doesn't cover.** Six of its screens (agent detail, approvals, charter, digest, spending-wall settings, BYOK connect) have no `apps/web` counterpart yet — their designs are recorded at [emergent-app-screens/](emergent-app-screens/) for when that feature work happens, not built now.
