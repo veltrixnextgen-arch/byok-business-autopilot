@@ -87,60 +87,46 @@ try {
   if (!signUpRes.ok) {
     throw new Error(`Could not create the disposable test account for the /dashboard check (HTTP ${signUpRes.status}).`);
   }
-  const setCookieHeader = signUpRes.headers.get("set-cookie");
-  if (!setCookieHeader) {
-    throw new Error("Signup succeeded but returned no session cookie — cannot check /dashboard.");
-  }
-  const [cookiePair] = setCookieHeader.split(";");
 
-  // Pre-create the org over the API (this part was never in question —
-  // organization/create and organization/set-active both return real
-  // 200s here every time). What changed is HOW the browser itself gets a
-  // session: not anymore.
-  const orgRes = await fetch(`${apiUrl}/api/auth/organization/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Origin: webUrl, Cookie: cookiePair },
-    body: JSON.stringify({ name: `Verify styled ${stamp}`, slug: `verify-styled-${stamp}` }),
-  });
-  if (!orgRes.ok) {
-    throw new Error(`Could not create an organization for the /dashboard check (HTTP ${orgRes.status}).`);
-  }
-  const org = await orgRes.json();
-
-  const setActiveRes = await fetch(`${apiUrl}/api/auth/organization/set-active`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Origin: webUrl, Cookie: cookiePair },
-    body: JSON.stringify({ organizationId: org.id }),
-  });
-  if (!setActiveRes.ok) {
-    throw new Error(`Could not set the organization active for the /dashboard check (HTTP ${setActiveRes.status}).`);
-  }
-
-  // Root cause of two false failures (2026-08-08), corrected: this check
-  // used to inject the API-origin session cookie directly into the
-  // browser's cookie jar (page.context().addCookies()) and then do a
-  // fresh page.goto("/dashboard") — a full page load, which runs
-  // beforeLoad server-side. A cookie added to the browser's jar for
-  // Railway's domain is never part of the browser's own outgoing request
-  // to Vercel, so server-side code has no way to see it; confirmed live
-  // (page.url() after that navigation was actually "/login", and
-  // authClient.getSession() never even dispatched a request server-side).
-  // That first "the /me fetch never dispatches" finding was itself an
-  // artifact of this same setup, not a real dashboard.tsx bug — record
-  // corrected here, not left sitting in docs/TRACKING.md as if it were.
+  // Root cause of three false failures (2026-08-08), corrected. Two
+  // separate bugs, both in this check, neither in dashboard.tsx or
+  // apiClient.ts:
   //
-  // Fixed for real: sign in through the actual login form, the same path
-  // a real user takes. This makes signIn.email() (a genuine cross-site
-  // fetch from inside the page) the one establishing the cookie — the
-  // browser's own fetch naturally stores whatever Set-Cookie it gets back
-  // for that origin, no manual injection needed — and login.tsx's
-  // post-success `navigate({ to: "/dashboard" })` is a client-side router
-  // transition, not a fresh page load, so beforeLoad runs in the
-  // already-hydrated browser with a session it can actually see.
+  // 1. Cookie injection (original version): the API-origin session
+  //    cookie was written straight into the browser's cookie jar
+  //    (page.context().addCookies()), then checked via a fresh
+  //    page.goto("/dashboard") — a full page load, which runs beforeLoad
+  //    server-side. A cookie sitting in the browser's jar for Railway's
+  //    domain is never part of the browser's own outgoing request to
+  //    Vercel, so server-side code has no way to see it. Confirmed live:
+  //    the landed URL was "/login" and authClient.getSession() never
+  //    even dispatched a request server-side.
+  //
+  // 2. Session mismatch (first "real sign-in" attempt): switched to
+  //    signing in through the actual login form — correct instinct, but
+  //    organization/create + organization/set-active were still called
+  //    over the API using the *signup* response's session cookie. Each
+  //    sign-in issues a brand-new session; the browser's real,
+  //    UI-established session was never the one that got an active org.
+  //    Confirmed live: sign-in returned 200, get-session returned 200,
+  //    and the browser landed on /onboarding — correctly, since *that*
+  //    session genuinely had no active org yet.
+  //
+  // Fixed for real: sign in through the form, then fill and submit the
+  // *actual onboarding form* too, rather than pre-creating the org over
+  // the API at all. OnboardingScreen.tsx's own create + setActive calls
+  // are guaranteed to run against whatever session the browser is
+  // currently holding, and its own post-success navigate({ to:
+  // "/dashboard" }) is a client-side router transition — the same path,
+  // start to finish, a real signed-up user takes.
   await page.goto(`${webUrl}/login`, { waitUntil: "networkidle", timeout: 30000 });
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
+
+  await page.getByPlaceholder(/acme studio/i).waitFor({ state: "visible", timeout: 15000 });
+  await page.getByPlaceholder(/acme studio/i).fill(`Verify styled ${stamp}`);
+  await page.getByRole("button", { name: /^create company$/i }).click();
 
   const dashboardHeading = page.getByRole("heading", { name: /^dashboard$/i });
   await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
