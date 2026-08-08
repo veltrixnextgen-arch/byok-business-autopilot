@@ -114,6 +114,27 @@ try {
   if (!orgRes.ok) {
     throw new Error(`Could not create an organization for the /dashboard check (HTTP ${orgRes.status}).`);
   }
+  const org = await orgRes.json();
+
+  // Root cause of a two-run false failure (2026-08-08): creating an
+  // organization does NOT make it the session's active one — Better Auth
+  // requires this as a separate call. OnboardingScreen.tsx already knows
+  // this (it calls organization.create then organization.setActive as
+  // two distinct steps); this script only did the first, so
+  // dashboard.tsx's beforeLoad guard (no activeOrganizationId ->
+  // /onboarding) silently redirected every run to /onboarding instead of
+  // /dashboard. The check still "passed" the heading-font assertion
+  // (onboarding has its own correctly-styled <h1>) while having zero
+  // chance of ever finding dashboard's Card — a false failure that looked
+  // exactly like a real one for two consecutive deploys.
+  const setActiveRes = await fetch(`${apiUrl}/api/auth/organization/set-active`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: webUrl, Cookie: cookiePair },
+    body: JSON.stringify({ organizationId: org.id }),
+  });
+  if (!setActiveRes.ok) {
+    throw new Error(`Could not set the organization active for the /dashboard check (HTTP ${setActiveRes.status}).`);
+  }
 
   await assertHeadingUsesDisplayFont(page, "/dashboard");
   // Dashboard is deliberately minimal (STEP 8 builds it out for real) — no
