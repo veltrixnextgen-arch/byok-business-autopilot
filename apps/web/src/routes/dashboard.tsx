@@ -48,16 +48,34 @@ function Dashboard() {
   const [batch, setBatch] = useState<LatestBatch | null>(null);
 
   useEffect(() => {
-    apiClient.me
-      .$get()
-      .then(async (res) => {
+    // DIAGNOSTIC (temporary — remove once resolved): PR #80 fixed the
+    // check to actually reach /dashboard (confirmed: organization/set-active
+    // now returns 200), but the Card still never appears. Tracing effect
+    // entry, the call itself, and both outcomes to see what's different
+    // now that we're genuinely on this page.
+    console.log("[dashboard] effect running, about to call apiClient.me.$get()");
+    let request;
+    try {
+      request = apiClient.me.$get();
+      console.log("[dashboard] apiClient.me.$get() returned, awaiting response");
+    } catch (err) {
+      console.log("[dashboard] apiClient.me.$get() threw synchronously:", String(err));
+      setError(String(err));
+      request = undefined;
+    }
+    request
+      ?.then(async (res) => {
+        console.log(`[dashboard] /me responded: ${res.status}`);
         if (!res.ok) {
           setError(`API returned ${res.status}`);
           return;
         }
         setMe(await res.json());
       })
-      .catch((err: unknown) => setError(String(err)));
+      .catch((err: unknown) => {
+        console.log("[dashboard] /me promise rejected:", String(err));
+        setError(String(err));
+      });
     // Fire-and-forget, same spirit as recordFunnelEvent — a returning
     // user's "back into your org chart" link is a nice-to-have, not
     // something worth blocking or erroring the dashboard over.

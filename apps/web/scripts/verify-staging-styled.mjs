@@ -136,7 +136,23 @@ try {
     throw new Error(`Could not set the organization active for the /dashboard check (HTTP ${setActiveRes.status}).`);
   }
 
+  // DIAGNOSTIC (temporary — remove once resolved): the set-active fix
+  // (PR #80) confirmed 200 on the wire but the Card still never appeared.
+  // Surfacing the ACTUAL landed URL (is beforeLoad redirecting somewhere
+  // else again, for a different reason this time?) plus every console
+  // message, page error, and API-origin response for this page.
+  const apiHostname = new URL(apiUrl).hostname;
+  page.on("console", (msg) => console.log(`  [dashboard console:${msg.type()}] ${msg.text()}`));
+  page.on("pageerror", (err) => console.log(`  [dashboard pageerror] ${String(err)}`));
+  page.on("requestfailed", (req) => console.log(`  [dashboard requestfailed] ${req.method()} ${req.url()} — ${req.failure()?.errorText}`));
+  page.on("response", (res) => {
+    if (res.url().includes(apiHostname)) {
+      console.log(`  [dashboard response] ${res.request().method()} ${res.url()} -> ${res.status()}`);
+    }
+  });
+
   await assertHeadingUsesDisplayFont(page, "/dashboard");
+  console.log(`  [dashboard] actual landed URL: ${page.url()}`);
   // Dashboard is deliberately minimal (STEP 8 builds it out for real) — no
   // gradient CTA is expected there, so this checks its Card container
   // instead: a real, non-zero border-radius and a translucent (not fully
