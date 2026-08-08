@@ -2,7 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { loadIdea, recordFunnelEvent } from "../lib/extractionClient";
 import { signUp } from "../lib/authClient";
-import { Button, Card, Field, FormError, TextInput } from "./ui";
+import { AuthField, AuthInput, AuthShell, AuthSubmitButton } from "./AuthShell";
+import { FormError } from "./ui";
 
 // Split out of routes/signup.tsx (a plain export here, so it's directly
 // testable) — same reason as InterviewScreen: TanStack Start's route-file
@@ -35,41 +36,44 @@ export function SignupScreen() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-16">
-      <div className="space-y-2 text-center">
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Sign up</h1>
-        <p className="text-text-secondary">Meet your company in a few minutes.</p>
-      </div>
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Name" htmlFor="name">
-            <TextInput id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-          </Field>
-          <Field label="Email" htmlFor="email">
-            <TextInput id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </Field>
-          <Field label="Password" htmlFor="password">
-            <TextInput
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={8}
-              required
-            />
-          </Field>
-          {error && <FormError>{error}</FormError>}
-          <Button type="submit" variant="gradient" disabled={submitting} className="w-full justify-center">
-            {submitting ? "Signing up…" : "Sign up"}
-          </Button>
-        </form>
-      </Card>
-      <p className="text-center text-sm text-text-secondary">
+    <AuthShell
+      eyebrow="Get started"
+      headline={
+        <>
+          Meet your{" "}
+          <span className="bg-gradient-to-br from-accent-strong to-cta-warm bg-clip-text text-transparent">company.</span>
+        </>
+      }
+      subtitle="Sign up to build it in a few minutes."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <AuthField label="Name" htmlFor="name">
+          <AuthInput id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        </AuthField>
+        <AuthField label="Email" htmlFor="email">
+          <AuthInput id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </AuthField>
+        <AuthField label="Password" htmlFor="password">
+          <AuthInput
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
+        </AuthField>
+        {error && <FormError>{error}</FormError>}
+        <AuthSubmitButton type="submit" disabled={submitting}>
+          {submitting ? "Signing up…" : "Sign up"}
+        </AuthSubmitButton>
+      </form>
+      <p className="mt-6 text-sm text-text-secondary">
         Already have an account?{" "}
         <Link to="/login" className="font-medium text-accent transition-colors duration-calm-fast ease-calm hover:text-accent-strong">
           Sign in
         </Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }
