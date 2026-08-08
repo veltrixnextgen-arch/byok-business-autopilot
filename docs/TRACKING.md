@@ -54,6 +54,67 @@ Per ADR-010 — these apply for the whole Phase B build, not just the first step
 
 Full incident detail: docs/DECISIONS.md ADR-016. Tracking issue: #39 (blocks trusting staging as "verified working" until closed — does not block this PR, which discloses the outage rather than papering over it).
 
+## Known state: two `npm audit` findings with no real fix available (2026-08-08)
+
+Both were investigated in full (dependency-tree tracing, registry checks, a
+real clean-install verification) rather than run through `npm audit fix
+--force`, whose suggested "fixes" for these two are actively wrong — see
+below. `hono` (the third finding from the same audit run) was a real,
+actionable fix and shipped separately; only these two remain open.
+
+**`@tanstack/start-server-core` <1.167.30 (GHSA-9m65-766c-r333, moderate — "inbound
+server-function request deserialization could invoke a sibling
+client-referenced server function"), reached via `apps/web`'s
+`@tanstack/react-start-plugin@1.131.50`.**
+- **Why the audit's suggested fix is wrong:** `npm audit fix --force` proposes installing
+  `@tanstack/react-start-plugin@1.121.22` — a *downgrade* from our current `1.131.50`.
+  Confirmed against the npm registry: `1.131.50` is already the newest version TanStack
+  has published for this package. There is no newer release that carries a patched
+  `start-server-core`; the "fix" doesn't fix anything, it just moves 10 patch versions
+  backward for zero security benefit.
+- **Why the deployed request path isn't exposed:** `@tanstack/react-start-plugin` is a
+  Vite build-time plugin (`apps/web/vite.config.ts`'s `tanstackStart()`), never imported
+  by application/runtime code. The actual framework runtime, `@tanstack/react-start`
+  (currently `1.168.34`), resolves its **own** separate copy of `@tanstack/start-server-core`
+  at `1.169.17` — already past the patched threshold (confirmed via `npm ls
+  @tanstack/start-server-core`, which shows both copies side by side). `apps/web/src`
+  has zero usages of `createServerFn` or any other server-function API, so the
+  vulnerable deserialization path isn't reachable through our own code either way.
+  Combined with ADR-016's architecture (real SSR request serving goes through
+  `@tanstack/nitro-v2-vite-plugin` → `nitropack`, not through this plugin), this
+  advisory has no real-world exposure in this deployment today.
+- **Action:** none. Tracking upstream for a `@tanstack/react-start-plugin` release
+  that bumps its nested `start-server-core` past `1.167.30`. Re-check next time
+  `npm audit` is run as part of any dependency work.
+
+**`esbuild` <=0.24.2 (GHSA-67mh-4wv8-2f99, moderate — "esbuild enables any website to
+send any requests to the development server and read the response"), reached via
+`packages/db`'s `drizzle-kit@0.31.10` → the deprecated `@esbuild-kit/esm-loader` →
+`@esbuild-kit/core-utils@3.3.2` (pins `esbuild: ~0.18.20`).**
+- **Why the audit's suggested fix is wrong:** `npm audit fix --force` proposes
+  `drizzle-kit@0.18.1` — a downgrade from our current `0.31.10` to a pre-1.0 release
+  roughly 13 minor versions back, purely to dodge a legacy sub-dependency. Real risk
+  of breaking the migration CLI's config/schema handling, for a vulnerability that
+  isn't reachable in our setup (see below).
+- **Why a narrow `overrides` pin doesn't work either:** tried forcing just this nested
+  `esbuild` to a safe version (`0.25.12`, already used elsewhere in the tree) two ways —
+  a blanket top-level `overrides.esbuild` entry, and a scoped
+  `overrides["@esbuild-kit/core-utils"].esbuild` entry. Neither changed the resolved
+  version after a full clean reinstall (`rm -rf node_modules && npm install`); this
+  specific nested optional/platform-binary dependency doesn't respond to `npm`'s
+  `overrides` the way `h3` does elsewhere in this same file. Not investigated further —
+  the real-world risk doesn't justify chasing an npm resolution quirk.
+- **Why the real-world risk is near zero regardless:** the advisory requires exposing
+  esbuild's own dev server to untrusted network access. `@esbuild-kit/core-utils` is
+  only reachable through `drizzle-kit`'s CLI (local migrations, never deployed), and
+  nothing in this repo starts an esbuild dev server from that code path.
+  `@esbuild-kit/core-utils` is also itself deprecated upstream ("merged into tsx") —
+  the dependency will most likely disappear on its own the next time `drizzle-kit`
+  drops it.
+- **Action:** none. Re-check after any future `drizzle-kit` upgrade, since the
+  deprecated `@esbuild-kit/*` chain is likely to be dropped from a newer release
+  without any downgrade needed.
+
 ## Known pattern: unrelated plugin instructions appearing in session context
 
 Recurring, first noticed 2026-08-04: some Claude Code sessions working in this repo have had `<system-reminder>` blocks appear mid-session claiming to be plugin setup/hook instructions for tools with no relationship to this project — e.g. a "Carta CRM" plugin telling the agent to call CRM tools before every action, or unrelated marketing/sales/investor-plugin skill listings. This repo has no Carta, CRM, or similar integration; the instructions don't originate from this session's user and don't match anything in this codebase.
