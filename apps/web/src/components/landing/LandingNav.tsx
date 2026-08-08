@@ -7,10 +7,6 @@ const NAV_LINKS = [
   { to: "/pricing", label: "Pricing" },
 ] as const;
 
-// "How It Works" and "Pricing" route to plain coming-soon pages
-// (ComingSoonPage), not dead links — a nav that promises pages and 404s
-// is worse than no nav. Building those pages out for real is separate
-// post-pilot work; this just keeps the nav honest in the meantime.
 export function LandingNav() {
   const [open, setOpen] = useState(false);
 

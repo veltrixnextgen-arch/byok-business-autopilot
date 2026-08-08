@@ -45,7 +45,7 @@ Consistent `max-width: 1200px` container, `px-5`/`sm:px-8` side padding, `py-24`
 
 ## Navigation
 
-Persistent top nav (logo, "How It Works", "Pricing", "Sign In", mobile hamburger) and a footer with the same links + copyright. Reproduced; "How It Works" and "Pricing" route to plain coming-soon placeholders (`apps/web/src/components/landing/ComingSoonPage.tsx`) rather than being built out — that's separate, post-pilot work. The reference's small gradient logo mark (before the "Runwisely" wordmark) is not yet reproduced — PR B.
+Persistent top nav (logo, "How It Works", "Pricing", "Sign In", mobile hamburger) and a footer with the same links + copyright. Reproduced. **Phase 1B (shipped)**: "How It Works" and "Pricing" are now real pages (`HowItWorksPage.tsx`, `PricingPage.tsx`) built from the reference's own copy — the reference's 8-step accordion and full FAQ, captured live by expanding every collapsed step. Two departures from a literal copy: (1) team/example content uses this app's own real taxonomy and `InteractivePreview.tsx`'s existing demo example rather than the reference's own demo personas; (2) numbers that would read as real product cost/performance data (an agent's per-day cost, a dashboard's daily spend total) are not reproduced — the reference itself ships tier prices as `—/month` placeholders with an on-page "Pricing not finalised" disclaimer, which `lib/pricingConstants.ts` matches with a `TODO(product)` rather than guessing a number.
 
 ## What was explicitly NOT copied, and what's still open
 
