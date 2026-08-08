@@ -75,6 +75,25 @@ try {
   // already use elsewhere in this workflow, reused here rather than
   // duplicated with different mechanics.
   console.log("Checking /dashboard (via a disposable test account) ...");
+  // DIAGNOSTIC (temporary — remove once the root cause below is found):
+  // 2026-08-08's investigation found apiClient.me.$get() called directly,
+  // unauthenticated, from a real browser tab dispatches fine (real 401,
+  // real CORS round-trip) — so the hc() client itself isn't broken. The
+  // failure is specific to the authenticated path inside dashboard.tsx's
+  // actual useEffect, which nothing currently observes. Surfacing every
+  // console message, page error, and every request/response touching the
+  // API origin for this page specifically, so the next run's CI log shows
+  // what actually happens instead of just "no Card appeared".
+  const apiHostname = new URL(apiUrl).hostname;
+  page.on("console", (msg) => console.log(`  [dashboard console:${msg.type()}] ${msg.text()}`));
+  page.on("pageerror", (err) => console.log(`  [dashboard pageerror] ${String(err)}`));
+  page.on("requestfailed", (req) => console.log(`  [dashboard requestfailed] ${req.method()} ${req.url()} — ${req.failure()?.errorText}`));
+  page.on("response", (res) => {
+    if (res.url().includes(apiHostname)) {
+      console.log(`  [dashboard response] ${res.request().method()} ${res.url()} -> ${res.status()}`);
+    }
+  });
+
   const stamp = Date.now();
   const email = `verify-styled-${stamp}@example.invalid`;
   const password = "Str0ngTempPassw0rd!";
@@ -122,34 +141,25 @@ try {
   // transparent, not opaque black) background, both of which only come
   // from the `Card` component's own classes, never from browser defaults.
   //
-  // dashboard.tsx's Card only renders once its own client-side useEffect
-  // (a fetch to /me) resolves — before that the page legitimately shows
-  // "Loading…", with no Card in the DOM at all. Playwright's networkidle
-  // wait in assertHeadingUsesDisplayFont doesn't guarantee that fetch has
-  // *finished*, only that no new requests are in flight at the moment it
-  // sampled — a slower-than-usual /me response (a cold Railway instance,
-  // connection-pool latency) can still be caught. Polling for a few
-  // seconds tolerates that ordinary latency without weakening what the
-  // check actually proves: it still fails for good if the Card's classes
-  // are genuinely missing, same as before.
-  const CARD_POLL_ATTEMPTS = 10;
-  const CARD_POLL_INTERVAL_MS = 500;
-  let cardStyled = false;
-  for (let attempt = 0; attempt < CARD_POLL_ATTEMPTS && !cardStyled; attempt++) {
-    if (attempt > 0) await page.waitForTimeout(CARD_POLL_INTERVAL_MS);
-    cardStyled = await page.evaluate(() => {
-      const els = [...document.querySelectorAll("div")];
-      return els.some((el) => {
-        const cs = getComputedStyle(el);
-        const radius = Number.parseFloat(cs.borderRadius);
-        return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
-      });
+  // NOTE: a poll-based wait was tried here (2026-08-08) on the theory that
+  // dashboard.tsx's client-side /me fetch just needed more time to
+  // resolve before the Card appears. It didn't help — the check still
+  // failed after a full 4.5s of polling, and Railway's own HTTP logs for
+  // that exact window show zero requests to /me at all, not a slow one.
+  // That rules out latency as the cause, so polling here would only mask
+  // a real bug behind a slower failure. Reverted to a single check;
+  // see the [dashboard *] instrumentation above for the actual
+  // investigation into why the fetch never dispatches.
+  const cardStyled = await page.evaluate(() => {
+    const els = [...document.querySelectorAll("div")];
+    return els.some((el) => {
+      const cs = getComputedStyle(el);
+      const radius = Number.parseFloat(cs.borderRadius);
+      return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
     });
-  }
+  });
   if (!cardStyled) {
-    throw new Error(
-      `/dashboard: no element has a rounded, translucent card background after ${((CARD_POLL_ATTEMPTS - 1) * CARD_POLL_INTERVAL_MS) / 1000}s of polling — expected the Card component's styling to be present once /me resolves.`,
-    );
+    throw new Error("/dashboard: no element has a rounded, translucent card background — expected the Card component's styling to be present.");
   }
   console.log("  dashboard card container is styled ✓");
 
