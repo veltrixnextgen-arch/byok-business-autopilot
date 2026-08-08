@@ -121,16 +121,35 @@ try {
   // instead: a real, non-zero border-radius and a translucent (not fully
   // transparent, not opaque black) background, both of which only come
   // from the `Card` component's own classes, never from browser defaults.
-  const cardStyled = await page.evaluate(() => {
-    const els = [...document.querySelectorAll("div")];
-    return els.some((el) => {
-      const cs = getComputedStyle(el);
-      const radius = Number.parseFloat(cs.borderRadius);
-      return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
+  //
+  // dashboard.tsx's Card only renders once its own client-side useEffect
+  // (a fetch to /me) resolves — before that the page legitimately shows
+  // "Loading…", with no Card in the DOM at all. Playwright's networkidle
+  // wait in assertHeadingUsesDisplayFont doesn't guarantee that fetch has
+  // *finished*, only that no new requests are in flight at the moment it
+  // sampled — a slower-than-usual /me response (a cold Railway instance,
+  // connection-pool latency) can still be caught. Polling for a few
+  // seconds tolerates that ordinary latency without weakening what the
+  // check actually proves: it still fails for good if the Card's classes
+  // are genuinely missing, same as before.
+  const CARD_POLL_ATTEMPTS = 10;
+  const CARD_POLL_INTERVAL_MS = 500;
+  let cardStyled = false;
+  for (let attempt = 0; attempt < CARD_POLL_ATTEMPTS && !cardStyled; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(CARD_POLL_INTERVAL_MS);
+    cardStyled = await page.evaluate(() => {
+      const els = [...document.querySelectorAll("div")];
+      return els.some((el) => {
+        const cs = getComputedStyle(el);
+        const radius = Number.parseFloat(cs.borderRadius);
+        return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
+      });
     });
-  });
+  }
   if (!cardStyled) {
-    throw new Error("/dashboard: no element has a rounded, translucent card background — expected the Card component's styling to be present.");
+    throw new Error(
+      `/dashboard: no element has a rounded, translucent card background after ${((CARD_POLL_ATTEMPTS - 1) * CARD_POLL_INTERVAL_MS) / 1000}s of polling — expected the Card component's styling to be present once /me resolves.`,
+    );
   }
   console.log("  dashboard card container is styled ✓");
 
