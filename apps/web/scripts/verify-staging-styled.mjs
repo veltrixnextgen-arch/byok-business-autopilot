@@ -92,20 +92,11 @@ try {
     throw new Error("Signup succeeded but returned no session cookie — cannot check /dashboard.");
   }
   const [cookiePair] = setCookieHeader.split(";");
-  const [cookieName, cookieValue] = cookiePair.split("=");
-  const apiOrigin = new URL(apiUrl);
 
-  // The session cookie belongs to the API's origin, not the web app's —
-  // apps/web's own fetch calls send it cross-site (this is exactly why
-  // the signup-verification step elsewhere in this workflow asserts
-  // SameSite=None on it). Handing it to the browser context scoped to the
-  // API origin reproduces that: the page (served from webUrl) still sends
-  // it on its own credentialed fetch to apiUrl when it calls
-  // authClient.getSession().
-  await page.context().addCookies([
-    { name: cookieName, value: cookieValue, domain: apiOrigin.hostname, path: "/", secure: true, sameSite: "None" },
-  ]);
-
+  // Pre-create the org over the API (this part was never in question —
+  // organization/create and organization/set-active both return real
+  // 200s here every time). What changed is HOW the browser itself gets a
+  // session: not anymore.
   const orgRes = await fetch(`${apiUrl}/api/auth/organization/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: webUrl, Cookie: cookiePair },
@@ -116,17 +107,6 @@ try {
   }
   const org = await orgRes.json();
 
-  // Root cause of a two-run false failure (2026-08-08): creating an
-  // organization does NOT make it the session's active one — Better Auth
-  // requires this as a separate call. OnboardingScreen.tsx already knows
-  // this (it calls organization.create then organization.setActive as
-  // two distinct steps); this script only did the first, so
-  // dashboard.tsx's beforeLoad guard (no activeOrganizationId ->
-  // /onboarding) silently redirected every run to /onboarding instead of
-  // /dashboard. The check still "passed" the heading-font assertion
-  // (onboarding has its own correctly-styled <h1>) while having zero
-  // chance of ever finding dashboard's Card — a false failure that looked
-  // exactly like a real one for two consecutive deploys.
   const setActiveRes = await fetch(`${apiUrl}/api/auth/organization/set-active`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: webUrl, Cookie: cookiePair },
@@ -136,41 +116,62 @@ try {
     throw new Error(`Could not set the organization active for the /dashboard check (HTTP ${setActiveRes.status}).`);
   }
 
-  await assertHeadingUsesDisplayFont(page, "/dashboard");
+  // Root cause of two false failures (2026-08-08), corrected: this check
+  // used to inject the API-origin session cookie directly into the
+  // browser's cookie jar (page.context().addCookies()) and then do a
+  // fresh page.goto("/dashboard") — a full page load, which runs
+  // beforeLoad server-side. A cookie added to the browser's jar for
+  // Railway's domain is never part of the browser's own outgoing request
+  // to Vercel, so server-side code has no way to see it; confirmed live
+  // (page.url() after that navigation was actually "/login", and
+  // authClient.getSession() never even dispatched a request server-side).
+  // That first "the /me fetch never dispatches" finding was itself an
+  // artifact of this same setup, not a real dashboard.tsx bug — record
+  // corrected here, not left sitting in docs/TRACKING.md as if it were.
+  //
+  // Fixed for real: sign in through the actual login form, the same path
+  // a real user takes. This makes signIn.email() (a genuine cross-site
+  // fetch from inside the page) the one establishing the cookie — the
+  // browser's own fetch naturally stores whatever Set-Cookie it gets back
+  // for that origin, no manual injection needed — and login.tsx's
+  // post-success `navigate({ to: "/dashboard" })` is a client-side router
+  // transition, not a fresh page load, so beforeLoad runs in the
+  // already-hydrated browser with a session it can actually see.
+  await page.goto(`${webUrl}/login`, { waitUntil: "networkidle", timeout: 30000 });
+  await page.locator("#email").fill(email);
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: /^sign in$/i }).click();
+
+  const dashboardHeading = page.getByRole("heading", { name: /^dashboard$/i });
+  await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
+  const fontFamily = await dashboardHeading.evaluate((el) => getComputedStyle(el).fontFamily);
+  if (!fontFamily.includes(DISPLAY_FONT)) {
+    throw new Error(
+      `/dashboard: heading font-family is "${fontFamily}", expected it to include "${DISPLAY_FONT}" — the design tokens aren't reaching this page's heading.`,
+    );
+  }
+  console.log(`  heading font-family includes "${DISPLAY_FONT}" ✓`);
+
   // Dashboard is deliberately minimal (STEP 8 builds it out for real) — no
   // gradient CTA is expected there, so this checks its Card container
   // instead: a real, non-zero border-radius and a translucent (not fully
   // transparent, not opaque black) background, both of which only come
   // from the `Card` component's own classes, never from browser defaults.
   //
-  // dashboard.tsx's Card only renders once its own client-side useEffect
-  // (a fetch to /me) resolves — before that the page legitimately shows
-  // "Loading…", with no Card in the DOM at all. Playwright's networkidle
-  // wait in assertHeadingUsesDisplayFont doesn't guarantee that fetch has
-  // *finished*, only that no new requests are in flight at the moment it
-  // sampled — a slower-than-usual /me response (a cold Railway instance,
-  // connection-pool latency) can still be caught. Polling for a few
-  // seconds tolerates that ordinary latency without weakening what the
-  // check actually proves: it still fails for good if the Card's classes
-  // are genuinely missing, same as before.
-  const CARD_POLL_ATTEMPTS = 10;
-  const CARD_POLL_INTERVAL_MS = 500;
-  let cardStyled = false;
-  for (let attempt = 0; attempt < CARD_POLL_ATTEMPTS && !cardStyled; attempt++) {
-    if (attempt > 0) await page.waitForTimeout(CARD_POLL_INTERVAL_MS);
-    cardStyled = await page.evaluate(() => {
-      const els = [...document.querySelectorAll("div")];
-      return els.some((el) => {
-        const cs = getComputedStyle(el);
-        const radius = Number.parseFloat(cs.borderRadius);
-        return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
-      });
+  // No poll here on purpose (PR #79's 4.5s poll was reverted, not kept in
+  // any form) — it was built on a latency theory two rounds of real
+  // evidence disproved. If this fails now, it fails for a reason worth
+  // seeing immediately, not one worth waiting out.
+  const cardStyled = await page.evaluate(() => {
+    const els = [...document.querySelectorAll("div")];
+    return els.some((el) => {
+      const cs = getComputedStyle(el);
+      const radius = Number.parseFloat(cs.borderRadius);
+      return radius > 0 && cs.backgroundColor.startsWith("rgba") && !cs.backgroundColor.endsWith(", 0)");
     });
-  }
+  });
   if (!cardStyled) {
-    throw new Error(
-      `/dashboard: no element has a rounded, translucent card background after ${((CARD_POLL_ATTEMPTS - 1) * CARD_POLL_INTERVAL_MS) / 1000}s of polling — expected the Card component's styling to be present once /me resolves.`,
-    );
+    throw new Error("/dashboard: no element has a rounded, translucent card background — expected the Card component's styling to be present.");
   }
   console.log("  dashboard card container is styled ✓");
 
