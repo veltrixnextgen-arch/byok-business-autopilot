@@ -58,8 +58,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: npm audit (high and critical)
-        run: npm audit --audit-level=high
+      # docs/DECISIONS.md's audit-allowlist ADR: fails on any high/critical
+      # finding not covered by a reasoned, non-expired entry in
+      # .github/audit-allowlist.json — moderate findings never fail this
+      # gate, same floor as before.
+      - name: npm audit (high and critical, allowlist-aware)
+        run: node .github/scripts/check-audit-allowlist.mjs
 
       # ADR-006: trust-core dependencies are pinned to exact versions on
       # purpose. This doesn't block the merge on its own — the
