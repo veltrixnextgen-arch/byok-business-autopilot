@@ -137,13 +137,38 @@ try {
   // post-success `navigate({ to: "/dashboard" })` is a client-side router
   // transition, not a fresh page load, so beforeLoad runs in the
   // already-hydrated browser with a session it can actually see.
+  // DIAGNOSTIC (temporary — remove once resolved): round 3. The real
+  // sign-in flow reaches the same 15s timeout waiting for the Dashboard
+  // heading, with zero log lines in between clicking Sign in and the
+  // timeout. Surfacing everything the previous two rounds already proved
+  // useful (console, pageerror, requestfailed, API-origin responses) plus
+  // the actual landed URL and any visible alert text right up against the
+  // timeout, instead of guessing what's stuck.
+  const apiHostname = new URL(apiUrl).hostname;
+  page.on("console", (msg) => console.log(`  [dashboard console:${msg.type()}] ${msg.text()}`));
+  page.on("pageerror", (err) => console.log(`  [dashboard pageerror] ${String(err)}`));
+  page.on("requestfailed", (req) => console.log(`  [dashboard requestfailed] ${req.method()} ${req.url()} — ${req.failure()?.errorText}`));
+  page.on("response", (res) => {
+    if (res.url().includes(apiHostname)) {
+      console.log(`  [dashboard response] ${res.request().method()} ${res.url()} -> ${res.status()}`);
+    }
+  });
+
   await page.goto(`${webUrl}/login`, { waitUntil: "networkidle", timeout: 30000 });
+  console.log(`  [dashboard] on /login, url: ${page.url()}`);
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
+  console.log("  [dashboard] clicked Sign in, waiting for Dashboard heading...");
 
   const dashboardHeading = page.getByRole("heading", { name: /^dashboard$/i });
-  await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
+  try {
+    await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
+  } catch (waitErr) {
+    const alertText = await page.locator('[role="alert"]').allTextContents().catch(() => []);
+    console.log(`  [dashboard] waitFor failed. Current URL: ${page.url()}. Visible alert(s): ${JSON.stringify(alertText)}`);
+    throw waitErr;
+  }
   const fontFamily = await dashboardHeading.evaluate((el) => getComputedStyle(el).fontFamily);
   if (!fontFamily.includes(DISPLAY_FONT)) {
     throw new Error(
