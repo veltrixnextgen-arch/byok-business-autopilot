@@ -2,6 +2,7 @@ import type { InterviewAnswers, InterviewQuestion } from "@byok/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ApiError, clearIdea, fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
+import { type IllustrationStage, NetworkIllustration } from "./landing/NetworkIllustration";
 import { Button, cx } from "./ui";
 
 // A 401 here means the session that passed the route's beforeLoad has
@@ -30,6 +31,55 @@ function firstOptionValue(q: InterviewQuestion): string {
   return q.options?.[0]?.value ?? "";
 }
 
+// Real phases of extractOrgChart (packages/agents/extraction/src/pipeline.ts):
+// template selection, the CUSTOMIZE pass, then bottom-up assembly into
+// agents/teams/roles — presented here as the same four-step narrative
+// already public on /how-it-works (steps 02-05), not invented copy.
+// Assembly is one real server-side step that produces both teams and
+// agents together; splitting it into two rows here matches how the
+// public page already frames it and isn't a claim about server timing.
+const GENERATING_STEPS = ["Understanding your business", "Discovering the work", "Forming your teams", "Assigning your agents"] as const;
+
+// startExtraction is a single opaque network call — there's no real
+// incremental signal to drive this from, so progress here is an honest
+// approximation, not fabricated precision: it ticks forward on a timer,
+// but NEVER marks the final step done — that only happens implicitly, by
+// this whole screen unmounting the instant the real call actually
+// resolves (navigate-away on success, the error view on failure). So the
+// UI never claims completion before the real work is actually done.
+const GENERATING_STEP_MS = 1500;
+
+function illustrationStageForStep(stepIndex: number): IllustrationStage {
+  if (stepIndex <= 0) return 0;
+  if (stepIndex === 1) return 1;
+  return 2;
+}
+
+function useGeneratingStep(active: boolean): number {
+  const [stepIndex, setStepIndex] = useState(0);
+
+  useEffect(() => {
+    if (!active) {
+      setStepIndex(0);
+      return;
+    }
+    // A reduced-motion visitor gets the final "still working" state
+    // immediately rather than watching a ticking animation — same
+    // principle as the landing page's own reduced-motion fallback
+    // (components/landing/primitives.tsx's useRevealOnScroll).
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setStepIndex(GENERATING_STEPS.length - 1);
+      return;
+    }
+    const timer = setInterval(() => {
+      setStepIndex((i) => Math.min(i + 1, GENERATING_STEPS.length - 1));
+    }, GENERATING_STEP_MS);
+    return () => clearInterval(timer);
+  }, [active]);
+
+  return stepIndex;
+}
+
 // Split out of routes/interview.tsx (a plain export here, so it's directly
 // testable) — TanStack Start's route-file compiler only lazy-splits a
 // route's local `component`, and stops doing so the moment that same
@@ -48,6 +98,7 @@ export function InterviewScreen() {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"answering" | "submitting" | "error">("answering");
   const [error, setError] = useState<InterviewError | null>(null);
+  const generatingStep = useGeneratingStep(phase === "submitting");
 
   async function loadInitialQuestions(ideaValue: string) {
     setLoading(true);
@@ -238,9 +289,17 @@ export function InterviewScreen() {
 
   if (phase === "submitting") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="font-display text-2xl font-semibold duration-calm-base ease-calm">Building your company…</p>
-        <p className="text-sm text-text-muted">This takes a few seconds — extracting tasks, assembling your team.</p>
+      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-8 px-6 text-center">
+        <NetworkIllustration stage={illustrationStageForStep(generatingStep)} className="max-w-[280px]" />
+        <div className="w-full space-y-1">
+          <p className="font-display text-2xl font-semibold">Building your company…</p>
+          <p className="text-sm text-text-muted">This takes a few seconds.</p>
+        </div>
+        <ul className="w-full space-y-3 text-left">
+          {GENERATING_STEPS.map((label, i) => (
+            <GeneratingStepRow key={label} label={label} state={i < generatingStep ? "done" : i === generatingStep ? "active" : "pending"} />
+          ))}
+        </ul>
       </main>
     );
   }
@@ -326,6 +385,25 @@ export function InterviewScreen() {
         </button>
       </div>
     </main>
+  );
+}
+
+function GeneratingStepRow({ label, state }: { label: string; state: "done" | "active" | "pending" }) {
+  return (
+    <li className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className={cx(
+          "flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] transition-colors duration-calm-base ease-calm",
+          state === "done" && "border-transparent bg-accent text-bg",
+          state === "active" && "rw-breathe border-accent bg-accent/15 text-accent",
+          state === "pending" && "border-border-strong text-transparent",
+        )}
+      >
+        {state === "done" ? "✓" : "•"}
+      </span>
+      <span className={cx("text-sm transition-colors duration-calm-base ease-calm", state === "pending" ? "text-text-muted" : "text-text")}>{label}</span>
+    </li>
   );
 }
 
