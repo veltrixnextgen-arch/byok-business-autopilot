@@ -1,9 +1,7 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Card } from "../components/ui";
-import { apiClient } from "../lib/apiClient";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { DashboardScreen } from "../components/DashboardScreen";
 import { authClient } from "../lib/authClient";
-import { getLatestBatch, loadIdea, type LatestBatch } from "../lib/extractionClient";
+import { loadIdea } from "../lib/extractionClient";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
@@ -28,76 +26,5 @@ export const Route = createFileRoute("/dashboard")({
       throw redirect({ to: "/interview" });
     }
   },
-  component: Dashboard,
+  component: DashboardScreen,
 });
-
-interface Me {
-  userId: string;
-  email: string;
-  tenantId: string;
-}
-
-// Foundation only — this route's entire job is to prove auth + tenant +
-// API work end to end (session -> tenantMiddleware -> RLS-scoped /me
-// call). No product content; that starts at Step 5+. Styled just enough
-// to not look broken (STEP 7 auth-pages pass) — the real dashboard is a
-// later step, not this one.
-function Dashboard() {
-  const [me, setMe] = useState<Me | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [batch, setBatch] = useState<LatestBatch | null>(null);
-
-  useEffect(() => {
-    apiClient.me
-      .$get()
-      .then(async (res) => {
-        if (!res.ok) {
-          setError(`API returned ${res.status}`);
-          return;
-        }
-        setMe(await res.json());
-      })
-      .catch((err: unknown) => setError(String(err)));
-    // Fire-and-forget, same spirit as recordFunnelEvent — a returning
-    // user's "back into your org chart" link is a nice-to-have, not
-    // something worth blocking or erroring the dashboard over.
-    getLatestBatch()
-      .then(setBatch)
-      .catch(() => {});
-  }, []);
-
-  return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-16">
-      <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Dashboard</h1>
-      {error && (
-        <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      {me ? (
-        <Card>
-          <dl className="space-y-3 font-mono text-sm">
-            <div>
-              <dt className="text-text-muted">Signed in as</dt>
-              <dd className="text-text">{me.email}</dd>
-            </div>
-            <div>
-              <dt className="text-text-muted">Tenant</dt>
-              <dd className="text-text">{me.tenantId}</dd>
-            </div>
-          </dl>
-        </Card>
-      ) : (
-        !error && <p className="text-text-muted">Loading…</p>
-      )}
-      {batch?.status === "completed" && (
-        <Link
-          to="/org-chart"
-          className="text-center font-medium text-accent transition-colors duration-calm-fast ease-calm hover:text-accent-strong"
-        >
-          View your org chart →
-        </Link>
-      )}
-    </main>
-  );
-}

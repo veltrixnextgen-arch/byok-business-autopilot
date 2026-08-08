@@ -48,8 +48,13 @@ newest first: gate verdicts (`reserved`, etc.) and queue events (`queued`,
 
 ## What's out of scope here
 
-This is the data contract only — no HTTP routes expose it yet. When
-apps/api's typed API boundary grows a `/dashboard/*` route group (Phase
-B), it should call straight into `CostActivityQueries`; there's no
-intermediate layer to build. The UI itself (charts, the actual Screen 16
-layout) is Phase B, not part of this durable-storage work.
+**2026-08-08 (Phase 1C):** `GET /dashboard` (`apps/api/src/routes/dashboard.ts`)
+now exposes a slice of this — `spendByRole` (all-time and today) and
+`recentActivity` — as a pure read pass-through, tenant-scoped the same way
+every other route is (`tenantMiddleware` + `c.get("tenantId")`, never a
+client-supplied value). It's deliberately partial: `spendByTaskType` and
+`autonomyStatus` still have no route, and there is still no
+"skip-the-call" suggestion engine — apps/web's dashboard shows an honest
+empty state for anything this route doesn't cover, rather than inventing
+data. The full Screen 16 layout (payroll report, per-sub-agent view) is
+still later work.
