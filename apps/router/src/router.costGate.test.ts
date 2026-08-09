@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CostGate, PricingTable, ReservationLedger } from "@byok/cost-gate";
+import { CostGate, InMemoryDurableReservationStore, PricingTable } from "@byok/cost-gate";
 import type { CeilingConfig, TierModelMap } from "@byok/cost-gate";
 import { Router } from "./router.js";
 import { InMemoryDedupStore } from "./dedup.js";
@@ -23,7 +23,7 @@ function freshPricingTable() {
 }
 
 function makeGate(ceilingConfig: CeilingConfig) {
-  return new CostGate(freshPricingTable(), ceilingConfig, new ReservationLedger(), modelMap);
+  return new CostGate(freshPricingTable(), ceilingConfig, new InMemoryDurableReservationStore(), modelMap);
 }
 
 function countingExecutor(): { executor: AgentExecutor; callCount: () => number } {

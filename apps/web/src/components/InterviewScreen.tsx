@@ -212,9 +212,11 @@ export function InterviewScreen() {
         return;
       }
       setPhase("error");
+      // result.reason (QUEUE/SKIP) is already plain language from the
+      // backend (runExtractionBatch.ts) — no jargon prefix needed here.
       setError({
         source: "submit",
-        message: result.status === "failed" ? result.error : `Not ready right now: ${result.reason}`,
+        message: result.status === "failed" ? result.error : result.reason,
       });
     } catch (err) {
       setPhase("error");
