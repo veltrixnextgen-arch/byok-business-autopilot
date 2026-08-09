@@ -4,6 +4,8 @@ export * from "./dedup.js";
 export * from "./ledger.js";
 export * from "./executor.js";
 export { OpenMultiAgentExecutor } from "./openMultiAgentExecutor.js";
+export { createHandsTool } from "./handsTool.js";
+export type { HandsToolSpec } from "./handsTool.js";
 export { Router } from "./router.js";
 export * from "./durable/dedupStore.js";
 export * from "./durable/ledgerStore.js";
