@@ -127,8 +127,23 @@ export function ScrollSequence() {
   return (
     <section ref={containerRef} className="relative h-[420vh]">
       <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden pt-20 sm:pt-24">
-        <div className="mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
-          <div className="text-center lg:text-left">
+        <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
+          <div className="relative text-center lg:text-left">
+            {/* A large quiet numeral filling the empty margin above the
+                text — the pinned frame is a full viewport tall and a few
+                lines of centered text leaves a lot of dead space above
+                and below it; this gives each step real visual weight
+                without inventing content the reference didn't have.
+                Anchored by its own bottom edge (not top), so it sits
+                entirely above the heading rather than behind/through it
+                — no overlap with actual readable text, whatever the
+                heading's own line count. Purely decorative (aria-hidden). */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-full left-1/2 mb-6 -translate-x-1/2 font-display text-[160px] font-bold leading-none text-white/[0.04] sm:text-[200px] lg:left-0 lg:translate-x-0"
+            >
+              {String(activeStep + 1).padStart(2, "0")}
+            </span>
             <SequenceEyebrow activeIndex={activeStep} />
             <CrossfadeStep activeIndex={activeStep} />
             <StepProgress activeIndex={activeStep} total={STEPS.length} />
@@ -137,7 +152,19 @@ export function ScrollSequence() {
               (h-screen, overflow-hidden) and mobile text alone can
               already fill it — adding the illustration there risks
               clipping. The narrative is fully carried by text either way. */}
-          <NetworkIllustration stage={stageForStep(activeStep)} className="hidden lg:block" />
+          <div className="relative hidden lg:block">
+            {/* A steady backdrop ring independent of the illustration's
+                own stage — at stage 0 NetworkIllustration is deliberately
+                just the center node (idea-only, nothing else has
+                "arrived" yet), which on its own reads as an empty square
+                with a dot in it. This gives that state real presence
+                instead of looking unfinished. */}
+            <div
+              aria-hidden="true"
+              className="rw-breathe pointer-events-none absolute inset-[8%] rounded-full border border-white/[0.06] bg-gradient-to-br from-accent-strong/[0.06] to-transparent"
+            />
+            <NetworkIllustration stage={stageForStep(activeStep)} className="relative max-w-[480px]" />
+          </div>
         </div>
       </div>
     </section>
