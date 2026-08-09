@@ -14,38 +14,31 @@ import { NetworkIllustration } from "./NetworkIllustration";
 // Labels are the reference's own — a wide field of plausible work
 // categories, not a claim about our product's actual team structure (that
 // claim stays scoped to NetworkIllustration's own Money/Clients/Marketing/
-// Operations ring, our real taxonomy, unchanged here).
+// Operations ring, our real taxonomy, unchanged here). Deliberately
+// excludes "Marketing" and "Operations" — both are already real labels on
+// that same ring, and having the identical word rendered twice in one
+// panel read as a bug, not atmosphere. Trimmed from 10 to 6 and spread
+// across even ~60° angle steps (not just varied radius) so labels get
+// real separation from each other, not just from the ring.
 const FIELD_NODES = [
-  { label: "Customer Support", angle: 205, radius: 148, size: 5 },
-  { label: "Research", angle: 172, radius: 118, size: 4.5 },
-  { label: "Marketing", angle: 135, radius: 152, size: 5 },
-  { label: "Compliance", angle: 100, radius: 126, size: 4 },
-  { label: "Delivery", angle: 68, radius: 146, size: 5 },
-  { label: "Sales", angle: 34, radius: 154, size: 5.5 },
-  { label: "Content", angle: 4, radius: 132, size: 4.5 },
-  { label: "Finance", angle: -28, radius: 150, size: 5 },
-  { label: "Operations", angle: -65, radius: 128, size: 4.5 },
-  { label: "Scheduling", angle: -110, radius: 142, size: 4 },
+  { label: "Customer Support", angle: 200, radius: 158, size: 5 },
+  { label: "Research", angle: 140, radius: 140, size: 4.5 },
+  { label: "Compliance", angle: 80, radius: 150, size: 4 },
+  { label: "Sales", angle: 20, radius: 160, size: 5.5 },
+  { label: "Content", angle: -40, radius: 142, size: 4.5 },
+  { label: "Finance", angle: -100, radius: 152, size: 5 },
 ] as const;
 
-// Unlabeled dust — denser than NetworkIllustration's own DUST array, since
-// this panel's whole job is to read as "a lot of scattered work," not a
-// single settled network.
+// Unlabeled dust — a light scatter, not a dense field; fewer points than
+// the first pass so the labeled nodes above stay the clearest thing in
+// the panel.
 const FIELD_DUST = [
-  { angle: 12, radius: 60, size: 2 },
-  { angle: 44, radius: 92, size: 2.5 },
-  { angle: 80, radius: 70, size: 2 },
-  { angle: 112, radius: 100, size: 2.5 },
-  { angle: 150, radius: 82, size: 2 },
-  { angle: 184, radius: 106, size: 3 },
-  { angle: 216, radius: 76, size: 2 },
-  { angle: 248, radius: 96, size: 2.5 },
-  { angle: 280, radius: 66, size: 2 },
-  { angle: 312, radius: 110, size: 2.5 },
-  { angle: 340, radius: 86, size: 2 },
-  { angle: 8, radius: 190, size: 2 },
-  { angle: 70, radius: 195, size: 2.5 },
-  { angle: 140, radius: 200, size: 2 },
+  { angle: 30, radius: 70, size: 2 },
+  { angle: 95, radius: 90, size: 2.5 },
+  { angle: 165, radius: 75, size: 2 },
+  { angle: 230, radius: 95, size: 2.5 },
+  { angle: 290, radius: 68, size: 2 },
+  { angle: 350, radius: 88, size: 2 },
 ] as const;
 
 const CENTER = 200;
