@@ -9,10 +9,10 @@ export function Hero() {
   const revealed = useRevealOnMount();
 
   return (
-    <section className="relative overflow-hidden pb-16 pt-32 sm:pt-40 lg:pb-28 lg:pt-44">
+    <section className="relative overflow-hidden pb-16 pt-12 sm:pt-16 lg:pb-20 lg:pt-16">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid-hairline opacity-60 rw-breathe" />
       <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
-        <div className="flex flex-col items-center gap-8 text-center lg:items-start lg:text-left">
+        <div className="flex flex-col items-center gap-5 text-center lg:items-start lg:text-left">
           <Reveal revealed={revealed}>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
               The operating system that builds the company
@@ -36,7 +36,7 @@ export function Hero() {
             </p>
           </Reveal>
 
-          <Reveal revealed={revealed} delay={220} className="w-full max-w-xl space-y-4">
+          <Reveal revealed={revealed} delay={220} className="w-full max-w-xl space-y-3">
             <IdeaForm buttonLabel="Meet your company →" />
             <Link
               to="/how-it-works"
