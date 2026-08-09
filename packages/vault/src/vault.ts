@@ -50,6 +50,20 @@ export interface BrainKeyProvider {
   decryptBrainKey(roleId: string, requester: RequesterIdentity): Promise<SecretHandle>;
 }
 
+/** The Hands-side counterpart to BrainKeyProvider — same purpose (a narrow,
+ *  mockable seam so router-side code depends only on this package's public
+ *  interface, never Vault's internals), scoped to per-sub-agent,
+ *  per-capability decryption (ADR-002, T8). The caller's `requestedBy` claim
+ *  becomes the decrypt's AAD (see decryptHandsKey below), so a wrong claim
+ *  fails cryptographically, not just an application-level check. */
+export interface HandsKeyProvider {
+  decryptHandsKey(
+    keyId: string,
+    requestedBy: { subAgentId: string; capabilityScope: string },
+    requester: RequesterIdentity,
+  ): Promise<SecretHandle>;
+}
+
 function assertRouterServiceIdentity(requester: RequesterIdentity): void {
   if (requester.kind !== "router-service") {
     throw new AccessDeniedError(
@@ -62,7 +76,7 @@ function now(): string {
   return new Date().toISOString();
 }
 
-export class Vault implements BrainKeyProvider {
+export class Vault implements BrainKeyProvider, HandsKeyProvider {
   private readonly dekStore: DekStore;
   private readonly brainKeysByRole = new Map<string, BrainKeyRecord>();
   private readonly handsKeysById = new Map<string, HandsKeyRecord>();
