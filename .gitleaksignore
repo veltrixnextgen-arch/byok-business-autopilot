@@ -1,0 +1,9 @@
+# False positives from gitleaks' generic-api-key heuristic, verified by hand
+# — each entry names the exact line and why it isn't a secret.
+
+# docs/design/tool-registry.md line 54: plain prose describing gating
+# processes ("...Google Business Profile's access-request form,
+# Gusto/Rippling's partner pipeline)..."). No credential, key, or token of
+# any kind appears on this line — confirmed by direct inspection of the
+# flagged commit's diff.
+d338bf33eb02fba4c2064950e83cfb400d89b21a:docs/design/tool-registry.md:generic-api-key:54
