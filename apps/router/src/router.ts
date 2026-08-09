@@ -65,8 +65,9 @@ export class Router {
     // GATE — strictly before the executor. QUEUE/SKIP never reach it.
     let reservation: Reservation | undefined;
     if (this.costGate && input.model) {
-      const { verdict, reservation: madeReservation } = this.costGate.evaluateAndReserve({
+      const { verdict, reservation: madeReservation } = await this.costGate.evaluateAndReserve({
         taskId: task.id,
+        tenantId,
         roleId: task.teamId,
         taskType: task.subAgentId,
         payload: task.payload,
@@ -104,7 +105,7 @@ export class Router {
     if ("error" in outcome) {
       task.status = "failed";
       task.error = outcome.error;
-      if (this.costGate && reservation) this.costGate.release(reservation.id);
+      if (this.costGate && reservation) await this.costGate.release(reservation.id);
       this.dedupStore.set(input.dedupKey, task);
       this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: task.status, at: task.updatedAt, note: task.error });
       return task;
@@ -114,7 +115,7 @@ export class Router {
     // reservation now regardless of what the approval queue decides next
     // (approval gates the EFFECT, not the spend that already occurred).
     task.result = outcome.result;
-    if (this.costGate && reservation) this.costGate.settle(reservation.id, outcome.costUsd ?? reservation.amountUsd);
+    if (this.costGate && reservation) await this.costGate.settle(reservation.id, outcome.costUsd ?? reservation.amountUsd);
 
     if (this.approvalQueue) {
       const { queued } = await this.approvalQueue.submitProposedAction({

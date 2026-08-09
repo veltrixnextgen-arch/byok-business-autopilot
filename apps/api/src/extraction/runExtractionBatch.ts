@@ -64,8 +64,13 @@ export async function runExtractionBatch(
 
   deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "pending", at: now() });
 
-  const { verdict, reservation } = deps.costGate.evaluateAndReserve({
+  const { verdict, reservation } = await deps.costGate.evaluateAndReserve({
     taskId,
+    // There's no company/tenant yet at this pre-org stage (ADR-015) — the
+    // signing-up user's own id is the natural per-signup ceiling scope
+    // issue #47 asks for, so onboarding cost stays isolated per user
+    // instead of pooling across every signup on the deployment.
+    tenantId: input.userId,
     roleId: "onboarding",
     taskType: "extraction-batch",
     payload: input.idea,
@@ -80,9 +85,17 @@ export async function runExtractionBatch(
 
   if (verdict.kind === "QUEUE" || verdict.kind === "SKIP") {
     const status = verdict.kind === "QUEUE" ? "queued" : "skipped";
+    // verdict.reason is deliberately internal/technical (ceiling level,
+    // durable-store detail) — logged for operators, but never shown to the
+    // user directly; the user-facing reason stays plain language regardless
+    // of which ceiling tripped or why.
     deps.ledger.append({ taskId, subAgentId: "extraction-batch", status, at: now(), note: verdict.reason });
     await deps.batchStore.fail(input.userId, batch.id, `${verdict.kind}: ${verdict.reason}`);
-    return { status, batchId: batch.id, reason: verdict.reason };
+    const userReason =
+      verdict.kind === "QUEUE"
+        ? "We're at today's AI usage limit for new companies — you're queued and this will finish automatically soon."
+        : "We're at today's AI usage limit for new companies right now. Please try again in a few minutes.";
+    return { status, batchId: batch.id, reason: userReason };
   }
 
   // CostGate.evaluateAndReserve only omits a reservation on QUEUE/SKIP
@@ -103,12 +116,12 @@ export async function runExtractionBatch(
     // ceiling check on the batch as a whole, not a per-call override.
     const extract = deps.extract ?? extractOrgChart;
     const chart = await extract(input.idea, input.answers, { apiKey: deps.apiKey });
-    deps.costGate.settle(reservation.id, chart.meta.costUsd);
+    await deps.costGate.settle(reservation.id, chart.meta.costUsd);
     await deps.batchStore.complete(input.userId, batch.id, chart, chart.meta.costUsd);
     deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "completed", at: now() });
     return { status: "completed", batchId: batch.id, chart, costUsd: chart.meta.costUsd };
   } catch (err) {
-    deps.costGate.release(reservation.id);
+    await deps.costGate.release(reservation.id);
     const message = isApiKeyRejection(err)
       ? "The AI provider rejected the platform's API key. Extraction can't run until this is fixed — try again later."
       : err instanceof Error

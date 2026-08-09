@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import Anthropic from "@anthropic-ai/sdk";
 import type { InterviewAnswers, OrgChart } from "@byok/contracts";
-import { CostGate, PricingTable, ReservationLedger, type TierModelMap } from "@byok/cost-gate";
+import { CostGate, InMemoryDurableReservationStore, PricingTable, type TierModelMap } from "@byok/cost-gate";
 import type { LedgerEntry, TaskLedger } from "@byok/router";
 import { runExtractionBatch, type RunExtractionBatchDeps } from "./runExtractionBatch.js";
 
@@ -74,6 +74,7 @@ function buildDeps(overrides: {
   ceilingUsd: number;
   extract: RunExtractionBatchDeps["extract"];
   apiKey?: string;
+  costGate?: CostGate;
 }): { deps: RunExtractionBatchDeps; ledger: FakeTaskLedger; batchStore: ReturnType<typeof fakeBatchStore> } {
   const modelMap: TierModelMap = { T1: "cheap", T2: "claude-sonnet-4-6", T3: "frontier" };
   const pricingTable = new PricingTable({
@@ -85,12 +86,14 @@ function buildDeps(overrides: {
       frontier: { provider: "anthropic", tier: "T3", inputPerMTok: 15, outputPerMTok: 75 },
     },
   });
-  const costGate = new CostGate(
-    pricingTable,
-    { companyMonthlyUsd: overrides.ceilingUsd, perRoleUsd: {}, perTaskTypeUsd: {} },
-    new ReservationLedger(),
-    modelMap,
-  );
+  const costGate =
+    overrides.costGate ??
+    new CostGate(
+      pricingTable,
+      { companyMonthlyUsd: overrides.ceilingUsd, perRoleUsd: {}, perTaskTypeUsd: {} },
+      new InMemoryDurableReservationStore(),
+      modelMap,
+    );
   const ledger = new FakeTaskLedger();
   const batchStore = fakeBatchStore();
   return {
@@ -132,6 +135,53 @@ test("a QUEUE/SKIP verdict never calls extract and marks the batch failed with t
   assert.equal(extractCalled, false);
   assert.deepEqual(batchStore.calls, ["start", "fail"]);
   assert.ok(ledger.entries.some((e) => e.status === "queued" || e.status === "skipped"));
+});
+
+// Issue #47 ask #3: the user-facing reason must be plain language, not the
+// internal "Over company ceiling, downgrade insufficient, and this task
+// type isn't batchable" string — that string still exists, but only in the
+// ledger note for operators, never in what's returned to the caller.
+test("a SKIP verdict returns a plain-language reason to the caller, not the internal ceiling-jargon string", async () => {
+  const { deps, ledger } = buildDeps({
+    ceilingUsd: 0,
+    extract: async () => FAKE_CHART,
+  });
+
+  const result = await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });
+
+  assert.equal(result.status, "skipped");
+  if (result.status === "skipped") {
+    assert.doesNotMatch(result.reason, /ceiling|downgrade insufficient|batchable/i);
+    assert.match(result.reason, /usage limit/i);
+  }
+  // The detailed, technical reason is still recorded for operators.
+  const skippedEntry = ledger.entries.find((e) => e.status === "skipped");
+  assert.match(skippedEntry?.note ?? "", /ceiling/i);
+});
+
+// Issue #47's per-signup ask: extraction has no company yet (ADR-015), so
+// the signing-up user's own id must be the ceiling scope CostGate sees.
+// The actual cross-tenant isolation math is proven numerically in
+// packages/cost-gate/src/costGate.test.ts — this test only proves the
+// WIRING: runExtractionBatch passes the right scoping key through.
+test("issue #47: each user's own id is passed as CostGate's tenantId, not a shared/omitted key", async () => {
+  const seenTenantIds: string[] = [];
+  const fakeCostGate = {
+    async evaluateAndReserve(input: { tenantId: string }) {
+      seenTenantIds.push(input.tenantId);
+      return { verdict: { kind: "PROCEED" as const, reason: "ok", model: "x" }, reservation: { id: "r-1", roleId: "onboarding", taskType: "extraction-batch", amountUsd: 0, createdAt: "", status: "reserved" as const } };
+    },
+    async settle() {},
+    async release() {},
+  } as unknown as CostGate;
+
+  const { deps: deps1 } = buildDeps({ ceilingUsd: 1000, costGate: fakeCostGate, extract: async () => FAKE_CHART });
+  await runExtractionBatch(deps1, { userId: "user-a", idea: "test idea", answers: ANSWERS });
+
+  const { deps: deps2 } = buildDeps({ ceilingUsd: 1000, costGate: fakeCostGate, extract: async () => FAKE_CHART });
+  await runExtractionBatch(deps2, { userId: "user-b", idea: "another idea", answers: ANSWERS });
+
+  assert.deepEqual(seenTenantIds, ["user-a", "user-b"]);
 });
 
 test("a rejected platform API key surfaces a clear, specific message — not the raw provider error body", async () => {

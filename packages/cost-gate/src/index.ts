@@ -7,6 +7,6 @@ export * from "./gate.js";
 export * from "./auditLog.js";
 export * from "./exhaustion.js";
 export { CostGate } from "./costGate.js";
-export type { GateEvent, GateEventListener, GateEvaluationResult } from "./costGate.js";
+export type { GateEvent, GateEventListener, GateEvaluationResult, GateEvaluationRequest } from "./costGate.js";
 export * from "./durable/reservationStore.js";
 export * from "./durable/batchStore.js";

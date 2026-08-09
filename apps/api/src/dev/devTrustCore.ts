@@ -1,5 +1,5 @@
 import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approval-queue";
-import { CostGate, loadDefaultPricingTable, ReservationLedger, type PricingTable, type TierModelMap } from "@byok/cost-gate";
+import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
 import type { TrustCoreDeps } from "../context.js";
 
@@ -28,17 +28,25 @@ export function loadDevPricingTable(): PricingTable {
  * wired to the same in-memory implementations the trust-core packages'
  * own test suites use — genuinely functional, not a stub, but
  * single-process and reset on every restart. NOT for any deployed
- * environment: production must supply real pricing/ceiling/durable-store
- * config (see server.ts's own comment on why that's deliberately not
- * decided here), and ADR-008's guard refuses to construct a Router in
- * production without a CostGate/ApprovalQueue regardless. This exists so
- * `npm run dev` has something real to run against everywhere else.
+ * environment: production must supply real pricing/ceiling config and a
+ * real Postgres-backed PostgresReservationStore (see server.ts's own
+ * comment on why that's deliberately not decided here), and ADR-008's
+ * guard refuses to construct a Router in production without a
+ * CostGate/ApprovalQueue regardless. This exists so `npm run dev` has
+ * something real to run against everywhere else.
+ *
+ * InMemoryDurableReservationStore (not the old single shared
+ * ReservationLedger) is what CostGate is built on: per-tenant ceiling
+ * pools, real even in this dev wiring (issue #47's "single shared pool"
+ * bug) — the only thing dev-only about it is that it still resets on
+ * restart; swapping in PostgresReservationStore for a real deployment is
+ * a one-line constructor change, same interface either way.
  */
 export function createDevTrustCore(): TrustCoreDeps {
   const pricingTable = loadDevPricingTable();
   const ceilingConfig = { companyMonthlyUsd: 50, perRoleUsd: {}, perTaskTypeUsd: {} };
 
-  const costGate = new CostGate(pricingTable, ceilingConfig, new ReservationLedger(), DEV_TIER_MODEL_MAP);
+  const costGate = new CostGate(pricingTable, ceilingConfig, new InMemoryDurableReservationStore(), DEV_TIER_MODEL_MAP);
   const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
   const ledger = new InMemoryTaskLedger();
   const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
