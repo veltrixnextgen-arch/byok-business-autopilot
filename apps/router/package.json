@@ -15,7 +15,8 @@
     "@byok/cost-gate": "*",
     "@byok/db": "*",
     "@byok/vault": "*",
-    "@open-multi-agent/core": "1.14.0"
+    "@open-multi-agent/core": "1.14.0",
+    "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
