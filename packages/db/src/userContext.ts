@@ -1,4 +1,4 @@
-import { InvalidTenantIdError } from "./tenantContext.js";
+import { InvalidTenantIdError, UNSET_SCOPE_UUID } from "./tenantContext.js";
 import type { PoolClientLike, PoolLike } from "./tenantContext.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,6 +17,14 @@ export class InvalidUserIdError extends Error {
  * extraction batch, signup_extraction_batches). Same reasoning applies:
  * a query for another user's rows returns nothing, not an error, because
  * the RLS policy's WHERE clause never matches.
+ *
+ * Also explicitly clears app.tenant_id and app.internal_metrics — see
+ * UNSET_SCOPE_UUID's comment (tenantContext.ts) for why this scope
+ * function can't just trust those to already be unset on a reused
+ * pooled connection. This is exactly the bug issue #38 caught: a prior
+ * claim (withUserAndTenantScope) leaving app.tenant_id set on a
+ * connection this function later reused, letting a since-claimed row
+ * stay visible to its original user's session.
  */
 export async function withUserScope<T>(
   pool: PoolLike,
@@ -31,6 +39,8 @@ export async function withUserScope<T>(
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [UNSET_SCOPE_UUID]);
+    await client.query("SELECT set_config('app.internal_metrics', 'false', true)");
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
@@ -72,6 +82,7 @@ export async function withUserAndTenantScope<T>(
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
     await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+    await client.query("SELECT set_config('app.internal_metrics', 'false', true)");
     const result = await fn(client);
     await client.query("COMMIT");
     return result;

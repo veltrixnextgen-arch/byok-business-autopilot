@@ -1,5 +1,5 @@
 import { withUserScope } from "./userContext.js";
-import type { PoolClientLike, PoolLike } from "./tenantContext.js";
+import { UNSET_SCOPE_UUID, type PoolClientLike, type PoolLike } from "./tenantContext.js";
 
 export type FunnelScreen = "signup" | "interview" | "tasks" | "org_chart";
 
@@ -23,12 +23,22 @@ export interface FeedbackRow {
  * internal metrics route (apps/api/src/routes/internalMetrics.ts) read
  * across every user's rows. Never used for writes — see migrate.test.ts's
  * assertion that this flag never appears in a WITH CHECK clause.
+ *
+ * Also explicitly clears app.user_id and app.tenant_id — see
+ * UNSET_SCOPE_UUID's comment (tenantContext.ts) for why a scope function
+ * can't just trust another app.* var to already be unset on a reused
+ * pooled connection. This function's own queries don't read those two,
+ * but leaving them stale here would be exactly the class of leak issue
+ * #38 found — closing it symmetrically on every scope function, not just
+ * the ones that happened to get caught by a test.
  */
 export async function withInternalMetricsScope<T>(pool: PoolLike, fn: (client: PoolClientLike) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.internal_metrics', 'true', true)");
+    await client.query("SELECT set_config('app.user_id', $1, true)", [UNSET_SCOPE_UUID]);
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [UNSET_SCOPE_UUID]);
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
