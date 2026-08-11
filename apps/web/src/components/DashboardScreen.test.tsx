@@ -20,6 +20,11 @@ vi.mock("../lib/extractionClient", () => ({
   getOrgChartForTenant: () => getOrgChartForTenant(),
 }));
 
+const getBrainKeyStatus = vi.fn();
+vi.mock("../lib/brainKeyClient", () => ({
+  getBrainKeyStatus: () => getBrainKeyStatus(),
+}));
+
 import { DashboardScreen } from "./DashboardScreen";
 
 function jsonResponse(body: unknown) {
@@ -27,12 +32,14 @@ function jsonResponse(body: unknown) {
 }
 
 const ME = { userId: "user-1", email: "founder@example.com", tenantId: "tenant-1" };
+const CONNECTED_KEY = { id: "key-1", provider: "anthropic", maskedFingerprint: "sk-...4f2a", createdAt: new Date().toISOString() };
 
 afterEach(() => {
   cleanup();
   meGet.mockReset();
   dashboardGet.mockReset();
   getOrgChartForTenant.mockReset();
+  getBrainKeyStatus.mockReset();
 });
 
 describe("DashboardScreen", () => {
@@ -40,6 +47,7 @@ describe("DashboardScreen", () => {
     meGet.mockResolvedValue(jsonResponse(ME));
     dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
     getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
 
     render(<DashboardScreen />);
 
@@ -66,6 +74,7 @@ describe("DashboardScreen", () => {
       }),
     );
     getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
 
     render(<DashboardScreen />);
 
@@ -85,6 +94,7 @@ describe("DashboardScreen", () => {
       orgChart: { teams: [{ id: "cfo", roleTitle: "Finance Lead" }] },
       error: null,
     });
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
 
     render(<DashboardScreen />);
 
@@ -102,9 +112,35 @@ describe("DashboardScreen", () => {
       }),
     );
     getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
 
     render(<DashboardScreen />);
 
     expect(await screen.findByText("Approved")).toBeTruthy();
+  });
+
+  it("shows a Connect a Brain CTA when no key is connected yet", async () => {
+    meGet.mockResolvedValue(jsonResponse(ME));
+    dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
+    getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(null);
+
+    render(<DashboardScreen />);
+
+    expect(await screen.findByText("Connect a Brain to get started")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /connect a brain/i });
+    expect(link.getAttribute("href")).toBe("/connect");
+  });
+
+  it("does not show the Connect a Brain CTA once a key is connected", async () => {
+    meGet.mockResolvedValue(jsonResponse(ME));
+    dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
+    getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
+
+    render(<DashboardScreen />);
+
+    await waitFor(() => expect(screen.getByText("Signed in as founder@example.com")).toBeTruthy());
+    expect(screen.queryByText("Connect a Brain to get started")).toBeNull();
   });
 });

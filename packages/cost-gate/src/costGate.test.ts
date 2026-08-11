@@ -174,3 +174,49 @@ test("a locally-approved PROCEED that the durable store rejects downgrades clean
   assert.match(second.verdict.reason, /durable check/);
   assert.equal(second.reservation, undefined);
 });
+
+// Issue #15: "our monthly ceiling ... editable" needed a genuine per-tenant
+// value instead of the one process-wide CeilingConfig every tenant used to
+// share. A resolver function is how a caller (apps/api's devTrustCore.ts)
+// supplies that without CostGate itself gaining a DB dependency.
+test("issue #15: a ceiling resolver function is called with the tenantId and its result actually gates the call", async () => {
+  const seenTenantIds: string[] = [];
+  const gate = new CostGate(
+    freshPricingTable(),
+    (tenantId: string) => {
+      seenTenantIds.push(tenantId);
+      // mid-model's upper-bound estimate is ~$0.0054 — this tenant's
+      // resolved ceiling is deliberately too small to fit it.
+      return { companyMonthlyUsd: 0.0001, perRoleUsd: {}, perTaskTypeUsd: {} };
+    },
+    new InMemoryDurableReservationStore(),
+    modelMap,
+  );
+
+  const result = await gate.evaluateAndReserve(makeInput({ tenantId: "tenant-resolver", batchable: false }));
+
+  assert.deepEqual(seenTenantIds, ["tenant-resolver"]);
+  assert.equal(result.verdict.kind, "SKIP");
+});
+
+test("issue #15: two tenants get genuinely different ceilings from the same resolver", async () => {
+  const ceilingsByTenant: Record<string, number> = { "tenant-generous": 1000, "tenant-stingy": 0.0001 };
+  const gate = new CostGate(
+    freshPricingTable(),
+    (tenantId: string) => ({ companyMonthlyUsd: ceilingsByTenant[tenantId] ?? 50, perRoleUsd: {}, perTaskTypeUsd: {} }),
+    new InMemoryDurableReservationStore(),
+    modelMap,
+  );
+
+  const generous = await gate.evaluateAndReserve(makeInput({ taskId: "g-1", tenantId: "tenant-generous" }));
+  const stingy = await gate.evaluateAndReserve(makeInput({ taskId: "s-1", tenantId: "tenant-stingy", batchable: false }));
+
+  assert.equal(generous.verdict.kind, "PROCEED");
+  assert.equal(stingy.verdict.kind, "SKIP");
+});
+
+test("a static CeilingConfig (no resolver) keeps working exactly as before", async () => {
+  const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} });
+  const result = await gate.evaluateAndReserve(makeInput());
+  assert.equal(result.verdict.kind, "PROCEED");
+});

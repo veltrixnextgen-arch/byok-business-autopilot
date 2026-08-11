@@ -1,5 +1,5 @@
 import type { Auth } from "@byok/auth";
-import type { PoolLike, SignupExtractionBatchStore, SignupMetricsStore } from "@byok/db";
+import { TenantCeilingStore, type PoolLike, type SignupExtractionBatchStore, type SignupMetricsStore } from "@byok/db";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -7,6 +7,8 @@ import type { AppEnv, TrustCoreDeps } from "./context.js";
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
+import { brainKeyRoute } from "./routes/brainKeys.js";
+import { ceilingRoute } from "./routes/ceiling.js";
 import { dashboardRoute } from "./routes/dashboard.js";
 import { extractionRoute } from "./routes/extraction.js";
 import { healthRoute } from "./routes/health.js";
@@ -53,6 +55,9 @@ export function createApp(options: CreateAppOptions) {
   // rather than threading a new required CreateAppOptions field through
   // every existing caller for a single read-only route.
   const costActivity = new PostgresCostActivityQueries(options.pool);
+  // Same reasoning as costActivity above — a thin pool wrapper (issue #15),
+  // safe to construct here rather than adding a CreateAppOptions field.
+  const ceilings = new TenantCeilingStore(options.pool);
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
@@ -65,6 +70,11 @@ export function createApp(options: CreateAppOptions) {
     .all("/api/auth/*", (c) => options.auth.handler(c.req.raw))
     .use("/me/*", tenantMiddleware(options.pool, options.auth))
     .route("/me", meRoute({ batchStore: options.extraction.batchStore }))
+    .route(
+      "/me/brain-key",
+      brainKeyRoute({ vault: options.trustCore.vault, batchStore: options.extraction.batchStore }),
+    )
+    .route("/me/ceiling", ceilingRoute({ ceilings }))
     .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
     .route("/dashboard", dashboardRoute({ costActivity }))
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))
