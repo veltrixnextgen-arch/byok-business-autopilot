@@ -9,11 +9,12 @@
 d338bf33eb02fba4c2064950e83cfb400d89b21a:docs/design/tool-registry.md:generic-api-key:54
 
 # packages/vault/src/vault.test.ts lines 166/182 (commit 272d4db): a
-# hand-authored Hands-key test fixture, "sk_live_stripekey123456" — never
-# a real Stripe key, just a string that happens to match the
-# stripe-access-token shape. Renamed to a non-matching shape in the very
-# next commit (0018e22), but gitleaks scans the full PR commit range, so
-# this now-superseded commit's own diff still trips the rule — ignoring
-# its fingerprint here rather than rewriting already-pushed history.
+# hand-authored Hands-key test fixture whose placeholder value happened to
+# match the stripe-access-token shape — never a real Stripe key. Renamed
+# to a non-matching shape in the very next commit (0018e22), but gitleaks
+# scans the full PR commit range, so this now-superseded commit's own
+# diff still trips the rule — ignoring its fingerprint here rather than
+# rewriting already-pushed history. (Do not quote the old placeholder
+# value in this comment — gitleaks matches this file's own contents too.)
 272d4dbbcc2201f1c5873f0e4b22d693c5228bec:packages/vault/src/vault.test.ts:stripe-access-token:166
 272d4dbbcc2201f1c5873f0e4b22d693c5228bec:packages/vault/src/vault.test.ts:stripe-access-token:182
