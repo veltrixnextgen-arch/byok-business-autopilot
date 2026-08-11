@@ -163,7 +163,11 @@ test("issue #22: resolveHandsKeyId is null before a Hands key is stored, and res
       subAgentId: "invoicing",
       capabilityScope: "stripe:read-only",
       service: "stripe",
-      plaintext: Buffer.from("sk_live_stripekey123456"),
+      // Dash-separated, not the real "sk_live_..." shape — matches this
+      // file's own other fixtures (sk-hands-fake-0001 etc.) and avoids
+      // gitleaks' stripe-access-token rule tripping on a shape that reads
+      // like a real key even though it never is one.
+      plaintext: Buffer.from("sk-hands-fake-key-0001"),
     },
     ONBOARDING,
   );
@@ -179,7 +183,7 @@ test("issue #22: resolveHandsKeyId and getHandsKeyStatus both go back to null on
       subAgentId: "invoicing",
       capabilityScope: "stripe:read-only",
       service: "stripe",
-      plaintext: Buffer.from("sk_live_stripekey123456"),
+      plaintext: Buffer.from("sk-hands-fake-key-0002"),
     },
     ONBOARDING,
   );
