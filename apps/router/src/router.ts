@@ -117,6 +117,18 @@ export class Router {
     task.result = outcome.result;
     if (this.costGate && reservation) await this.costGate.settle(reservation.id, outcome.costUsd ?? reservation.amountUsd);
 
+    // Issue #22: a task that ran without one or more of its required Hands
+    // tools connected can only ever be a DRAFT — no real send/post/pay
+    // could have happened, no matter what input.effect claimed ahead of
+    // time. Forcing effect to undefined here (not upstream at submitTask's
+    // caller, which can't know what actually got connected until AFTER
+    // execution) is what makes "agents whose Hands aren't connected yet
+    // work in draft mode automatically" true rather than just intended.
+    if (outcome.missingHands && outcome.missingHands.length > 0) {
+      task.missingHands = outcome.missingHands;
+    }
+    const effectiveEffect = task.missingHands ? undefined : input.effect;
+
     if (this.approvalQueue) {
       const { queued } = await this.approvalQueue.submitProposedAction({
         id: task.id,
@@ -127,7 +139,7 @@ export class Router {
         summary: task.title,
         draft: outcome.result,
         stakesTags: tags,
-        effect: input.effect,
+        effect: effectiveEffect,
         createdAt: task.updatedAt,
       });
 
@@ -140,7 +152,11 @@ export class Router {
         subAgentId: task.subAgentId,
         status: task.status,
         at: task.updatedAt,
-        note: queued ? "awaiting human/spot-check review" : "auto-approved via earned autonomy",
+        note: task.missingHands
+          ? `drafted only — connect ${task.missingHands.join(", ")} to enable real actions`
+          : queued
+            ? "awaiting human/spot-check review"
+            : "auto-approved via earned autonomy",
       });
       return task;
     }

@@ -146,6 +146,83 @@ test("ADR-008: production refuses to construct a Router missing either CostGate 
   }
 });
 
+test("issue #22: a result with missingHands is submitted as a pure draft — effect dropped even though the caller requested one", async () => {
+  let capturedEffect: unknown;
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const draftingExecutor: AgentExecutor = {
+    async execute() {
+      return { result: "Drafted the reminder email — connect Resend to actually send it.", missingHands: ["resend"] };
+    },
+  };
+  const originalSubmit = queue.submitProposedAction.bind(queue);
+  queue.submitProposedAction = (action) => {
+    capturedEffect = action.effect;
+    return originalSubmit(action);
+  };
+  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), draftingExecutor, undefined, queue);
+
+  const task = await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Send a payment reminder",
+    payload: "...",
+    dedupKey: "task-hands-1",
+    // The caller asked for a real send — the router must override this
+    // once the executor reports the send tool was never actually available.
+    effect: { kind: "send", description: "Email the reminder to the client" },
+  });
+
+  assert.equal(capturedEffect, undefined);
+  assert.deepEqual(task.missingHands, ["resend"]);
+  assert.equal(task.status, "awaiting_review"); // still visible to a human, just never dispatchable
+});
+
+test("issue #22: the ledger note for a missingHands task names what to connect, not the generic review/autonomy note", async () => {
+  const ledger = new InMemoryTaskLedger();
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const draftingExecutor: AgentExecutor = {
+    async execute() {
+      return { result: "drafted", missingHands: ["stripe", "resend"] };
+    },
+  };
+  const router = new Router(ledger, new InMemoryDedupStore(), draftingExecutor, undefined, queue);
+
+  const task = await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Bill the client",
+    payload: "...",
+    dedupKey: "task-hands-2",
+  });
+
+  const entries = ledger.entriesFor("invoicing");
+  const finalEntry = entries.find((e) => e.taskId === task.id && e.status === "awaiting_review");
+  assert.equal(finalEntry?.note, "drafted only — connect stripe, resend to enable real actions");
+});
+
+test("issue #22: a fully-connected result (no missingHands) keeps the effect and the usual review note, unaffected", async () => {
+  let capturedEffect: unknown;
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const originalSubmit = queue.submitProposedAction.bind(queue);
+  queue.submitProposedAction = (action) => {
+    capturedEffect = action.effect;
+    return originalSubmit(action);
+  };
+  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
+
+  const task = await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Send an invoice",
+    payload: "...",
+    dedupKey: "task-hands-3",
+    effect: { kind: "send", description: "Email the invoice" },
+  });
+
+  assert.deepEqual(capturedEffect, { kind: "send", description: "Email the invoice" });
+  assert.equal(task.missingHands, undefined);
+});
+
 test("ADR-008: dev/test environments are unaffected — a Router with neither dependency still constructs fine outside production", () => {
   const original = process.env.NODE_ENV;
   try {

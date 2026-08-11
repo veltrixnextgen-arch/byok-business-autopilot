@@ -66,6 +66,16 @@ export interface HandsKeyProvider {
     requestedBy: { subAgentId: string; capabilityScope: string },
     requester: RequesterIdentity,
   ): Promise<SecretHandle>;
+  /** Pre-flight lookup (issue #22's just-in-time gate): does a connected
+   *  Hands key exist for this scope, and if so what's its id — so a
+   *  caller can both decide "can I even offer this tool right now" AND,
+   *  if so, go straight to decryptHandsKey(keyId, ...) without a second
+   *  round trip. Deliberately just an id, not the full PublicKeyRecord
+   *  (no fingerprint/timestamps) — those belong to a status route, not
+   *  this hot pre-flight path. No requester identity check here (unlike
+   *  decryptHandsKey) — knowing whether a key merely EXISTS carries none
+   *  of the risk that decrypting it does. */
+  resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): string | null;
 }
 
 function assertRouterServiceIdentity(requester: RequesterIdentity): void {
@@ -92,7 +102,21 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   // first real caller of this path outside single-tenant tests).
   private readonly brainKeysByTenant = new Map<string, Map<string, BrainKeyRecord>>();
   private readonly handsKeysById = new Map<string, HandsKeyRecord>();
+  // (tenantId, subAgentId, capabilityScope) -> the CURRENT record's id.
+  // handsKeysById itself is only ever looked up by an id someone already
+  // has (from decryptHandsKey's caller, or a rotate/revoke call) — nothing
+  // could ask "is subAgentId X already connected for capability Y" without
+  // this (issue #22's JIT gate needs exactly that, ahead of ever knowing a
+  // keyId). Re-storing for the same scope overwrites this index to point
+  // at the new record, same "latest wins" semantics as setBrainKey — the
+  // old record stays in handsKeysById (still revocable by its own id) but
+  // becomes unreachable via lookup, same as an orphaned prior BrainKeyRecord.
+  private readonly handsKeyIndex = new Map<string, string>();
   private readonly listeners: VaultEventListener[] = [];
+
+  private static handsIndexKey(tenantId: string, subAgentId: string, capabilityScope: string): string {
+    return `${tenantId}::${subAgentId}::${capabilityScope}`;
+  }
 
   constructor(
     kms: Kms,
@@ -239,8 +263,24 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       updatedAt: now(),
     };
     this.handsKeysById.set(record.id, record);
+    this.handsKeyIndex.set(Vault.handsIndexKey(input.tenantId, input.subAgentId, input.capabilityScope), record.id);
     this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
     return toPublic(record);
+  }
+
+  /** Status only — never returns material, safe for a route to expose
+   *  directly (mirrors getBrainKeyStatus, issue #22's "is this Hands tool
+   *  already connected" check). */
+  getHandsKeyStatus(tenantId: string, subAgentId: string, capabilityScope: string): PublicKeyRecord | null {
+    const keyId = this.handsKeyIndex.get(Vault.handsIndexKey(tenantId, subAgentId, capabilityScope));
+    const record = keyId ? this.handsKeysById.get(keyId) : undefined;
+    return record && !record.revoked ? toPublic(record) : null;
+  }
+
+  resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): string | null {
+    const keyId = this.handsKeyIndex.get(Vault.handsIndexKey(tenantId, subAgentId, capabilityScope));
+    const record = keyId ? this.handsKeysById.get(keyId) : undefined;
+    return record && !record.revoked ? record.id : null;
   }
 
   async rotateHandsKey(

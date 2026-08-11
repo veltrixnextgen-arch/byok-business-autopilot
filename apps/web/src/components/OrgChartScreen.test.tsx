@@ -1,5 +1,5 @@
 import type { OrgChart } from "@byok/contracts";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // A stable reference across renders — matches how the real useNavigate()
@@ -31,6 +31,14 @@ vi.mock("../lib/extractionClient", async (importOriginal) => {
 });
 
 import { getLatestBatch, getOrgChartForTenant } from "../lib/extractionClient";
+
+const getHandsKeyStatus = vi.fn();
+const connectHandsKey = vi.fn();
+vi.mock("../lib/handsKeyClient", () => ({
+  getHandsKeyStatus: (...args: [string, string]) => getHandsKeyStatus(...args),
+  connectHandsKey: (...args: [string, string, string]) => connectHandsKey(...args),
+}));
+
 import { OrgChartScreen } from "./OrgChartScreen";
 
 const CHART: OrgChart = {
@@ -85,6 +93,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(getLatestBatch).mockReset();
   vi.mocked(getOrgChartForTenant).mockReset();
+  getHandsKeyStatus.mockReset();
+  connectHandsKey.mockReset();
   navigate.mockReset();
 });
 
@@ -150,5 +160,98 @@ describe("OrgChartScreen — post-claim revisit (issue #38)", () => {
 
     await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
     expect(vi.mocked(getOrgChartForTenant)).not.toHaveBeenCalled();
+  });
+});
+
+const CHART_WITH_HANDS: OrgChart = {
+  ...CHART,
+  agents: [{ ...CHART.agents[0], hands: ["Stripe"] }],
+} as unknown as OrgChart;
+
+// Issue #22: the org chart is where a Hands tool's JIT connect prompt
+// actually lives — Screen 12's "connect now or skip; agents without
+// tools work in draft mode".
+describe("OrgChartScreen — just-in-time Hands connect (issue #22)", () => {
+  it("shows a connect affordance for an unconnected Hands tool, not a static badge", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+
+    render(<OrgChartScreen />);
+
+    const connectButton = await screen.findByRole("button", { name: "Stripe · connect" });
+    expect(getHandsKeyStatus).toHaveBeenCalledWith("agent-1", "Stripe");
+
+    fireEvent.click(connectButton);
+    expect(await screen.findByText(/Alex wants to connect/i)).toBeTruthy();
+    expect(screen.getByText(/it works in draft mode/i)).toBeTruthy();
+  });
+
+  it("connecting a key replaces the connect button with a connected badge", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+    connectHandsKey.mockResolvedValue({ id: "key-1", service: "Stripe", maskedFingerprint: "sk-...abcd", createdAt: "" });
+
+    render(<OrgChartScreen />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Stripe · connect" }));
+    fireEvent.change(await screen.findByLabelText("Paste your Stripe API key"), { target: { value: "sk_live_real" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    await waitFor(() => expect(connectHandsKey).toHaveBeenCalledWith("agent-1", "Stripe", "sk_live_real"));
+    expect(await screen.findByText("✓ Stripe")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Stripe · connect" })).toBeNull();
+  });
+
+  it("shows a connected badge directly, with no connect affordance, when already connected", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue({ id: "key-1", service: "Stripe", maskedFingerprint: "sk-...abcd", createdAt: "" });
+
+    render(<OrgChartScreen />);
+
+    expect(await screen.findByText("✓ Stripe")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Stripe · connect" })).toBeNull();
+  });
+
+  it("skip dismisses the panel without ever calling connectHandsKey", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+
+    render(<OrgChartScreen />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Stripe · connect" }));
+    await screen.findByText(/Alex wants to connect/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+
+    expect(screen.queryByText(/Alex wants to connect/i)).toBeNull();
+    expect(connectHandsKey).not.toHaveBeenCalled();
   });
 });
