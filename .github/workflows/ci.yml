@@ -125,13 +125,60 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Runs as the POSTGRES_USER role (byok) — the official Postgres
+      # image always creates that role as a SUPERUSER, which is exactly
+      # the elevated privilege DDL like CREATE POLICY / ALTER TABLE ...
+      # FORCE ROW LEVEL SECURITY needs to run.
       - run: npm run db:migrate
+      # Issue #38 found this the hard way: FORCE ROW LEVEL SECURITY has
+      # NO effect on a superuser (or any BYPASSRLS role) — Postgres skips
+      # the row-security system for them entirely, unconditionally. Every
+      # *.itest.ts step below had been connecting AS that same superuser
+      # (byok), so no itest querying for a specific, known-existing row
+      # could ever have proven RLS was actually enforced — only that the
+      # SQL itself was well-formed. A restricted, ordinary role is what
+      # actually exercises the policies the app's real runtime role must
+      # obey (see docs/architecture/security-architecture.md's own note
+      # that the deployed connection role must never be SUPERUSER/BYPASSRLS).
+      - name: Create a restricted app_user role — RLS only means something against a non-superuser connection
+        env:
+          DATABASE_URL: postgres://byok:byok_ci_password@localhost:5432/byok
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+              CREATE ROLE app_user LOGIN PASSWORD 'app_user_ci_password' NOSUPERUSER NOBYPASSRLS;
+            END IF;
+          END
+          $$;
+          GRANT CONNECT ON DATABASE byok TO app_user;
+          GRANT USAGE ON SCHEMA public TO app_user;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+          SQL
       # THE atomicity fix (issue #6): proves the reservation/autonomy race
       # is closed against a REAL Postgres, not just an in-memory fake — see
-      # each package's *.itest.ts for what's actually being proven.
+      # each package's *.itest.ts for what's actually being proven. Every
+      # test:integration step from here down runs as app_user, not byok —
+      # DATABASE_URL is overridden per-step, migrations above already ran
+      # as the owning role and don't need to run again.
       - run: npm run test:integration --workspace @byok/cost-gate
+        env:
+          DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
       - run: npm run test:integration --workspace @byok/approval-queue
+        env:
+          DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
       - run: npm run test:integration --workspace @byok/router
+        env:
+          DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
+      # Issue #38: proves the org-chart -> tenant handoff's RLS boundary
+      # against a REAL Postgres — a claimed chart closing to its original
+      # user and staying invisible to every other tenant, not just an
+      # application-code assumption.
+      - run: npm run test:integration --workspace @byok/db
+        env:
+          DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
 
   trust-core-attestation:
     name: Trust-core attestation

@@ -15,9 +15,9 @@ vi.mock("../lib/apiClient", () => ({
   apiClient: { me: { $get: () => meGet() }, dashboard: { $get: () => dashboardGet() } },
 }));
 
-const getLatestBatch = vi.fn();
+const getOrgChartForTenant = vi.fn();
 vi.mock("../lib/extractionClient", () => ({
-  getLatestBatch: () => getLatestBatch(),
+  getOrgChartForTenant: () => getOrgChartForTenant(),
 }));
 
 import { DashboardScreen } from "./DashboardScreen";
@@ -32,14 +32,14 @@ afterEach(() => {
   cleanup();
   meGet.mockReset();
   dashboardGet.mockReset();
-  getLatestBatch.mockReset();
+  getOrgChartForTenant.mockReset();
 });
 
 describe("DashboardScreen", () => {
   it("shows honest empty states for panels with no real data source, even once loaded", async () => {
     meGet.mockResolvedValue(jsonResponse(ME));
     dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
-    getLatestBatch.mockResolvedValue(null);
+    getOrgChartForTenant.mockResolvedValue(null);
 
     render(<DashboardScreen />);
 
@@ -65,7 +65,7 @@ describe("DashboardScreen", () => {
         recentActivity: [],
       }),
     );
-    getLatestBatch.mockResolvedValue(null);
+    getOrgChartForTenant.mockResolvedValue(null);
 
     render(<DashboardScreen />);
 
@@ -79,7 +79,7 @@ describe("DashboardScreen", () => {
     dashboardGet.mockResolvedValue(
       jsonResponse({ spendByRoleAllTime: [{ key: "cfo", totalUsd: 4 }], spendByRoleToday: [], recentActivity: [] }),
     );
-    getLatestBatch.mockResolvedValue({
+    getOrgChartForTenant.mockResolvedValue({
       id: "batch-1",
       status: "completed",
       orgChart: { teams: [{ id: "cfo", roleTitle: "Finance Lead" }] },
@@ -101,7 +101,7 @@ describe("DashboardScreen", () => {
         recentActivity: [{ id: "evt-1", source: "approval-queue", kind: "APPROVE", at: new Date().toISOString() }],
       }),
     );
-    getLatestBatch.mockResolvedValue(null);
+    getOrgChartForTenant.mockResolvedValue(null);
 
     render(<DashboardScreen />);
 

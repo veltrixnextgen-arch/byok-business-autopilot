@@ -94,3 +94,27 @@ test("0005_signup_metrics.sql RLS-policies both tables it creates, keyed on app.
     assert.doesNotMatch(clause, /internal_metrics/);
   }
 });
+
+test("0006_signup_extraction_batch_tenant_transfer.sql adds tenant_id and closes the user_id path once a row is claimed", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0006_signup_extraction_batch_tenant_transfer.sql"), "utf8");
+
+  assert.match(sql, /ALTER TABLE signup_extraction_batches\s+ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants\(id\)/);
+  assert.match(sql, /DROP POLICY IF EXISTS user_isolation ON signup_extraction_batches;/);
+  assert.match(sql, /CREATE POLICY owner_isolation ON signup_extraction_batches/);
+
+  // Pre-claim: exactly the 0004/0005 user-scoped behavior. Post-claim: a
+  // real tenant-scoped branch, matching every other tenant-scoped table.
+  assert.match(sql, /tenant_id IS NULL AND user_id = current_setting\('app\.user_id', true\)::uuid/);
+  assert.match(sql, /tenant_id IS NOT NULL AND tenant_id = current_setting\('app\.tenant_id', true\)::uuid/);
+
+  // The 0005 internal-metrics read exception must survive this migration,
+  // and must appear exactly once in actual SQL — in USING, never
+  // duplicated into WITH CHECK (which would let it write, not just read,
+  // across owners). Matches the functional condition only, not comments.
+  const internalMetricsConditions = sql.match(/current_setting\('app\.internal_metrics', true\) = 'true'/g) ?? [];
+  assert.equal(internalMetricsConditions.length, 1, "app.internal_metrics condition must appear in USING only, never in WITH CHECK");
+
+  // One claimed chart per tenant, enforced at the database level, not
+  // just by claimLatestForTenant's own idempotency check.
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS signup_extraction_batches_tenant_id_unique/);
+});

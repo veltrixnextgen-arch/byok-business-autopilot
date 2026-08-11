@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { InvalidTenantIdError, withTenantScope, type PoolClientLike, type PoolLike } from "./tenantContext.js";
+import { InvalidTenantIdError, UNSET_SCOPE_UUID, withTenantScope, type PoolClientLike, type PoolLike } from "./tenantContext.js";
 
 const VALID_TENANT_ID = "8b6f3f2e-9a1e-4a5a-9d0f-6f6c1a2b3c4d";
 
@@ -45,8 +45,23 @@ test("sets app.tenant_id via a bound set_config parameter, never string interpol
   assert.equal(calls[0]?.text, "BEGIN");
   assert.equal(calls[1]?.text, "SELECT set_config('app.tenant_id', $1, true)");
   assert.deepEqual(calls[1]?.values, [VALID_TENANT_ID]);
-  assert.equal(calls[2]?.text, "COMMIT");
-  assert.equal(calls[3]?.text, "__release__");
+  assert.equal(calls[4]?.text, "COMMIT");
+  assert.equal(calls[5]?.text, "__release__");
+});
+
+// Issue #38: a custom GUC's SET LOCAL doesn't reliably revert to a true
+// NULL on a pooled connection reused by a later, unrelated scope call —
+// so every scope function must explicitly clear every app.* var it
+// doesn't own, not just set the one it does.
+test("explicitly clears app.user_id and app.internal_metrics — never trusts a reused connection to have them unset", async () => {
+  const { client, calls } = recordingClient();
+  const pool = fakePool(client);
+
+  await withTenantScope(pool, VALID_TENANT_ID, async () => "ok");
+
+  assert.equal(calls[2]?.text, "SELECT set_config('app.user_id', $1, true)");
+  assert.deepEqual(calls[2]?.values, [UNSET_SCOPE_UUID]);
+  assert.equal(calls[3]?.text, "SELECT set_config('app.internal_metrics', 'false', true)");
 });
 
 test("rolls back and releases the client if the callback throws", async () => {

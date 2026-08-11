@@ -2,7 +2,7 @@ import type { TeamHint } from "@byok/contracts";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiClient } from "../lib/apiClient";
-import { getLatestBatch, type LatestBatch } from "../lib/extractionClient";
+import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { Card, cx } from "./ui";
 
@@ -104,8 +104,12 @@ export function DashboardScreen() {
     // Fire-and-forget, same spirit as recordFunnelEvent — a returning
     // user's "back into your org chart" link (and the cost-by-team
     // panel's real team titles below) are nice-to-haves, not something
-    // worth blocking or erroring the dashboard over.
-    getLatestBatch()
+    // worth blocking or erroring the dashboard over. Tenant-scoped
+    // (issue #38): dashboard.tsx's beforeLoad already guarantees an
+    // active organization exists by the time this component renders, so
+    // the org chart lives at the claimed, tenant-scoped read path, not
+    // the pre-org getLatestBatch (which can no longer see a claimed row).
+    getOrgChartForTenant()
       .then(setBatch)
       .catch(() => {});
   }, []);

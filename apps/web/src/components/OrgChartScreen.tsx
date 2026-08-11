@@ -1,7 +1,7 @@
 import type { Agent, OrgChart, Task } from "@byok/contracts";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getLatestBatch, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
+import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { Badge, type BadgeTone, Button, Card } from "./ui";
 
@@ -22,7 +22,18 @@ export function OrgChartScreen() {
 
     async function load() {
       try {
-        const batch = await getLatestBatch();
+        // Primary path: the fresh, pre-org reveal right after extraction
+        // completes (unchanged). If nothing's there, this may be a
+        // revisit after the org-chart -> tenant handoff already claimed
+        // it (issue #38) — getLatestBatch can no longer see a claimed
+        // row once tenant_id is set, so fall back to the tenant-scoped
+        // read. That fallback 401s (swallowed here) for a user with no
+        // active organization at all, which is the same "nothing to
+        // show" case as today.
+        let batch = await getLatestBatch();
+        if (!batch) {
+          batch = await Promise.resolve(getOrgChartForTenant()).catch(() => null);
+        }
         if (cancelled) return;
         if (!batch) {
           await navigate({ to: "/" });

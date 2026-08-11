@@ -1,13 +1,16 @@
 import type { OrgChart } from "@byok/contracts";
 import { withInternalMetricsScope } from "./signupMetrics.js";
-import { withUserScope } from "./userContext.js";
-import type { PoolLike } from "./tenantContext.js";
+import { withUserAndTenantScope, withUserScope } from "./userContext.js";
+import { withTenantScope, type PoolLike } from "./tenantContext.js";
 
 export type SignupExtractionBatchStatus = "running" | "completed" | "failed";
 
 export interface SignupExtractionBatch {
   id: string;
   userId: string;
+  /** Set once claimed by a tenant (issue #38) — null until then. See
+   *  migrations/0006_signup_extraction_batch_tenant_transfer.sql. */
+  tenantId: string | null;
   idea: string;
   status: SignupExtractionBatchStatus;
   orgChart: OrgChart | null;
@@ -17,9 +20,13 @@ export interface SignupExtractionBatch {
   updatedAt: string;
 }
 
+const SELECT_COLUMNS =
+  "id, user_id, tenant_id, idea, status, org_chart, cost_usd, error, created_at, updated_at";
+
 interface SignupExtractionBatchRow {
   id: string;
   user_id: string;
+  tenant_id: string | null;
   idea: string;
   status: SignupExtractionBatchStatus;
   org_chart: OrgChart | null;
@@ -33,6 +40,7 @@ function rowToBatch(row: SignupExtractionBatchRow): SignupExtractionBatch {
   return {
     id: row.id,
     userId: row.user_id,
+    tenantId: row.tenant_id,
     idea: row.idea,
     status: row.status,
     orgChart: row.org_chart,
@@ -59,7 +67,7 @@ export class SignupExtractionBatchStore {
       const result = (await client.query(
         `INSERT INTO signup_extraction_batches (user_id, idea, status)
          VALUES ($1::uuid, $2, 'running')
-         RETURNING id, user_id, idea, status, org_chart, cost_usd, error, created_at, updated_at`,
+         RETURNING ${SELECT_COLUMNS}`,
         [userId, idea],
       )) as unknown as { rows: SignupExtractionBatchRow[] };
       return rowToBatch(result.rows[0]);
@@ -107,11 +115,89 @@ export class SignupExtractionBatchStore {
   async get(userId: string, id: string): Promise<SignupExtractionBatch | null> {
     return withUserScope(this.pool, userId, async (client) => {
       const result = (await client.query(
-        `SELECT id, user_id, idea, status, org_chart, cost_usd, error, created_at, updated_at
+        `SELECT ${SELECT_COLUMNS}
          FROM signup_extraction_batches WHERE id = $1::uuid AND user_id = $2::uuid`,
         [id, userId],
       )) as unknown as { rows: SignupExtractionBatchRow[] };
       return result.rows[0] ? rowToBatch(result.rows[0]) : null;
+    });
+  }
+
+  /** Tenant-scoped equivalent of `get`, valid only after a chart has been
+   *  claimed (issue #38) — reads via app.tenant_id, never app.user_id. */
+  async getForTenant(tenantId: string, id: string): Promise<SignupExtractionBatch | null> {
+    return withTenantScope(this.pool, tenantId, async (client) => {
+      const result = (await client.query(
+        `SELECT ${SELECT_COLUMNS}
+         FROM signup_extraction_batches WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+        [id, tenantId],
+      )) as unknown as { rows: SignupExtractionBatchRow[] };
+      return result.rows[0] ? rowToBatch(result.rows[0]) : null;
+    });
+  }
+
+  /** The tenant's claimed org chart, if any (issue #38) — the
+   *  post-transfer read path DashboardScreen/OrgChartScreen use once an
+   *  organization exists. The tenant_id unique index means there's at
+   *  most one row to find, but this mirrors latestForUser's shape
+   *  (ORDER BY + LIMIT 1) rather than assuming that invariant here too. */
+  async latestForTenant(tenantId: string): Promise<SignupExtractionBatch | null> {
+    return withTenantScope(this.pool, tenantId, async (client) => {
+      const result = (await client.query(
+        `SELECT ${SELECT_COLUMNS}
+         FROM signup_extraction_batches WHERE tenant_id = $1::uuid
+         ORDER BY created_at DESC LIMIT 1`,
+        [tenantId],
+      )) as unknown as { rows: SignupExtractionBatchRow[] };
+      return result.rows[0] ? rowToBatch(result.rows[0]) : null;
+    });
+  }
+
+  /**
+   * The transfer itself (issue #38, ADR-015's deferred gap). Idempotent:
+   * if this tenant has already claimed a batch, returns it unchanged
+   * rather than attempting another claim — safe to call more than once
+   * (a retried request, a double-click on "create company"). Otherwise
+   * claims the user's most recent COMPLETED, not-yet-claimed batch —
+   * older completed batches from earlier interview attempts, and any
+   * batch already claimed by a different tenant, are never touched, so a
+   * user with multiple pre-org extractions can't end up with orphaned or
+   * cross-claimed records. Returns null when there is nothing eligible to
+   * claim (e.g. the user never completed an interview) — a no-op, not an
+   * error.
+   */
+  async claimLatestForTenant(userId: string, tenantId: string): Promise<SignupExtractionBatch | null> {
+    return withUserAndTenantScope(this.pool, userId, tenantId, async (client) => {
+      const alreadyClaimed = (await client.query(
+        `SELECT ${SELECT_COLUMNS} FROM signup_extraction_batches WHERE tenant_id = $1::uuid LIMIT 1`,
+        [tenantId],
+      )) as unknown as { rows: SignupExtractionBatchRow[] };
+      if (alreadyClaimed.rows[0]) return rowToBatch(alreadyClaimed.rows[0]);
+
+      const claimed = (await client.query(
+        `UPDATE signup_extraction_batches
+         SET tenant_id = $2::uuid, updated_at = now()
+         WHERE id = (
+           SELECT id FROM signup_extraction_batches
+           WHERE user_id = $1::uuid AND tenant_id IS NULL AND status = 'completed'
+           ORDER BY created_at DESC
+           LIMIT 1
+         )
+         RETURNING ${SELECT_COLUMNS}`,
+        [userId, tenantId],
+      )) as unknown as { rows: SignupExtractionBatchRow[] };
+      if (claimed.rows[0]) return rowToBatch(claimed.rows[0]);
+
+      // Nothing claimed — either there was genuinely nothing eligible, or
+      // a concurrent call for this same tenant won the race between the
+      // idempotency check above and this UPDATE's subquery evaluation.
+      // Re-check before reporting "nothing to claim" so a losing racer
+      // still reports the winner's result instead of a false null.
+      const recheck = (await client.query(
+        `SELECT ${SELECT_COLUMNS} FROM signup_extraction_batches WHERE tenant_id = $1::uuid LIMIT 1`,
+        [tenantId],
+      )) as unknown as { rows: SignupExtractionBatchRow[] };
+      return recheck.rows[0] ? rowToBatch(recheck.rows[0]) : null;
     });
   }
 
@@ -140,7 +226,7 @@ export class SignupExtractionBatchStore {
   async latestForUser(userId: string): Promise<SignupExtractionBatch | null> {
     return withUserScope(this.pool, userId, async (client) => {
       const result = (await client.query(
-        `SELECT id, user_id, idea, status, org_chart, cost_usd, error, created_at, updated_at
+        `SELECT ${SELECT_COLUMNS}
          FROM signup_extraction_batches WHERE user_id = $1::uuid
          ORDER BY created_at DESC LIMIT 1`,
         [userId],
