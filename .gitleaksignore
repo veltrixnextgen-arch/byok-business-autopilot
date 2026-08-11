@@ -18,3 +18,8 @@ d338bf33eb02fba4c2064950e83cfb400d89b21a:docs/design/tool-registry.md:generic-ap
 # value in this comment — gitleaks matches this file's own contents too.)
 272d4dbbcc2201f1c5873f0e4b22d693c5228bec:packages/vault/src/vault.test.ts:stripe-access-token:166
 272d4dbbcc2201f1c5873f0e4b22d693c5228bec:packages/vault/src/vault.test.ts:stripe-access-token:182
+
+# The commit that first wrote the entry above also quoted the placeholder
+# value verbatim in its own comment text, before that got reworded —
+# same false positive, this time on .gitleaksignore itself.
+1e333f53a96be1818d76e2350df76037a7673176:.gitleaksignore:stripe-access-token:12
