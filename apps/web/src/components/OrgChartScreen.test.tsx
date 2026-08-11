@@ -2,8 +2,14 @@ import type { OrgChart } from "@byok/contracts";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// A stable reference across renders — matches how the real useNavigate()
+// behaves. A fresh `vi.fn()` on every call would change the effect's
+// [navigate] dependency on every re-render (e.g. the setState inside
+// load() itself), re-triggering the effect and calling load() a second
+// time mid-test.
+const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigate,
   Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
     <a href={to} className={className}>
       {children}
@@ -16,6 +22,7 @@ vi.mock("../lib/extractionClient", async (importOriginal) => {
   return {
     ...actual,
     getLatestBatch: vi.fn(),
+    getOrgChartForTenant: vi.fn(),
     recordFunnelEvent: vi.fn(),
     submitFeedback: vi.fn(),
     reassemble: vi.fn(),
@@ -23,7 +30,7 @@ vi.mock("../lib/extractionClient", async (importOriginal) => {
   };
 });
 
-import { getLatestBatch } from "../lib/extractionClient";
+import { getLatestBatch, getOrgChartForTenant } from "../lib/extractionClient";
 import { OrgChartScreen } from "./OrgChartScreen";
 
 const CHART: OrgChart = {
@@ -77,6 +84,8 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.mocked(getLatestBatch).mockReset();
+  vi.mocked(getOrgChartForTenant).mockReset();
+  navigate.mockReset();
 });
 
 // The reported bug: nothing exists after the org chart reveal — the
@@ -102,5 +111,44 @@ describe("OrgChartScreen — closing state", () => {
 
     const link = screen.getByRole("link", { name: /back to your dashboard/i });
     expect(link.getAttribute("href")).toBe("/dashboard");
+  });
+});
+
+// Issue #38: once a chart is claimed by a tenant, getLatestBatch (user-
+// scoped) can no longer see it — a revisit to /org-chart after org
+// creation must fall back to the tenant-scoped read instead of treating
+// "nothing pre-org" as "nothing at all."
+describe("OrgChartScreen — post-claim revisit (issue #38)", () => {
+  it("falls back to the tenant-scoped org chart when the pre-org read finds nothing", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce(null);
+    vi.mocked(getOrgChartForTenant).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
+    expect(vi.mocked(getOrgChartForTenant)).toHaveBeenCalledOnce();
+  });
+
+  it("never calls the tenant-scoped fallback when the pre-org read already found the chart", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
+    expect(vi.mocked(getOrgChartForTenant)).not.toHaveBeenCalled();
   });
 });

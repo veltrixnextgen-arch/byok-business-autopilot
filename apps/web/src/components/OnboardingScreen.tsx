@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../lib/authClient";
-import { loadIdea } from "../lib/extractionClient";
+import { claimOrgChart, loadIdea } from "../lib/extractionClient";
 import { Button, TextInput } from "./ui";
 
 // Split out of routes/onboarding.tsx (a plain export here, so it's
@@ -54,6 +54,13 @@ export function OnboardingScreen() {
       setError(activeError.message ?? "Created, but could not switch you into it — try signing in again.");
       return;
     }
+
+    // Issue #38: the org-chart -> tenant handoff (ADR-015's deferred gap),
+    // triggered at the earliest point a tenant exists today. Best-effort
+    // and non-blocking — a user who hasn't finished the interview yet has
+    // nothing to claim, and that's a normal, not-an-error state; either
+    // way the user should still land in the app, not get stuck here.
+    claimOrgChart().catch(() => {});
 
     // A signed-up user can reach org creation with a pending idea still
     // sitting in sessionStorage (e.g. they weren't sent straight to

@@ -64,7 +64,7 @@ export function createApp(options: CreateAppOptions) {
     // call, discovered only once a real signup was attempted here).
     .all("/api/auth/*", (c) => options.auth.handler(c.req.raw))
     .use("/me/*", tenantMiddleware(options.pool, options.auth))
-    .route("/me", meRoute)
+    .route("/me", meRoute({ batchStore: options.extraction.batchStore }))
     .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
     .route("/dashboard", dashboardRoute({ costActivity }))
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))

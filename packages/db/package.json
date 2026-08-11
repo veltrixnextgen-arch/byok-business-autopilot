@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p .",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:integration": "tsx --test \"src/**/*.itest.ts\"",
     "migrate": "tsx src/migrate-cli.ts",
     "verify-rls": "tsx src/verifyRlsIsolation.ts"
   },

@@ -58,7 +58,18 @@ function fakeBatchStore() {
     failedWith,
     async start(userId: string, idea: string) {
       calls.push("start");
-      return { id: "batch-1", userId, idea, status: "running" as const, orgChart: null, costUsd: null, error: null, createdAt: "", updatedAt: "" };
+      return {
+        id: "batch-1",
+        userId,
+        tenantId: null,
+        idea,
+        status: "running" as const,
+        orgChart: null,
+        costUsd: null,
+        error: null,
+        createdAt: "",
+        updatedAt: "",
+      };
     },
     async complete() {
       calls.push("complete");

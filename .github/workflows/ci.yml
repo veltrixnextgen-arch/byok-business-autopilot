@@ -132,6 +132,11 @@ jobs:
       - run: npm run test:integration --workspace @byok/cost-gate
       - run: npm run test:integration --workspace @byok/approval-queue
       - run: npm run test:integration --workspace @byok/router
+      # Issue #38: proves the org-chart -> tenant handoff's RLS boundary
+      # against a REAL Postgres — a claimed chart closing to its original
+      # user and staying invisible to every other tenant, not just an
+      # application-code assumption.
+      - run: npm run test:integration --workspace @byok/db
 
   trust-core-attestation:
     name: Trust-core attestation

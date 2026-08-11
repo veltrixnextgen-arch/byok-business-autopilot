@@ -89,6 +89,28 @@ export async function getLatestBatch(): Promise<LatestBatch | null> {
   return batch as LatestBatch | null;
 }
 
+// Issue #38: triggers the org-chart -> tenant handoff (ADR-015's deferred
+// gap) — called once, right after org creation succeeds. Idempotent
+// server-side, so a caller never needs to guard against calling this
+// twice. Requires an active organization (mounted under tenantMiddleware),
+// unlike everything else in this file.
+export async function claimOrgChart(): Promise<LatestBatch | null> {
+  const res = await apiClient.me["claim-org-chart"].$post();
+  if (!res.ok) throw new Error(`Could not finish setting up your organization (${res.status}).`);
+  const { batch } = await res.json();
+  return batch as LatestBatch | null;
+}
+
+// The post-claim read path — once an organization exists, the org chart
+// lives here, not at getLatestBatch's user-scoped endpoint (which can no
+// longer see a claimed row once tenant_id is set).
+export async function getOrgChartForTenant(): Promise<LatestBatch | null> {
+  const res = await apiClient.me["org-chart"].$get();
+  if (!res.ok) throw new Error(`Could not load your organization's chart (${res.status}).`);
+  const { batch } = await res.json();
+  return batch as LatestBatch | null;
+}
+
 export async function reassemble(batchId: string, tasks: Task[]): Promise<OrgChart> {
   const res = await apiClient.extraction.batches[":id"].reassemble.$post({
     param: { id: batchId },
