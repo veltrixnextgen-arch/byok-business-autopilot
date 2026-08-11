@@ -46,14 +46,21 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
 }
 
 /**
- * Trust-core (Router/CostGate/ApprovalQueue) construction is deliberately
- * NOT done here: the pricing table source and ceiling amounts are real
- * financial-safety decisions this shell has no basis to invent on its own,
- * and belong with whoever owns deployment config (tied to the cost
- * dashboard work). Pass a real TrustCoreDeps in from that bootstrap.
+ * Trust-core (Router/CostGate/ApprovalQueue/Vault) construction is
+ * deliberately NOT done here: the pricing table source, ceiling amounts,
+ * and KMS choice are real financial/security-safety decisions this shell
+ * has no basis to invent on its own, and belong with whoever owns
+ * deployment config (tied to the cost dashboard work). Pass a real
+ * TrustCoreDeps in from that bootstrap.
+ *
+ * `pool` is likewise accepted rather than built here: trust-core's own
+ * bootstrap (createDevTrustCore) now needs the SAME pool to back its
+ * per-tenant ceiling resolver (issue #15), and constructing two separate
+ * Pool instances against the same database would be wasteful and
+ * confusing. The caller builds one pool via @byok/db's createPool and
+ * passes it to both.
  */
-export function startServer(config: ServerConfig, trustCore: TrustCoreDeps) {
-  const pool = createPool({ connectionString: config.databaseUrl });
+export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool: ReturnType<typeof createPool>) {
   const db = createDb(pool);
   const auth = createAuth({
     db,

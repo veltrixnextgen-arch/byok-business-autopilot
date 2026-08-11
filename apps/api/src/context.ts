@@ -3,6 +3,7 @@ import type { Auth } from "@byok/auth";
 import type { PoolClientLike } from "@byok/db";
 import type { CostGate } from "@byok/cost-gate";
 import type { Router, TaskLedger } from "@byok/router";
+import type { Vault } from "@byok/vault";
 
 export type AppSession = Awaited<ReturnType<Auth["api"]["getSession"]>>;
 
@@ -39,4 +40,9 @@ export interface TrustCoreDeps {
    *  which exists for real agent actions with potential real-world
    *  effects, not a read-only document like an org chart. */
   ledger: TaskLedger;
+  /** BYOK Brain/Hands key custody (issue #15/#22, ADR-002). Same
+   *  single-process-dev-honest wiring as the rest of trust-core — see
+   *  devTrustCore.ts's own comment on why LocalKms/StagingKms there is
+   *  real, not a stub, but resets on restart. */
+  vault: Vault;
 }

@@ -1,0 +1,120 @@
+import assert from "node:assert/strict";
+import { Hono } from "hono";
+import { test } from "node:test";
+import { InvalidCeilingError } from "@byok/db";
+import type { AppEnv, AppSession } from "../context.js";
+import { ceilingRoute, DEFAULT_MONTHLY_CEILING_USD, type CeilingRouteDeps } from "./ceiling.js";
+
+function appWithSession(tenantId: string, session: AppSession, deps: CeilingRouteDeps) {
+  return new Hono<AppEnv>()
+    .use("*", async (c, next) => {
+      c.set("tenantId", tenantId);
+      c.set("session", session as NonNullable<AppSession>);
+      await next();
+    })
+    .route("/", ceilingRoute(deps));
+}
+
+const SESSION = { user: { id: "user-1", email: "cfo@example.com" }, session: {} } as never;
+
+test("GET falls back to the platform default and reports isOverride: false when nothing is set", async () => {
+  let seenTenantId: string | undefined;
+  const app = appWithSession("tenant-1", SESSION, {
+    ceilings: {
+      get: async (tenantId) => {
+        seenTenantId = tenantId;
+        return null;
+      },
+      set: async () => {
+        throw new Error("unused in this test");
+      },
+    },
+  });
+
+  const res = await app.request("/");
+  assert.equal(res.status, 200);
+  assert.equal(seenTenantId, "tenant-1");
+  assert.deepEqual(await res.json(), { companyMonthlyUsd: DEFAULT_MONTHLY_CEILING_USD, isOverride: false });
+});
+
+test("GET reports the tenant's own override and isOverride: true once one is set", async () => {
+  const app = appWithSession("tenant-1", SESSION, {
+    ceilings: {
+      get: async () => 250,
+      set: async () => {
+        throw new Error("unused in this test");
+      },
+    },
+  });
+
+  const res = await app.request("/");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { companyMonthlyUsd: 250, isOverride: true });
+});
+
+test("POST rejects a non-positive body with 400 before ever calling the store", async () => {
+  let setCalled = false;
+  const app = appWithSession("tenant-1", SESSION, {
+    ceilings: {
+      get: async () => null,
+      set: async () => {
+        setCalled = true;
+      },
+    },
+  });
+
+  const res = await app.request("/", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ companyMonthlyUsd: -5 }),
+  });
+
+  assert.equal(res.status, 400);
+  assert.equal(setCalled, false);
+});
+
+test("POST sets the tenant's override by session tenantId, not a request-supplied one", async () => {
+  let seenArgs: [string, number] | undefined;
+  const app = appWithSession("tenant-1", SESSION, {
+    ceilings: {
+      get: async () => null,
+      set: async (tenantId, companyMonthlyUsd) => {
+        seenArgs = [tenantId, companyMonthlyUsd];
+      },
+    },
+  });
+
+  const res = await app.request("/", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ companyMonthlyUsd: 300, tenantId: "some-other-tenant" }),
+  });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(seenArgs, ["tenant-1", 300]);
+  assert.deepEqual(await res.json(), { companyMonthlyUsd: 300, isOverride: true });
+});
+
+test("POST surfaces InvalidCeilingError as a 400 with its own message, not a 500", async () => {
+  const app = appWithSession("tenant-1", SESSION, {
+    ceilings: {
+      get: async () => null,
+      set: async () => {
+        throw new InvalidCeilingError(0.00001);
+      },
+    },
+  });
+
+  // A positive-but-tiny value passes zod's `.positive()` check, so this
+  // exercises the store's OWN validation (a second, independent guard),
+  // not the route's schema.
+  const res = await app.request("/", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ companyMonthlyUsd: 0.00001 }),
+  });
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /Invalid monthly ceiling/);
+});

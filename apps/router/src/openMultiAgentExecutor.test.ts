@@ -26,11 +26,11 @@ function makeTask(overrides: Partial<RouterTask> = {}): RouterTask {
   };
 }
 
-test("pulls the Brain key for the task's team (role), not a hardcoded one", async () => {
-  const requestedRoleIds: string[] = [];
+test("pulls the Brain key for the task's tenant + team (role), not a hardcoded one", async () => {
+  const requestedKeys: Array<{ tenantId: string; roleId: string }> = [];
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey(roleId) {
-      requestedRoleIds.push(roleId);
+    async decryptBrainKey(tenantId, roleId) {
+      requestedKeys.push({ tenantId, roleId });
       return new SecretHandle(Buffer.from("sk-ant-fake-key-0001"), 60_000);
     },
   };
@@ -41,9 +41,11 @@ test("pulls the Brain key for the task's team (role), not a hardcoded one", asyn
     return { runAgent: async () => ({ output: "mock output" }) as never };
   });
 
-  const outcome = await executor.execute(makeTask({ teamId: "cmo" }));
+  const outcome = await executor.execute(makeTask({ tenantId: "tenant-b", teamId: "cmo" }));
 
-  assert.deepEqual(requestedRoleIds, ["cmo"]);
+  // Both dimensions must reach the vault — a role id alone isn't unique
+  // across tenants (issue #15's own cross-tenant Vault fix).
+  assert.deepEqual(requestedKeys, [{ tenantId: "tenant-b", roleId: "cmo" }]);
   assert.equal(calledWithApiKey, "sk-ant-fake-key-0001");
   assert.deepEqual(outcome, { result: "mock output" });
 });
@@ -63,7 +65,7 @@ test("zeroes the secret handle after the call completes", async () => {
 
 test("gracefully returns an error outcome when no Brain key is configured for the role — never throws", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey(roleId) {
+    async decryptBrainKey(_tenantId, roleId) {
       throw new Error(`No active Brain key for role "${roleId}".`);
     },
   };

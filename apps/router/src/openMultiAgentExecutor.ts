@@ -5,11 +5,17 @@ import { createHandsTool, type HandsToolSpec } from "./handsTool.js";
 import type { RouterTask } from "./types.js";
 
 // Real execution adapter. The router never holds a Brain's API key itself
-// (ADR-002: Brains are per-role, vault-managed) — it pulls a short-lived
-// SecretHandle from the vault for this task's role (task.teamId — Brains
-// are chosen per role/team-lead, and the team inherits its lead's choice,
-// per roles-and-api-key-guide.md Screen 5) and only holds the plaintext
-// inside SecretHandle.use(), for the duration of this one call.
+// (ADR-002: Brains are per-tenant, per-role, vault-managed) — it pulls a
+// short-lived SecretHandle from the vault for this task's tenant + role
+// (task.tenantId + task.teamId — Brains are chosen per role/team-lead, and
+// the team inherits its lead's choice, per roles-and-api-key-guide.md
+// Screen 5) and only holds the plaintext inside SecretHandle.use(), for the
+// duration of this one call. Both tenantId AND teamId are required: role
+// ids like "cfo" are short, human-chosen slugs shared across every
+// tenant's org chart, not globally unique — Vault's own per-tenant Map is
+// what actually prevents one tenant's "cfo" key from colliding with
+// another's, but only if every caller passes tenantId through, this one
+// included.
 //
 // `vault` is typed as the narrow BrainKeyProvider interface, not the full
 // Vault class, so tests can pass a fake object implementing just
@@ -49,7 +55,7 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
   async execute(task: RouterTask): Promise<ExecutionOutcome> {
     let handle;
     try {
-      handle = await this.vault.decryptBrainKey(task.teamId, this.requester);
+      handle = await this.vault.decryptBrainKey(task.tenantId, task.teamId, this.requester);
     } catch (err) {
       return { error: `Brain key unavailable for role "${task.teamId}": ${(err as Error).message}` };
     }

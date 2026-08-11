@@ -2,11 +2,17 @@ import type { EncryptedBlob } from "./crypto.js";
 
 // Only a router-service identity may request decryption (per the spec).
 // Other kinds exist for write operations (store/rotate/revoke), which are
-// less tightly restricted but still fully audited.
+// less tightly restricted but still fully audited. "tenant-user" is the
+// connect-screen caller (issue #15): an authenticated tenant user managing
+// their OWN org's Brain key through apps/api's /me/brain-key route —
+// distinct from "admin" (a platform operator), so the audit log tells the
+// two apart honestly instead of collapsing every non-service write under
+// one ambiguous label.
 export type RequesterIdentity =
   | { kind: "router-service"; serviceId: string }
   | { kind: "onboarding-service"; serviceId: string }
-  | { kind: "admin"; serviceId: string };
+  | { kind: "admin"; serviceId: string }
+  | { kind: "tenant-user"; userId: string };
 
 export class AccessDeniedError extends Error {}
 export class KeyNotFoundError extends Error {}

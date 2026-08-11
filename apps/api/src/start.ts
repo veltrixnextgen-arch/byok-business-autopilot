@@ -1,3 +1,4 @@
+import { createPool } from "@byok/db";
 import { createDevTrustCore } from "./dev/devTrustCore.js";
 import { readServerConfigFromEnv, startServer } from "./server.js";
 
@@ -8,5 +9,10 @@ import { readServerConfigFromEnv, startServer } from "./server.js";
 // which never touches trust-core's /tasks route. Real pricing/ceiling
 // config and durable trust-core storage are a separate decision for
 // whoever owns that (see server.ts's comment) — not invented here just to
-// have a deploy target.
-startServer(readServerConfigFromEnv(), createDevTrustCore());
+// have a deploy target. Vault's KMS is the one piece that IS genuinely
+// staging-real: createDevTrustCore picks StagingKms over LocalKms
+// automatically when STAGING_KMS_MASTER_KEY is set (deploy-staging.yml
+// sets it fresh every deploy — see ADR-007).
+const config = readServerConfigFromEnv();
+const pool = createPool({ connectionString: config.databaseUrl });
+startServer(config, createDevTrustCore(pool), pool);

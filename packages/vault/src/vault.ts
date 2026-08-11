@@ -45,9 +45,13 @@ export interface StoreHandsKeyInput {
 }
 
 /** The narrow interface OpenMultiAgentExecutor depends on — mockable in
- *  router tests without pulling in the whole Vault. */
+ *  router tests without pulling in the whole Vault. tenantId is required
+ *  (not just roleId): role ids like "cfo" are short, human-chosen slugs
+ *  that are NOT globally unique across tenants — see Vault's own
+ *  tenant-then-role Map for why a bare roleId lookup would let one
+ *  tenant's "cfo" key collide with another's. */
 export interface BrainKeyProvider {
-  decryptBrainKey(roleId: string, requester: RequesterIdentity): Promise<SecretHandle>;
+  decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle>;
 }
 
 /** The Hands-side counterpart to BrainKeyProvider — same purpose (a narrow,
@@ -78,7 +82,15 @@ function now(): string {
 
 export class Vault implements BrainKeyProvider, HandsKeyProvider {
   private readonly dekStore: DekStore;
-  private readonly brainKeysByRole = new Map<string, BrainKeyRecord>();
+  // Nested by tenantId THEN roleId — never a single Map<roleId, record>.
+  // Role ids ("cfo", "cmo") are small, human-chosen slugs the same across
+  // every tenant's org chart, not globally unique identifiers; a flat map
+  // would let tenant B's storeBrainKey({roleId: "cfo"}) silently overwrite
+  // tenant A's "cfo" entry, and tenant A's next decryptBrainKey("cfo")
+  // would then hand back tenant B's key material — a real cross-tenant
+  // key leak, not a hypothetical one (found while wiring issue #15, the
+  // first real caller of this path outside single-tenant tests).
+  private readonly brainKeysByTenant = new Map<string, Map<string, BrainKeyRecord>>();
   private readonly handsKeysById = new Map<string, HandsKeyRecord>();
   private readonly listeners: VaultEventListener[] = [];
 
@@ -103,7 +115,20 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     return this.audit.all();
   }
 
-  // ---- Brain keys (per-role, ADR-002) ----------------------------------
+  // ---- Brain keys (per-tenant, per-role, ADR-002) -----------------------
+
+  private brainKeyFor(tenantId: string, roleId: string): BrainKeyRecord | undefined {
+    return this.brainKeysByTenant.get(tenantId)?.get(roleId);
+  }
+
+  private setBrainKey(tenantId: string, roleId: string, record: BrainKeyRecord): void {
+    let byRole = this.brainKeysByTenant.get(tenantId);
+    if (!byRole) {
+      byRole = new Map();
+      this.brainKeysByTenant.set(tenantId, byRole);
+    }
+    byRole.set(roleId, record);
+  }
 
   async storeBrainKey(input: StoreBrainKeyInput, requester: RequesterIdentity): Promise<PublicKeyRecord> {
     await this.runValidation(input.plaintext, input.validate, input.tenantId, requester);
@@ -124,18 +149,19 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       createdAt: now(),
       updatedAt: now(),
     };
-    this.brainKeysByRole.set(input.roleId, record);
+    this.setBrainKey(input.tenantId, input.roleId, record);
     this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
     return toPublic(record);
   }
 
   async rotateBrainKey(
+    tenantId: string,
     roleId: string,
     newPlaintext: Buffer,
     requester: RequesterIdentity,
     validate?: (plaintext: Buffer) => Promise<boolean>,
   ): Promise<PublicKeyRecord> {
-    const record = this.brainKeysByRole.get(roleId);
+    const record = this.brainKeyFor(tenantId, roleId);
     if (!record || record.revoked) throw new KeyNotFoundError(`No active Brain key for role "${roleId}".`);
 
     await this.runValidation(newPlaintext, validate, record.tenantId, requester);
@@ -149,8 +175,8 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     return toPublic(record);
   }
 
-  async revokeBrainKey(roleId: string, requester: RequesterIdentity): Promise<void> {
-    const record = this.brainKeysByRole.get(roleId);
+  async revokeBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<void> {
+    const record = this.brainKeyFor(tenantId, roleId);
     if (!record) throw new KeyNotFoundError(`No Brain key for role "${roleId}".`);
 
     record.material = null; // purge — Section 3: "vault entry purged"
@@ -162,14 +188,21 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     this.emit({ type: "key.revoked", keyId: record.id, tenantId: record.tenantId, keyType: "brain", roleId });
   }
 
-  async decryptBrainKey(roleId: string, requester: RequesterIdentity): Promise<SecretHandle> {
+  /** Status only — never returns material, safe for a route to expose
+   *  directly (issue #15's "is a key already connected" check). */
+  getBrainKeyStatus(tenantId: string, roleId: string): PublicKeyRecord | null {
+    const record = this.brainKeyFor(tenantId, roleId);
+    return record && !record.revoked ? toPublic(record) : null;
+  }
+
+  async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle> {
     assertRouterServiceIdentity(requester);
-    const record = this.brainKeysByRole.get(roleId);
+    const record = this.brainKeyFor(tenantId, roleId);
     if (!record || record.revoked || !record.material) {
       this.audit.append({
         operation: "decrypt-denied",
         keyId: record?.id ?? `role:${roleId}`,
-        tenantId: record?.tenantId ?? "unknown",
+        tenantId: record?.tenantId ?? tenantId,
         requester,
         at: now(),
         detail: "not found or revoked",

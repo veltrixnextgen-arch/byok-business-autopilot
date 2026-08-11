@@ -17,6 +17,15 @@ export type GateEvent = {
 
 export type GateEventListener = (event: GateEvent) => void;
 
+// Issue #15's safety net: "our monthly ceiling ... editable" needs a real
+// per-tenant value, not the single process-wide CeilingConfig every tenant
+// used to share. A resolver function is the smallest change that supports
+// that without CostGate itself gaining a DB dependency — callers that own
+// persistence (e.g. apps/api's devTrustCore.ts, backed by
+// @byok/db's TenantCeilingStore) supply one; callers that don't need
+// per-tenant overrides keep passing a plain CeilingConfig, unchanged.
+export type CeilingConfigResolver = (tenantId: string) => CeilingConfig | Promise<CeilingConfig>;
+
 // tenantId scopes every ceiling level (company/role/task-type) to ONE
 // tenant's own pool, per issue #47 — "one single shared $50/month pool, not
 // per-signup or per-tenant" was the bug. For pre-org signup flows there's
@@ -70,7 +79,7 @@ export class CostGate {
 
   constructor(
     private readonly pricingTable: PricingTable,
-    private readonly ceilingConfig: CeilingConfig,
+    private readonly ceilingConfig: CeilingConfig | CeilingConfigResolver,
     private readonly store: DurableReservationStore,
     private readonly modelMap: TierModelMap,
     private readonly audit: GateAuditLog = new InMemoryGateAuditLog(),
@@ -93,10 +102,15 @@ export class CostGate {
     return ledger;
   }
 
+  private async resolveCeilingConfig(tenantId: string): Promise<CeilingConfig> {
+    return typeof this.ceilingConfig === "function" ? await this.ceilingConfig(tenantId) : this.ceilingConfig;
+  }
+
   async evaluateAndReserve(input: GateEvaluationRequest): Promise<GateEvaluationResult> {
+    const ceilingConfig = await this.resolveCeilingConfig(input.tenantId);
     const preCheck = evaluateGateVerdict(input, {
       pricingTable: this.pricingTable,
-      ceilingConfig: this.ceilingConfig,
+      ceilingConfig,
       ledger: this.ledgerFor(input.tenantId),
       modelMap: this.modelMap,
     });
@@ -108,7 +122,7 @@ export class CostGate {
       const amountUsd = preCheck.estimate!.costUpperBoundUsd;
       const attempt = await this.store.reserveAtomic(
         { tenantId: input.tenantId, taskId: input.taskId, roleId: input.roleId, taskType: input.taskType, amountUsd },
-        this.ceilingConfig,
+        ceilingConfig,
       );
 
       if (attempt.withinCeiling && attempt.reservationId) {

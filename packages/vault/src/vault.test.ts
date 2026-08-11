@@ -31,7 +31,7 @@ test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a m
   assert.ok(!("plaintext" in record));
   assert.ok(!JSON.stringify(record).includes("super-secret"));
 
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const recovered = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(recovered, "sk-ant-super-secret-1234");
 });
@@ -43,10 +43,10 @@ test("access control: only a router-service identity may decrypt", async () => {
     ONBOARDING,
   );
 
-  await assert.rejects(() => vault.decryptBrainKey("cfo", ONBOARDING), AccessDeniedError);
-  await assert.rejects(() => vault.decryptBrainKey("cfo", { kind: "admin", serviceId: "x" }), AccessDeniedError);
+  await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ONBOARDING), AccessDeniedError);
+  await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" }), AccessDeniedError);
   // Router identity still works:
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   assert.equal(handle.isZeroed, false);
 });
 
@@ -91,7 +91,7 @@ test("TTL: a handle zeroes itself after the timeout even if use() is never calle
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   assert.equal(handle.isZeroed, false);
 
   await sleep(50);
@@ -107,7 +107,7 @@ test("TTL: a handle zeroes itself immediately after use(), before the timeout", 
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   await handle.use((buf) => buf.toString("utf8"));
   assert.equal(handle.isZeroed, true);
 
@@ -122,7 +122,7 @@ test("unserializable: JSON.stringify and String() on a live handle never expose 
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const serialized = JSON.stringify({ someHandle: handle });
   const stringified = String(handle);
 
@@ -151,6 +151,31 @@ test("revoke purges key material: decrypt after revoke fails, not just 'flagged'
     () => vault.decryptHandsKey(record.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER),
     KeyNotFoundError,
   );
+});
+
+test("cross-tenant isolation: two tenants using the same role id get fully independent Brain keys", async () => {
+  const vault = makeVault();
+  await vault.storeBrainKey(
+    { tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-tenant-a-key") },
+    ONBOARDING,
+  );
+  await vault.storeBrainKey(
+    { tenantId: "tenant-b", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-tenant-b-key") },
+    ONBOARDING,
+  );
+
+  const handleA = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  assert.equal(await handleA.use((buf) => buf.toString("utf8")), "sk-ant-tenant-a-key");
+
+  const handleB = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
+  assert.equal(await handleB.use((buf) => buf.toString("utf8")), "sk-ant-tenant-b-key");
+
+  // Revoking tenant-a's "cfo" key must not touch tenant-b's "cfo" key.
+  await vault.revokeBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" });
+  await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ROUTER), KeyNotFoundError);
+
+  const handleBAfter = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
+  assert.equal(await handleBAfter.use((buf) => buf.toString("utf8")), "sk-ant-tenant-b-key");
 });
 
 test("revoke-cancels-queued: the router's mock queue drops tasks for a revoked key when the event fires", async () => {
@@ -202,7 +227,7 @@ test("store rejects a key that fails live validation, and stores nothing", async
       ),
     /Live validation call failed/,
   );
-  await assert.rejects(() => vault.decryptBrainKey("cfo", ROUTER), KeyNotFoundError);
+  await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ROUTER), KeyNotFoundError);
 });
 
 test("rotate: replaces the plaintext behind the same record, old plaintext no longer decryptable as new", async () => {
@@ -212,10 +237,15 @@ test("rotate: replaces the plaintext behind the same record, old plaintext no lo
     ONBOARDING,
   );
 
-  const rotated = await vault.rotateBrainKey("cfo", Buffer.from("sk-ant-new-key-0002"), { kind: "admin", serviceId: "x" });
+  const rotated = await vault.rotateBrainKey(
+    "tenant-a",
+    "cfo",
+    Buffer.from("sk-ant-new-key-0002"),
+    { kind: "admin", serviceId: "x" },
+  );
   assert.equal(rotated.maskedFingerprint, "sk-...0002");
 
-  const handle = await vault.decryptBrainKey("cfo", ROUTER);
+  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const value = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(value, "sk-ant-new-key-0002");
 });
@@ -224,8 +254,8 @@ test("audit log records every operation and never contains key material", async 
   const vault = makeVault();
   const plaintext = Buffer.from("sk-ant-audit-test-secret");
   await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext }, ONBOARDING);
-  await vault.decryptBrainKey("cfo", ROUTER);
-  await vault.revokeBrainKey("cfo", { kind: "admin", serviceId: "x" });
+  await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  await vault.revokeBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" });
 
   const events = vault.auditEvents();
   const operations = events.map((e) => e.operation);

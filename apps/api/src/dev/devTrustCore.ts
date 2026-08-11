@@ -1,7 +1,11 @@
+import { join } from "node:path";
 import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approval-queue";
 import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
+import { TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
+import { LocalKms, StagingKms, Vault, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
+import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
 
 // Model ids here must exactly match packages/cost-gate/src/pricing-table.json
 // (loaded below, not hand-duplicated — see loadDefaultPricingTable's own
@@ -23,10 +27,24 @@ export function loadDevPricingTable(): PricingTable {
   return loadDefaultPricingTable();
 }
 
+/** ADR-007-compliant KMS choice for every non-production entrypoint this
+ *  file serves (local `npm run dev` AND the staging deploy — see
+ *  start.ts's own comment on why staging deliberately reuses this dev
+ *  wiring). STAGING_KMS_MASTER_KEY is generated fresh per deploy by
+ *  deploy-staging.yml and has no local filesystem to persist a key file
+ *  on; local dev has no such env var, so it falls back to a gitignored
+ *  local key file (see LocalKms's own comment). Both guard against
+ *  ever running in a real NODE_ENV=production process regardless. */
+function createDevKms(): Kms {
+  const stagingMasterKey = process.env.STAGING_KMS_MASTER_KEY;
+  if (stagingMasterKey) return new StagingKms(stagingMasterKey);
+  return new LocalKms(join(process.cwd(), ".local-kms", "master.key"));
+}
+
 /**
- * Local-dev-only trust-core: real Router/CostGate/ApprovalQueue classes,
- * wired to the same in-memory implementations the trust-core packages'
- * own test suites use — genuinely functional, not a stub, but
+ * Local-dev-only trust-core: real Router/CostGate/ApprovalQueue/Vault
+ * classes, wired to the same in-memory implementations the trust-core
+ * packages' own test suites use — genuinely functional, not a stub, but
  * single-process and reset on every restart. NOT for any deployed
  * environment: production must supply real pricing/ceiling config and a
  * real Postgres-backed PostgresReservationStore (see server.ts's own
@@ -41,15 +59,30 @@ export function loadDevPricingTable(): PricingTable {
  * bug) — the only thing dev-only about it is that it still resets on
  * restart; swapping in PostgresReservationStore for a real deployment is
  * a one-line constructor change, same interface either way.
+ *
+ * The ceiling itself is now a real per-tenant CeilingConfigResolver
+ * (issue #15) backed by TenantCeilingStore/Postgres — a tenant's own
+ * "our monthly ceiling" setting genuinely gates its spend, not just a
+ * process-wide constant every tenant shared before. `pool` is required
+ * for this reason, unlike the rest of this file's dependencies.
  */
-export function createDevTrustCore(): TrustCoreDeps {
+export function createDevTrustCore(pool: PoolLike): TrustCoreDeps {
   const pricingTable = loadDevPricingTable();
-  const ceilingConfig = { companyMonthlyUsd: 50, perRoleUsd: {}, perTaskTypeUsd: {} };
+  const tenantCeilings = new TenantCeilingStore(pool);
+  const ceilingResolver = async (tenantId: string) => {
+    const override = await tenantCeilings.get(tenantId);
+    return {
+      companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
+      perRoleUsd: {},
+      perTaskTypeUsd: {},
+    };
+  };
 
-  const costGate = new CostGate(pricingTable, ceilingConfig, new InMemoryDurableReservationStore(), DEV_TIER_MODEL_MAP);
+  const costGate = new CostGate(pricingTable, ceilingResolver, new InMemoryDurableReservationStore(), DEV_TIER_MODEL_MAP);
   const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
   const ledger = new InMemoryTaskLedger();
   const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
+  const vault = new Vault(createDevKms());
 
-  return { router, costGate, approvalQueue, ledger };
+  return { router, costGate, approvalQueue, ledger, vault };
 }

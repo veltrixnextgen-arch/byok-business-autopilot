@@ -2,9 +2,10 @@ import type { TeamHint } from "@byok/contracts";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiClient } from "../lib/apiClient";
+import { getBrainKeyStatus, type BrainKeyStatus } from "../lib/brainKeyClient";
 import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
-import { Card, cx } from "./ui";
+import { Button, Card, cx } from "./ui";
 
 interface Me {
   userId: string;
@@ -77,6 +78,10 @@ export function DashboardScreen() {
   const [batch, setBatch] = useState<LatestBatch | null>(null);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  // null = "not connected yet" (a real, known state); undefined = "still
+  // checking" — distinct so the CTA below never flashes on for a user who
+  // actually has a key, before the check resolves.
+  const [brainKeyStatus, setBrainKeyStatus] = useState<BrainKeyStatus | null | undefined>(undefined);
 
   useEffect(() => {
     apiClient.me
@@ -112,6 +117,15 @@ export function DashboardScreen() {
     getOrgChartForTenant()
       .then(setBatch)
       .catch(() => {});
+
+    // Same fire-and-forget spirit — a failed check must never block or
+    // error the dashboard. Falls back to "not connected" rather than
+    // silently hiding the CTA: an occasional redundant nag on a
+    // transient failure is a lot cheaper than masking a genuinely
+    // disconnected tenant behind a swallowed error.
+    getBrainKeyStatus()
+      .then(setBrainKeyStatus)
+      .catch(() => setBrainKeyStatus(null));
   }, []);
 
   const spendToday = dashboard?.spendByRoleToday.reduce((sum, r) => sum + r.totalUsd, 0) ?? null;
@@ -134,6 +148,20 @@ export function DashboardScreen() {
 
       {me ? (
         <div className="space-y-6">
+          {brainKeyStatus === null && (
+            <Card className="flex flex-col items-start justify-between gap-4 border-accent/30 bg-accent/5 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-display text-base font-semibold text-text">Connect a Brain to get started</p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  Your agents need an AI provider's API key — yours, not ours — before they can do any real work.
+                </p>
+              </div>
+              <Link to="/connect" className="shrink-0">
+                <Button variant="gradient">Connect a Brain</Button>
+              </Link>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatTile label="Agents active" value={null} />
             <StatTile label="Work completed today" value={null} />

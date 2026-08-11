@@ -1,4 +1,7 @@
+import { createPool } from "@byok/db";
 import { createDevTrustCore } from "./dev/devTrustCore.js";
 import { readServerConfigFromEnv, startServer } from "./server.js";
 
-startServer(readServerConfigFromEnv(), createDevTrustCore());
+const config = readServerConfigFromEnv();
+const pool = createPool({ connectionString: config.databaseUrl });
+startServer(config, createDevTrustCore(pool), pool);
