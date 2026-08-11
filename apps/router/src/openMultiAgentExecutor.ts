@@ -38,10 +38,15 @@ const defaultOrchestratorFactory: OrchestratorFactory = (apiKey, defaultModel) =
 // subAgentId matches THIS task before ever building the customTools list, so
 // a hijacked agent can't even see another sub-agent's tool in its own
 // tool-call list (defense in depth ahead of, not instead of, the AAD
-// scope-binding enforced at decrypt time — see handsTool.ts). `handsVault`
-// is optional: omit it (or pass an empty `handsTools`) to get the previous
-// plain-text-only behavior unchanged — existing callers/tests are
-// unaffected.
+// scope-binding enforced at decrypt time — see handsTool.ts). A second
+// filter (issue #22, "just-in-time Hands granting") drops any spec whose
+// key isn't actually connected for THIS tenant yet — the LLM never even
+// sees a tool it can't use, and the run is flagged via `missingHands` on
+// the outcome so the router can downgrade the result to a draft (never
+// dispatch an effect for a capability that was never actually available).
+// `handsVault` is optional: omit it (or pass an empty `handsTools`) to get
+// the previous plain-text-only behavior unchanged — existing callers/tests
+// are unaffected.
 export class OpenMultiAgentExecutor implements AgentExecutor {
   constructor(
     private readonly vault: BrainKeyProvider,
@@ -60,12 +65,18 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
       return { error: `Brain key unavailable for role "${task.teamId}": ${(err as Error).message}` };
     }
 
+    const missingHands: string[] = [];
     const customTools =
       this.handsVault === undefined
         ? []
         : this.handsTools
             .filter((spec) => spec.subAgentId === task.subAgentId)
-            .map((spec) => createHandsTool(spec, this.handsVault!, this.requester));
+            .filter((spec) => {
+              const connected = this.handsVault!.resolveHandsKeyId(task.tenantId, spec.subAgentId, spec.capabilityScope) !== null;
+              if (!connected) missingHands.push(spec.service);
+              return connected;
+            })
+            .map((spec) => createHandsTool(spec, this.handsVault!, this.requester, task.tenantId));
 
     return handle.use(async (apiKeyBuffer) => {
       try {
@@ -74,7 +85,8 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
           { name: task.subAgentId, model: this.model, ...(customTools.length > 0 ? { customTools } : {}) },
           task.payload,
         );
-        return { result: result.output };
+        const uniqueMissingHands = [...new Set(missingHands)];
+        return { result: result.output, ...(uniqueMissingHands.length > 0 ? { missingHands: uniqueMissingHands } : {}) };
       } catch (err) {
         return { error: (err as Error).message };
       }

@@ -18,9 +18,12 @@ export interface HandsToolSpec<TInput = Record<string, unknown>> {
    *  install quirk, not a real type-safety gap (runtime validation still
    *  happens; TInput is authored independently by each spec below). */
   inputSchema: any;
-  keyId: string;
   subAgentId: string;
   capabilityScope: string;
+  /** Human-readable service label (matches Vault's StoreHandsKeyInput.service,
+   *  e.g. "stripe") — used for the "connect X" prompt (issue #22) when
+   *  this tool's key isn't connected yet, never for lookup itself. */
+  service: string;
   /** Marks a tool whose grant permits real side effects (send/post/pay) —
    *  forwarded to the OMA framework's own `consequential` flag. */
   consequential?: boolean;
@@ -36,7 +39,14 @@ export interface HandsToolSpec<TInput = Record<string, unknown>> {
 // tool's definition at all — and OpenMultiAgentExecutor never registers a
 // spec whose subAgentId doesn't match the running task in the first place.
 //
-// Every vault failure (key not found/revoked, scope-binding mismatch,
+// `tenantId` is passed in (not carried on the spec, which is authored once
+// per catalog, not per-tenant) so resolveHandsKeyId can look up THIS
+// tenant's key at call time — the id is deliberately re-resolved on every
+// call rather than cached from OpenMultiAgentExecutor's own pre-flight
+// check (issue #22), so a key revoked mid-run is caught here too, not just
+// at tool-list-build time.
+//
+// Every vault failure (key not connected/revoked, scope-binding mismatch,
 // expired handle) is caught here and turned into a normal `isError` tool
 // result instead of thrown — the LLM sees a clean failure and can react
 // (retry, ask for help, give up), and the run never hangs or crashes on a
@@ -45,6 +55,7 @@ export function createHandsTool(
   spec: HandsToolSpec,
   handsVault: HandsKeyProvider,
   requester: RequesterIdentity,
+  tenantId: string,
 ): ToolDefinition {
   return defineTool({
     name: spec.name,
@@ -52,10 +63,15 @@ export function createHandsTool(
     inputSchema: spec.inputSchema,
     consequential: spec.consequential,
     execute: async (input) => {
+      const keyId = handsVault.resolveHandsKeyId(tenantId, spec.subAgentId, spec.capabilityScope);
+      if (!keyId) {
+        return { data: `"${spec.service}" isn't connected yet for "${spec.name}" — working in draft mode.`, isError: true };
+      }
+
       let handle;
       try {
         handle = await handsVault.decryptHandsKey(
-          spec.keyId,
+          keyId,
           { subAgentId: spec.subAgentId, capabilityScope: spec.capabilityScope },
           requester,
         );

@@ -98,9 +98,9 @@ function makeHandsSpec(overrides: Partial<HandsToolSpec> = {}): HandsToolSpec {
     name: "send_invoice",
     description: "Create and send an invoice via Stripe",
     inputSchema: z.object({ amountUsd: z.number() }),
-    keyId: "hands-key-1",
     subAgentId: "invoicing",
     capabilityScope: "stripe:invoices:write",
+    service: "stripe",
     invoke: async () => ({ data: "ok" }),
     ...overrides,
   };
@@ -112,6 +112,7 @@ test("only registers Hands tools whose subAgentId matches the running task — a
   };
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0006"), 60_000); },
+    resolveHandsKeyId: () => "hands-key-1",
   };
   const handsTools: HandsToolSpec[] = [
     makeHandsSpec({ name: "send_invoice", subAgentId: "invoicing" }),
@@ -149,6 +150,7 @@ test("Hands key never leaves its SecretHandle across repeated tool calls within 
       issuedHandles.push(handle);
       return handle;
     },
+    resolveHandsKeyId: () => "hands-key-1",
   };
   const handsTools: HandsToolSpec[] = [makeHandsSpec({ subAgentId: "invoicing" })];
 
@@ -190,4 +192,64 @@ test("omitting handsVault preserves the previous plain-text-only behavior exactl
 
   await executor.execute(makeTask());
   assert.equal(sawCustomToolsKey, false);
+});
+
+test("issue #22: a Hands tool whose key isn't connected for this tenant is excluded from customTools, and its service is reported as missingHands", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0009"), 60_000); },
+  };
+  const connectedScopes = new Set(["invoicing::stripe:invoices:write"]);
+  const fakeHandsVault: HandsKeyProvider = {
+    async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0009"), 60_000); },
+    resolveHandsKeyId: (_tenantId, subAgentId, capabilityScope) =>
+      connectedScopes.has(`${subAgentId}::${capabilityScope}`) ? "hands-key-1" : null,
+  };
+  const handsTools: HandsToolSpec[] = [
+    makeHandsSpec({ name: "send_invoice", capabilityScope: "stripe:invoices:write", service: "stripe" }),
+    makeHandsSpec({ name: "send_reminder_email", capabilityScope: "resend:send", service: "resend" }),
+  ];
+
+  let seenToolNames: string[] = [];
+  const executor = new OpenMultiAgentExecutor(
+    fakeVault,
+    ROUTER,
+    "claude-sonnet-4-6",
+    () => ({
+      runAgent: async (config: { customTools?: readonly { name: string }[] }) => {
+        seenToolNames = (config.customTools ?? []).map((t) => t.name);
+        return { output: "drafted the reminder" } as never;
+      },
+    }),
+    fakeHandsVault,
+    handsTools,
+  );
+
+  const outcome = await executor.execute(makeTask({ subAgentId: "invoicing" }));
+
+  assert.deepEqual(seenToolNames, ["send_invoice"]); // resend tool excluded — not connected
+  assert.deepEqual(outcome, { result: "drafted the reminder", missingHands: ["resend"] });
+});
+
+test("issue #22: when every needed Hands tool IS connected, missingHands is absent from the outcome entirely", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0010"), 60_000); },
+  };
+  const fakeHandsVault: HandsKeyProvider = {
+    async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0010"), 60_000); },
+    resolveHandsKeyId: () => "hands-key-1",
+  };
+  const handsTools: HandsToolSpec[] = [makeHandsSpec({ subAgentId: "invoicing" })];
+
+  const executor = new OpenMultiAgentExecutor(
+    fakeVault,
+    ROUTER,
+    "claude-sonnet-4-6",
+    () => ({ runAgent: async () => ({ output: "sent" }) as never }),
+    fakeHandsVault,
+    handsTools,
+  );
+
+  const outcome = await executor.execute(makeTask({ subAgentId: "invoicing" }));
+  assert.deepEqual(outcome, { result: "sent" });
+  assert.ok(!("missingHands" in outcome));
 });

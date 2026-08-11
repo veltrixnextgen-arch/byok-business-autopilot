@@ -2,8 +2,9 @@ import type { Agent, OrgChart, Task } from "@byok/contracts";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
+import { connectHandsKey, getHandsKeyStatus, type HandsKeyStatus } from "../lib/handsKeyClient";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
-import { Badge, type BadgeTone, Button, Card } from "./ui";
+import { Badge, type BadgeTone, Button, Card, FormError, TextInput } from "./ui";
 
 type LoadState = { kind: "loading" } | { kind: "waiting" } | { kind: "error"; message: string } | { kind: "ready"; batchId: string; chart: OrgChart };
 
@@ -131,9 +132,29 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
   const [busy, setBusy] = useState(false);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Keyed `${agentId}::${tool}`. Undefined = not checked yet (renders as a
+  // plain, non-interactive badge — issue #22 shouldn't make a badge look
+  // clickable before we actually know its state); null = checked, not
+  // connected; a status = connected. Refetches on every chart edit, not
+  // just hands-relevant ones (merge/split can change agent ids) — simplest
+  // correct behavior for how rarely a chart is actually edited.
+  const [handsStatus, setHandsStatus] = useState<Map<string, HandsKeyStatus | null>>(new Map());
 
   const nonHumanTeams = chart.teams.filter((t) => !t.isHuman);
   const agentsById = new Map(chart.agents.map((a) => [a.id, a]));
+
+  useEffect(() => {
+    let cancelled = false;
+    const pairs = chart.agents.flatMap((agent) => agent.hands.map((tool) => ({ agentId: agent.id, tool })));
+    Promise.all(
+      pairs.map(async ({ agentId, tool }) => [`${agentId}::${tool}`, await getHandsKeyStatus(agentId, tool).catch(() => null)] as const),
+    ).then((entries) => {
+      if (!cancelled) setHandsStatus(new Map(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chart]);
 
   async function handleRename(agentId: string, name: string) {
     setRenamingId(null);
@@ -279,6 +300,10 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
                         )
                       }
                       onStartSplit={() => setEditMode({ kind: "split", agentId, selected: new Set(), label: "" })}
+                      handsStatus={handsStatus}
+                      onHandsConnected={(tool, status) =>
+                        setHandsStatus((prev) => new Map(prev).set(`${agentId}::${tool}`, status))
+                      }
                     />
                   );
                 })}
@@ -465,6 +490,8 @@ function AgentCard({
   selectableMode,
   onToggleMergeSelect,
   onStartSplit,
+  handsStatus,
+  onHandsConnected,
 }: {
   agent: Agent;
   tone: BadgeTone;
@@ -475,8 +502,11 @@ function AgentCard({
   selectableMode: EditMode;
   onToggleMergeSelect: () => void;
   onStartSplit: () => void;
+  handsStatus: ReadonlyMap<string, HandsKeyStatus | null>;
+  onHandsConnected: (tool: string, status: HandsKeyStatus) => void;
 }) {
   const [draft, setDraft] = useState(agent.name);
+  const [connectingTool, setConnectingTool] = useState<string | null>(null);
   const isMergeMode = selectableMode.kind === "merge";
   const isSelected = isMergeMode && selectableMode.selected.has(agent.id);
 
@@ -531,12 +561,43 @@ function AgentCard({
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Badge tone="accent">{agent.tier}</Badge>
-        {agent.hands.map((tool) => (
-          <Badge key={tool} tone="operations">
-            {tool}
-          </Badge>
-        ))}
+        {agent.hands.map((tool) => {
+          const status = handsStatus.get(`${agent.id}::${tool}`);
+          if (status) {
+            // Connected — informational only, no revoke UI here (that
+            // lives on the provider's own site, per the "revoke anytime,
+            // agents pause, nothing breaks" rule used throughout BYOK).
+            return (
+              <Badge key={tool} tone="money">
+                ✓ {tool}
+              </Badge>
+            );
+          }
+          return (
+            <button
+              key={tool}
+              type="button"
+              onClick={() => setConnectingTool(connectingTool === tool ? null : tool)}
+              className="inline-flex items-center rounded-full border border-border px-3 py-1 font-mono text-xs tracking-wide text-text-secondary transition-colors duration-calm-fast ease-calm hover:border-accent/50 hover:text-text"
+            >
+              {tool} · connect
+            </button>
+          );
+        })}
       </div>
+
+      {connectingTool && (
+        <HandsConnectPanel
+          agentName={agent.name}
+          tool={connectingTool}
+          onConnected={(status) => {
+            onHandsConnected(connectingTool, status);
+            setConnectingTool(null);
+          }}
+          onSkip={() => setConnectingTool(null)}
+          subAgentId={agent.id}
+        />
+      )}
 
       {editable && !isMergeMode && (
         <button type="button" onClick={onStartSplit} className="mt-3 text-xs text-text-muted underline underline-offset-4 hover:text-text-secondary">
@@ -544,6 +605,73 @@ function AgentCard({
         </button>
       )}
     </Card>
+  );
+}
+
+// Just-in-time Hands connect (issue #22, Screen 12: "connect now or skip;
+// agents without tools work in draft mode"). Deliberately no per-service
+// walkthrough content — unlike Brain's ConnectScreen, no product doc has
+// written per-service mini-guides yet (docs/design/tool-registry.md is
+// research/inventory, not copy-ready steps), so this stays honest: paste
+// a key, or skip and the agent keeps working in draft mode either way.
+function HandsConnectPanel({
+  agentName,
+  subAgentId,
+  tool,
+  onConnected,
+  onSkip,
+}: {
+  agentName: string;
+  subAgentId: string;
+  tool: string;
+  onConnected: (status: HandsKeyStatus) => void;
+  onSkip: () => void;
+}) {
+  const [apiKey, setApiKey] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleConnect() {
+    setConnecting(true);
+    setError(null);
+    try {
+      const status = await connectHandsKey(subAgentId, tool, apiKey);
+      onConnected(status);
+    } catch {
+      setError(`Could not connect ${tool} — check the key and try again.`);
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-border-subtle bg-bg-glass-subtle p-3.5">
+      <p className="text-sm text-text-secondary">
+        {agentName} wants to connect <strong className="text-text">{tool}</strong>. Until then, it works in draft
+        mode — it'll prepare the work, you send it yourself.
+      </p>
+      <div className="mt-2.5 flex flex-col gap-2 sm:flex-row">
+        <TextInput
+          type="password"
+          autoComplete="off"
+          placeholder={`Paste your ${tool} API key`}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          aria-label={`Paste your ${tool} API key`}
+        />
+        <Button variant="secondary" disabled={apiKey.trim().length === 0 || connecting} onClick={handleConnect}>
+          {connecting ? "Connecting…" : "Connect"}
+        </Button>
+      </div>
+      {error && <div className="mt-2"><FormError>{error}</FormError></div>}
+      <button
+        type="button"
+        onClick={onSkip}
+        className="mt-2 text-xs text-text-muted underline underline-offset-4 hover:text-text-secondary"
+      >
+        Skip for now
+      </button>
+    </div>
   );
 }
 

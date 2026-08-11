@@ -38,6 +38,11 @@ export interface RouterTask {
   error?: string;
   /** Set once submitted to the approval queue — the id to resolve() against. */
   approvalActionId?: string;
+  /** Hands services this run needed but weren't connected (issue #22) —
+   *  present only when the executor's outcome carried them. Their absence
+   *  forced `effect` to be dropped when this task's action was submitted
+   *  to the approval queue, whatever the caller originally requested. */
+  missingHands?: string[];
 }
 
 export interface RouterTaskInput {

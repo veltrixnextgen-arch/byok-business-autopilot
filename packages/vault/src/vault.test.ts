@@ -153,6 +153,85 @@ test("revoke purges key material: decrypt after revoke fails, not just 'flagged'
   );
 });
 
+test("issue #22: resolveHandsKeyId is null before a Hands key is stored, and resolves the real id after", async () => {
+  const vault = makeVault();
+  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+
+  const record = await vault.storeHandsKey(
+    {
+      tenantId: "tenant-a",
+      subAgentId: "invoicing",
+      capabilityScope: "stripe:read-only",
+      service: "stripe",
+      plaintext: Buffer.from("sk_live_stripekey123456"),
+    },
+    ONBOARDING,
+  );
+
+  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), record.id);
+});
+
+test("issue #22: resolveHandsKeyId and getHandsKeyStatus both go back to null once the key is revoked", async () => {
+  const vault = makeVault();
+  const record = await vault.storeHandsKey(
+    {
+      tenantId: "tenant-a",
+      subAgentId: "invoicing",
+      capabilityScope: "stripe:read-only",
+      service: "stripe",
+      plaintext: Buffer.from("sk_live_stripekey123456"),
+    },
+    ONBOARDING,
+  );
+  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only")?.id, record.id);
+
+  await vault.revokeHandsKey(record.id, { kind: "admin", serviceId: "x" });
+
+  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only"), null);
+});
+
+test("issue #22: cross-tenant isolation — two tenants using the same subAgentId+capabilityScope get fully independent Hands keys", async () => {
+  const vault = makeVault();
+  await vault.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk-tenant-a") },
+    ONBOARDING,
+  );
+  await vault.storeHandsKey(
+    { tenantId: "tenant-b", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk-tenant-b") },
+    ONBOARDING,
+  );
+
+  const idA = vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only");
+  const idB = vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only");
+  assert.ok(idA && idB && idA !== idB);
+
+  const handleA = await vault.decryptHandsKey(idA!, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER);
+  assert.equal(await handleA.use((buf) => buf.toString("utf8")), "sk-tenant-a");
+
+  // Revoking tenant-a's key must not touch tenant-b's, even though both
+  // share the exact same subAgentId+capabilityScope.
+  await vault.revokeHandsKey(idA!, { kind: "admin", serviceId: "x" });
+  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only"), idB);
+});
+
+test("issue #22: re-storing for the same scope overwrites which key resolves as current", async () => {
+  const vault = makeVault();
+  const first = await vault.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk-old") },
+    ONBOARDING,
+  );
+  const second = await vault.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk-new") },
+    ONBOARDING,
+  );
+
+  assert.notEqual(first.id, second.id);
+  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), second.id);
+  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only")?.maskedFingerprint, second.maskedFingerprint);
+});
+
 test("cross-tenant isolation: two tenants using the same role id get fully independent Brain keys", async () => {
   const vault = makeVault();
   await vault.storeBrainKey(

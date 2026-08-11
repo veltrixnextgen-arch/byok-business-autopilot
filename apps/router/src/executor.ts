@@ -4,7 +4,12 @@ import type { RouterTask } from "./types.js";
 // (OpenMultiAgentExecutor currently can't pull per-call cost out of the
 // library's runAgent result). When absent, the router settles the cost
 // gate's reservation using its estimate instead of leaving it unsettled.
-export type ExecutionOutcome = { result: string; costUsd?: number } | { error: string };
+//
+// missingHands (issue #22): names of Hands services this run needed but
+// weren't connected — the LLM ran without those tools, so the router must
+// treat the result as a draft (no effect dispatched), never a completed
+// real-world action, regardless of what the caller originally requested.
+export type ExecutionOutcome = { result: string; costUsd?: number; missingHands?: string[] } | { error: string };
 
 // Execution is pluggable on purpose: the router's job (tag, dedup, ledger,
 // hand off) is fully testable without a live LLM call. Production execution

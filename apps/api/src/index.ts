@@ -11,6 +11,7 @@ import { brainKeyRoute } from "./routes/brainKeys.js";
 import { ceilingRoute } from "./routes/ceiling.js";
 import { dashboardRoute } from "./routes/dashboard.js";
 import { extractionRoute } from "./routes/extraction.js";
+import { handsKeyRoute } from "./routes/handsKeys.js";
 import { healthRoute } from "./routes/health.js";
 import { internalMetricsRoute } from "./routes/internalMetrics.js";
 import { meRoute } from "./routes/me.js";
@@ -75,6 +76,7 @@ export function createApp(options: CreateAppOptions) {
       brainKeyRoute({ vault: options.trustCore.vault, batchStore: options.extraction.batchStore }),
     )
     .route("/me/ceiling", ceilingRoute({ ceilings }))
+    .route("/me/hands-keys", handsKeyRoute({ vault: options.trustCore.vault }))
     .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
     .route("/dashboard", dashboardRoute({ costActivity }))
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))
