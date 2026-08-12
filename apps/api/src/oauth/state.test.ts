@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createOAuthState, verifyOAuthState, InvalidOAuthStateError } from "./state.js";
 
-const SECRET = "test-secret-at-least-this-long-0001";
+// Dash-separated fake shape (matches the established
+// packages/vault/src/vault.test.ts convention, e.g. sk-hands-fake-key-0001)
+// rather than a random-looking string — a prior PR hit gitleaks'
+// generic-api-key rule tripping on this exact fixture's entropy/shape.
+const SECRET = "hmac-fake-secret-not-real-0001";
 const PAYLOAD = { tenantId: "tenant-a", subAgentId: "scheduling", capabilityScope: "google-calendar:events", service: "google-calendar" };
 
 test("round-trips: a state created with a payload verifies back to the exact same payload", () => {
