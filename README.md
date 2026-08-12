@@ -37,7 +37,6 @@ First-time setup, from repo root:
 cp .env.example .env        # fill in DATABASE_URL/REDIS_URL/WEB_ORIGIN if you changed the defaults
 npm install
 docker compose up -d --wait # Postgres + Redis, waits for both healthchecks
-npm run db:migrate          # applies packages/db/src/migrations against DATABASE_URL — first time only, see below
 ```
 
 **`.env`'s `ANTHROPIC_API_KEY` only matters for two things: `npm run extract` (the extraction CLI, `packages/agents/extraction`) and the fixture/experiment scripts under `test/` (`run-differentiation.ts`, `fix-missing-batch.ts`, `experiment-haiku-batch.ts`) — all of them make real Anthropic calls and need a *valid* key.** `apps/api`'s own server (`npm run dev`) requires the variable to be *present* to boot at all (`readServerConfigFromEnv` in `apps/api/src/server.ts` throws on an empty/missing value), but doesn't need it to be *valid* unless you actually drive an idea through the interview/extraction locally — the auth+tenant `/dashboard` proof below doesn't touch it. `npm test` doesn't depend on it at all (unit tests inject a fake placeholder value, never a real key). Staging reads its own copy from the `ANTHROPIC_API_KEY` GitHub Actions secret, set independently of this file — a stale or broken local `.env` key never affects what's deployed, and a working deploy never means the local key is fine.
@@ -50,7 +49,7 @@ npm run dev                 # docker compose up -d --wait, then apps/api + apps/
 
 `apps/api` serves on `:3000` by default (see `apps/api/src/dev.ts` — it wires a real but single-process, in-memory `Router`/`CostGate`/`ApprovalQueue` via `apps/api/src/dev/devTrustCore.ts`, explicitly dev-only; a deployed environment needs its own real pricing/ceiling decisions instead, see `server.ts`). `apps/web` serves on `:3002`. Sign up at `/signup`, then `/dashboard` proves auth + tenant + API resolve end to end.
 
-**Don't re-run `db:migrate` against a non-fresh database** — `CREATE POLICY` isn't idempotent (see `packages/db/src/migrations/`'s comments); it's a one-time step per database, not part of the `npm run dev` loop.
+**Migrations run automatically on every boot now (ADR-022), local dev included** — `dev.ts`/`start.ts` call `runMigrations` before the server starts listening, and every statement in every migration file is written idempotent (`CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS` + `CREATE POLICY`, `ADD COLUMN IF NOT EXISTS`) specifically so this is safe to re-run against an already-current database on every restart. There's no separate manual migrate step anymore, and no "don't re-run this" caveat — that used to be true before the migrations were made idempotent and is not true today. A `verifySchemaCurrent` check runs right after, independently, and refuses to boot (matching ADR-007/008's fail-closed pattern) if the schema is still behind what the code expects for any reason.
 
 ```bash
 npm test                    # every package's test suite (in-memory fakes, no Docker needed)

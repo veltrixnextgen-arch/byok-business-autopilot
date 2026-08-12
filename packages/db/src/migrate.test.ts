@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { migrationFiles, migrationsDir, runMigrations } from "./migrate.js";
+import { migrationFiles, migrationsDir, runMigrations, schemaCanaries, SchemaDriftError, verifySchemaCurrent } from "./migrate.js";
 
-test("runMigrations applies every migration file, in order, against the pool", async () => {
+// ADR-022: migrations run on every boot now, wrapped in a Postgres
+// advisory lock so concurrent replicas serialize rather than race DDL —
+// see migrate.ts's own comment on why DROP POLICY IF EXISTS + CREATE
+// POLICY specifically isn't safe to race, unlike the IF NOT EXISTS
+// statements elsewhere in these files.
+test("runMigrations applies every migration file, in order, bracketed by an advisory lock/unlock", async () => {
   const applied: string[] = [];
   await runMigrations({
     async query(text) {
@@ -12,8 +17,25 @@ test("runMigrations applies every migration file, in order, against the pool", a
     },
   });
 
-  assert.equal(applied.length, migrationFiles().length);
-  assert.ok(applied[0]?.includes("CREATE TABLE IF NOT EXISTS tenants"));
+  assert.equal(applied.length, migrationFiles().length + 2);
+  assert.match(applied[0] ?? "", /pg_advisory_lock/);
+  assert.ok(applied[1]?.includes("CREATE TABLE IF NOT EXISTS tenants"));
+  assert.match(applied[applied.length - 1] ?? "", /pg_advisory_unlock/);
+});
+
+test("runMigrations releases the advisory lock even if a migration throws — never left held forever", async () => {
+  const calls: string[] = [];
+  await assert.rejects(
+    runMigrations({
+      async query(text) {
+        calls.push(text);
+        if (text.includes("CREATE TABLE IF NOT EXISTS tenants")) throw new Error("simulated migration failure");
+      },
+    }),
+    /simulated migration failure/,
+  );
+
+  assert.match(calls[calls.length - 1] ?? "", /pg_advisory_unlock/, "unlock must still run after a migration throws");
 });
 
 test("0001_init.sql enables and forces RLS with a bound-setting policy for every tenant-scoped table", async () => {
@@ -117,4 +139,60 @@ test("0006_signup_extraction_batch_tenant_transfer.sql adds tenant_id and closes
   // One claimed chart per tenant, enforced at the database level, not
   // just by claimLatestForTenant's own idempotency check.
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS signup_extraction_batches_tenant_id_unique/);
+});
+
+// ADR-022 option (b): a boot-time check independent of whether
+// runMigrations ran (or ran successfully) this boot — regression coverage
+// for the exact incident that prompted it (2026-08-12: migrations 0006/0007
+// silently never ran against staging for four days across eleven merged
+// PRs; the app booted and served requests anyway, failing only on the
+// first real query that touched a missing column).
+function fakeInformationSchemaPool(columnsByTable: Record<string, string[]>) {
+  return {
+    async query(text: string) {
+      const match = text.match(/table_name = '([^']+)'/);
+      const table = match?.[1];
+      const columns: string[] = table ? (columnsByTable[table] ?? []) : [];
+      return { rows: columns.map((column_name) => ({ column_name })) };
+    },
+  };
+}
+
+test("verifySchemaCurrent resolves cleanly when every canary column is present", async () => {
+  const pool = fakeInformationSchemaPool({
+    signup_extraction_batches: ["id", "user_id", "tenant_id"],
+    tenants: ["id", "slug", "monthly_ceiling_usd"],
+  });
+  await assert.doesNotReject(() => verifySchemaCurrent(pool));
+});
+
+test("verifySchemaCurrent throws SchemaDriftError naming the exact missing column and which migration adds it", async () => {
+  const pool = fakeInformationSchemaPool({
+    signup_extraction_batches: ["id", "user_id"], // tenant_id missing, as it was on real staging
+    tenants: ["id", "slug", "monthly_ceiling_usd"],
+  });
+  await assert.rejects(
+    () => verifySchemaCurrent(pool),
+    (err: unknown) =>
+      err instanceof SchemaDriftError &&
+      /signup_extraction_batches\.tenant_id/.test(err.message) &&
+      /0006_signup_extraction_batch_tenant_transfer\.sql/.test(err.message),
+  );
+});
+
+test("verifySchemaCurrent reports every missing canary at once, not just the first", async () => {
+  const pool = fakeInformationSchemaPool({ signup_extraction_batches: ["id"], tenants: ["id"] });
+  await assert.rejects(
+    () => verifySchemaCurrent(pool),
+    (err: unknown) =>
+      err instanceof SchemaDriftError && /tenant_id/.test(err.message) && /monthly_ceiling_usd/.test(err.message),
+  );
+});
+
+test("schemaCanaries names exactly the two ALTER TABLE ADD COLUMN migrations that exist today", () => {
+  const canaries = schemaCanaries();
+  assert.deepEqual(
+    canaries.map((c) => `${c.table}.${c.column}`),
+    ["signup_extraction_batches.tenant_id", "tenants.monthly_ceiling_usd"],
+  );
 });
