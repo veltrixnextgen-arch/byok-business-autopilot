@@ -34,10 +34,17 @@ import { getLatestBatch, getOrgChartForTenant } from "../lib/extractionClient";
 
 const getHandsKeyStatus = vi.fn();
 const connectHandsKey = vi.fn();
-vi.mock("../lib/handsKeyClient", () => ({
-  getHandsKeyStatus: (...args: [string, string]) => getHandsKeyStatus(...args),
-  connectHandsKey: (...args: [string, string, string]) => connectHandsKey(...args),
-}));
+// handsOAuthStartUrl (PR 2B) is left real, not mocked — it's a pure
+// string-builder (no network call), and testing the actual URL it
+// produces is the point of the oauth-live badge tests below.
+vi.mock("../lib/handsKeyClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/handsKeyClient")>();
+  return {
+    ...actual,
+    getHandsKeyStatus: (...args: [string, string]) => getHandsKeyStatus(...args),
+    connectHandsKey: (...args: [string, string, string]) => connectHandsKey(...args),
+  };
+});
 
 import { OrgChartScreen } from "./OrgChartScreen";
 
@@ -305,5 +312,111 @@ describe("OrgChartScreen — OAuth-only Hands tool shows an honest draft-mode st
     fireEvent.click(screen.getByRole("button", { name: "Got it" }));
     expect(screen.queryByText(/needs a sign-in flow we haven't built yet/i)).toBeNull();
     expect(connectHandsKey).not.toHaveBeenCalled();
+  });
+});
+
+const CHART_WITH_LIVE_OAUTH_HANDS: OrgChart = {
+  ...CHART,
+  agents: [{ ...CHART.agents[0], hands: ["Calendar"] }],
+} as unknown as OrgChart;
+
+// PR 2B: Calendar is the one handsAuth.ts entry classified "oauth-live" —
+// its badge must be a real navigable link to apps/api's real connect
+// flow, not a button opening an inline panel like the other two methods.
+describe("OrgChartScreen — 'oauth-live' Hands tool is a real connect link (PR 2B)", () => {
+  it("renders the badge as a real link to apps/api's OAuth start route, not a button", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_LIVE_OAUTH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+
+    render(<OrgChartScreen />);
+
+    const link = await screen.findByRole("link", { name: "Calendar · connect" });
+    expect(link.getAttribute("href")).toBe("http://localhost:3000/hands-oauth/google-calendar/start?subAgentId=agent-1&capabilityScope=calendar");
+    expect(screen.queryByRole("button", { name: "Calendar · connect" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Calendar · draft only" })).toBeNull();
+  });
+
+  it("shows the connected badge, not the connect link, once already connected", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_LIVE_OAUTH_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue({ id: "key-1", service: "google-calendar", maskedFingerprint: "", createdAt: "" });
+
+    render(<OrgChartScreen />);
+
+    expect(await screen.findByText("✓ Calendar")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Calendar · connect" })).toBeNull();
+  });
+});
+
+// PR 2B: the callback route redirects back to /org-chart?handsOAuth=... —
+// this is where that lands.
+describe("OrgChartScreen — post-OAuth-redirect banner", () => {
+  afterEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("shows a success message for ?handsOAuth=connected and strips it from the URL", async () => {
+    window.history.pushState({}, "", "/org-chart?handsOAuth=connected");
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    expect(await screen.findByText(/can now act through it/i)).toBeTruthy();
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
+  it("shows the reason for ?handsOAuth=error&reason=exchange_failed, as an alert", async () => {
+    window.history.pushState({}, "", "/org-chart?handsOAuth=error&reason=exchange_failed");
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/couldn't connect/i);
+    expect(alert.textContent).toMatch(/exchange_failed/);
+  });
+
+  it("shows no banner at all when the URL has neither query param", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
+    expect(screen.queryByText(/can now act through it/i)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

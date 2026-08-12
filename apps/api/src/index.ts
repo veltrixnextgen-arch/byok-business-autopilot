@@ -12,6 +12,7 @@ import { ceilingRoute } from "./routes/ceiling.js";
 import { dashboardRoute } from "./routes/dashboard.js";
 import { extractionRoute } from "./routes/extraction.js";
 import { handsKeyRoute } from "./routes/handsKeys.js";
+import { handsOAuthRoute, type HandsOAuthRouteDeps } from "./routes/handsOAuth.js";
 import { healthRoute } from "./routes/health.js";
 import { internalMetricsRoute } from "./routes/internalMetrics.js";
 import { meRoute } from "./routes/me.js";
@@ -42,6 +43,10 @@ export interface CreateAppOptions {
     metricsStore: SignupMetricsStore;
     internalMetricsToken: string;
   };
+  /** Hands OAuth connect (PR 2B) — kept separate from trustCore.vault
+   *  (which handsOAuthRoute also needs) because stateSecret/google are
+   *  route-composition config, not trust-core custody. */
+  handsOAuth: Pick<HandsOAuthRouteDeps, "stateSecret" | "google">;
 }
 
 /**
@@ -77,6 +82,21 @@ export function createApp(options: CreateAppOptions) {
     )
     .route("/me/ceiling", ceilingRoute({ ceilings }))
     .route("/me/hands-keys", handsKeyRoute({ vault: options.trustCore.vault }))
+    // Deliberately NOT under tenantMiddleware — see handsOAuth.ts's own
+    // comment for why (holding a pooled DB connection open across an
+    // external OAuth token-exchange call is worth avoiding, and this
+    // route doesn't touch the SQL pool at all). Checks the session
+    // directly instead.
+    .route(
+      "/hands-oauth",
+      handsOAuthRoute({
+        vault: options.trustCore.vault,
+        auth: options.auth,
+        webOrigin: options.webOrigin,
+        stateSecret: options.handsOAuth.stateSecret,
+        google: options.handsOAuth.google,
+      }),
+    )
     .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
     .route("/dashboard", dashboardRoute({ costActivity }))
     .use("/tasks/*", tenantMiddleware(options.pool, options.auth))

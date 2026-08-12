@@ -92,3 +92,44 @@ test("crossSiteCookies is true only when CROSS_SITE_COOKIES=true exactly", () =>
   } as NodeJS.ProcessEnv);
   assert.equal(config.crossSiteCookies, true);
 });
+
+// PR 2B (ADR-021): google is optional, unlike every other credential in
+// this file — the server must still boot with it entirely unset, since
+// that's every environment today pending Google's app verification.
+test("google is null when GOOGLE_OAUTH_CLIENT_ID/SECRET are both unset — server still boots fine", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.google, null);
+});
+
+test("google is null when only one of GOOGLE_OAUTH_CLIENT_ID/SECRET is set — never a half-configured provider", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    GOOGLE_OAUTH_CLIENT_ID: "client-1",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.google, null);
+});
+
+test("google is populated with a redirectUri derived from authBaseUrl once both env vars are set", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    GOOGLE_OAUTH_CLIENT_ID: "client-1",
+    GOOGLE_OAUTH_CLIENT_SECRET: "secret-1",
+    BETTER_AUTH_URL: "https://api.example.com",
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(config.google, {
+    clientId: "client-1",
+    clientSecret: "secret-1",
+    redirectUri: "https://api.example.com/hands-oauth/google-calendar/callback",
+  });
+});

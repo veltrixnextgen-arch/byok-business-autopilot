@@ -3,8 +3,9 @@ import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approva
 import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
-import { LocalKms, StagingKms, Vault, type Kms } from "@byok/vault";
+import { LocalKms, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
+import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "../oauth/googleCalendar.js";
 import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
 
 // Model ids here must exactly match packages/cost-gate/src/pricing-table.json
@@ -65,8 +66,16 @@ function createDevKms(): Kms {
  * "our monthly ceiling" setting genuinely gates its spend, not just a
  * process-wide constant every tenant shared before. `pool` is required
  * for this reason, unlike the rest of this file's dependencies.
+ *
+ * `google` (PR 2B) registers Vault's one real HandsCredentialRefresher so
+ * far — omitted or undefined when GOOGLE_OAUTH_CLIENT_ID/SECRET aren't
+ * set (server.ts), which is every environment today pending Google's app
+ * verification (ADR-021). Vault itself is unaffected either way: an empty
+ * refreshers map just means no "oauth" Hands key could ever be stored in
+ * the first place, since nothing calls storeHandsKey with
+ * credentialKind: "oauth" until handsOAuth.ts's callback route does.
  */
-export function createDevTrustCore(pool: PoolLike): TrustCoreDeps {
+export function createDevTrustCore(pool: PoolLike, options: { google?: { clientId: string; clientSecret: string } } = {}): TrustCoreDeps {
   const pricingTable = loadDevPricingTable();
   const tenantCeilings = new TenantCeilingStore(pool);
   const ceilingResolver = async (tenantId: string) => {
@@ -82,7 +91,12 @@ export function createDevTrustCore(pool: PoolLike): TrustCoreDeps {
   const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
   const ledger = new InMemoryTaskLedger();
   const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
-  const vault = new Vault(createDevKms());
+
+  const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
+  if (options.google) {
+    handsCredentialRefreshers.set(GOOGLE_CALENDAR_SERVICE, createGoogleCalendarRefresher(options.google));
+  }
+  const vault = new Vault(createDevKms(), undefined, undefined, handsCredentialRefreshers);
 
   return { router, costGate, approvalQueue, ledger, vault };
 }

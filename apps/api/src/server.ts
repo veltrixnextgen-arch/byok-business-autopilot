@@ -26,6 +26,18 @@ export interface ServerConfig {
    *  should fail at startup, not serve it unprotected on the first
    *  request. */
   internalMetricsToken: string;
+  /** Google Calendar Hands OAuth (PR 2B, ADR-021). Deliberately NOT
+   *  required like anthropicApiKey/internalMetricsToken above — this is a
+   *  platform app registration (client id/secret, ADR-003's "platform
+   *  secrets live in env config, never the vault" pattern extended to a
+   *  second use), and it genuinely doesn't exist yet: Google's app
+   *  verification needs a real public domain and privacy policy this
+   *  product doesn't have yet either. null means "the feature is wired
+   *  and code-complete but inert" — /me/hands-oauth/google-calendar/start
+   *  404s cleanly instead of the whole server refusing to boot. Setting
+   *  these two env vars in a real deployment is the ONLY remaining step
+   *  once real credentials exist — no code changes required. */
+  google: { clientId: string; clientSecret: string; redirectUri: string } | null;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -42,7 +54,15 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const authBaseUrl = env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
   const webOrigin = env.WEB_ORIGIN ?? "http://localhost:3002";
   const crossSiteCookies = env.CROSS_SITE_COOKIES === "true";
-  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies, anthropicApiKey, internalMetricsToken };
+
+  const googleClientId = env.GOOGLE_OAUTH_CLIENT_ID;
+  const googleClientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const google =
+    googleClientId && googleClientSecret
+      ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/hands-oauth/google-calendar/callback` }
+      : null;
+
+  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies, anthropicApiKey, internalMetricsToken, google };
 }
 
 /**
@@ -79,6 +99,10 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     webOrigin: config.webOrigin,
     extraction: { batchStore, apiKey: config.anthropicApiKey },
     metrics: { metricsStore, internalMetricsToken: config.internalMetricsToken },
+    // Reuses authSecret for state-token signing (ADR-021) — see
+    // oauth/state.ts's own comment on why a second required secret isn't
+    // needed for this.
+    handsOAuth: { stateSecret: config.authSecret, google: config.google },
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
