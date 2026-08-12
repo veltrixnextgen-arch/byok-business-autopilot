@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { API_URL, apiClient } from "./apiClient";
 
 export interface HandsKeyStatus {
   id: string;
@@ -38,4 +38,21 @@ export async function connectHandsKey(subAgentId: string, tool: string, apiKey: 
   if (!res.ok) throw new Error(`Could not connect "${tool}" (${res.status}).`);
   const { key } = await res.json();
   return key as HandsKeyStatus;
+}
+
+/**
+ * Builds the plain <a href> URL for an "oauth-live" tool's real connect
+ * flow (PR 2B) — a top-level browser navigation to apps/api's
+ * /hands-oauth/:service/start, never a fetch() (it needs to leave the
+ * page for the provider's consent screen and come back). Uses the SAME
+ * capabilityScopeForTool(tool) as the paste-a-key path above, not
+ * something derived from oauthService — the org chart's later status
+ * check (getHandsKeyStatus) looks up by tool, not by which auth method
+ * connected it, and both paths must resolve to the identical
+ * (subAgentId, capabilityScope) pair or a successful OAuth connect would
+ * never show as connected in the UI.
+ */
+export function handsOAuthStartUrl(subAgentId: string, tool: string, oauthService: string): string {
+  const params = new URLSearchParams({ subAgentId, capabilityScope: capabilityScopeForTool(tool) });
+  return `${API_URL}/hands-oauth/${oauthService}/start?${params.toString()}`;
 }

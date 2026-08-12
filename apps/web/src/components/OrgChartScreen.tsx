@@ -1,9 +1,9 @@
 import type { Agent, OrgChart, Task } from "@byok/contracts";
-import { authMethodForTool } from "@byok/templates";
+import { authMethodForTool, oauthServiceForTool } from "@byok/templates";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
-import { connectHandsKey, getHandsKeyStatus, type HandsKeyStatus } from "../lib/handsKeyClient";
+import { connectHandsKey, getHandsKeyStatus, handsOAuthStartUrl, type HandsKeyStatus } from "../lib/handsKeyClient";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { Badge, type BadgeTone, Button, Card, FormError, TextInput } from "./ui";
 
@@ -140,6 +140,12 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
   // just hands-relevant ones (merge/split can change agent ids) — simplest
   // correct behavior for how rarely a chart is actually edited.
   const [handsStatus, setHandsStatus] = useState<Map<string, HandsKeyStatus | null>>(new Map());
+  // apps/api's /hands-oauth/:service/callback (PR 2B) redirects back here
+  // with ?handsOAuth=connected|error&reason=... — a full page navigation
+  // (the OAuth flow left and returned), so this is read from the URL once
+  // on mount, not passed as component state. Cleared from the URL right
+  // after so a refresh doesn't keep re-showing it.
+  const [oauthBanner, setOauthBanner] = useState<{ status: "connected" | "error"; reason: string | null } | null>(null);
 
   const nonHumanTeams = chart.teams.filter((t) => !t.isHuman);
   const agentsById = new Map(chart.agents.map((a) => [a.id, a]));
@@ -156,6 +162,17 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
       cancelled = true;
     };
   }, [chart]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("handsOAuth");
+    if (status !== "connected" && status !== "error") return;
+    setOauthBanner({ status, reason: params.get("reason") });
+    params.delete("handsOAuth");
+    params.delete("reason");
+    const rest = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+  }, []);
 
   async function handleRename(agentId: string, name: string) {
     setRenamingId(null);
@@ -241,6 +258,23 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
           {chart.agents.length} agents · {nonHumanTeams.length} teams · {chart.tasks.length} tasks covered
         </p>
       </div>
+
+      {oauthBanner && (
+        <Card className={`mb-6 ${oauthBanner.status === "error" ? "border-danger/30" : "border-money/30"}`}>
+          <p className={`text-sm ${oauthBanner.status === "error" ? "text-danger" : "text-text"}`} role={oauthBanner.status === "error" ? "alert" : undefined}>
+            {oauthBanner.status === "connected"
+              ? "Connected — this agent can now act through it."
+              : `Couldn't connect that — try again. (${oauthBanner.reason ?? "unknown error"})`}
+          </p>
+          <button
+            type="button"
+            onClick={() => setOauthBanner(null)}
+            className="mt-1 text-xs text-text-muted underline underline-offset-4 hover:text-text-secondary"
+          >
+            Dismiss
+          </button>
+        </Card>
+      )}
 
       {stage >= 1 && (
         <div className="mb-8 flex flex-col items-center gap-0 duration-ceremony-base ease-ceremony">
@@ -576,13 +610,31 @@ function AgentCard({
           }
           // #22's original panel is a single "paste an API key" input —
           // honest only for services that actually have a pasteable key
-          // (docs/design/tool-registry.md §2b/§2e). For OAuth-only
-          // services there is no key to paste, so the badge must not
-          // promise one: authMethodForTool (packages/templates,
-          // registry-driven so a new template inherits the right
-          // behavior without a component change) decides which panel
-          // this badge opens.
-          const oauthOnly = authMethodForTool(tool) === "oauth";
+          // (docs/design/tool-registry.md §2b/§2e). authMethodForTool
+          // (packages/templates, registry-driven so a new template
+          // inherits the right behavior without a component change)
+          // decides which of three affordances this badge offers: a real
+          // paste-a-key flow, a real OAuth connect (PR 2B), or — until
+          // either exists — the honest draft-mode message.
+          const method = authMethodForTool(tool);
+          if (method === "oauth-live") {
+            const oauthService = oauthServiceForTool(tool);
+            // oauthService is only null if an "oauth-live" entry forgot
+            // to set it — handsAuth.test.ts fails CI on that, so this
+            // branch is defensive, not an expected runtime state.
+            if (oauthService) {
+              return (
+                <a
+                  key={tool}
+                  href={handsOAuthStartUrl(agent.id, tool, oauthService)}
+                  className="inline-flex items-center rounded-full border border-border px-3 py-1 font-mono text-xs tracking-wide text-text-secondary transition-colors duration-calm-fast ease-calm hover:border-accent/50 hover:text-text"
+                >
+                  {tool} · connect
+                </a>
+              );
+            }
+          }
+          const label = method === "key" ? "connect" : "draft only";
           return (
             <button
               key={tool}
@@ -590,13 +642,13 @@ function AgentCard({
               onClick={() => setConnectingTool(connectingTool === tool ? null : tool)}
               className="inline-flex items-center rounded-full border border-border px-3 py-1 font-mono text-xs tracking-wide text-text-secondary transition-colors duration-calm-fast ease-calm hover:border-accent/50 hover:text-text"
             >
-              {tool} · {oauthOnly ? "draft only" : "connect"}
+              {tool} · {label}
             </button>
           );
         })}
       </div>
 
-      {connectingTool && authMethodForTool(connectingTool) === "oauth" && (
+      {connectingTool && authMethodForTool(connectingTool) === "oauth-pending" && (
         <HandsOAuthPendingPanel agentName={agent.name} tool={connectingTool} onDismiss={() => setConnectingTool(null)} />
       )}
 

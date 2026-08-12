@@ -1,8 +1,9 @@
 # Runwisely — System Architecture
 **What's built, how the pieces fit together, and where the boundaries are**
 
-> **Generated from repo state at commit `dc20075`** (`feat/hands-jit-connect`, 2026-08-11, three PRs
-> past the prior snapshot at `1f38bf7`). This document is a snapshot, not a design doc — every diagram
+> **Generated from repo state on `feat/google-calendar-oauth-connect`** (2026-08-12, through merged
+> PRs #97–#100 plus this branch's own PR 2B — four PRs past the prior snapshot at commit `dc20075`).
+> This document is a snapshot, not a design doc — every diagram
 > and table below traces to code, migrations, or merged PRs as of that commit. It **will go stale** as
 > the system changes; regenerate it after any material architecture change (a new package, a new
 > deployable, a new migration, a trust-core redesign) rather than hand-patching it indefinitely.
@@ -183,12 +184,20 @@ Five principles every trust-core design decision traces back to — full detail 
   originally requested. "Agents without connected Hands work in draft mode" (ADR-002) is now an
   enforced invariant, not just an onboarding-copy promise.
 
-**Known architecture gap, not yet closed:** `HandsConnectPanel` (#22,
-`apps/web/src/components/OrgChartScreen.tsx:611-676`) is one generic "paste an API key" input wired
-to every Hands badge, with no OAuth affordance. Per `docs/design/tool-registry.md` §2e, most Hands
-services (Meta/TikTok social, Google Calendar, Google Business, most booking/membership platforms)
-are OAuth-only — there is no key to paste, so the connect flow dead-ends on the first attempt for
-those categories today, independent of any provider-side gating.
+**Architecture gap — partially closed.** `apps/web`'s org-chart Hands badges (#22) originally offered
+one generic "paste an API key" input to every service regardless of auth shape, which dead-ended on
+every OAuth-only service (`docs/design/tool-registry.md` §2e). Fixed structurally: `packages/templates`'s
+`handsAuth.ts` now classifies every `handsTool` as `"key"`, `"oauth-live"`, or `"oauth-pending"`, and
+the badge renders a genuinely different affordance per class — a paste field, a real OAuth connect
+link, or an honest draft-mode message, never a promise the UI can't keep. **Google Calendar (`Calendar`)
+is the first `"oauth-live"` entry** — `apps/api`'s `/hands-oauth/google-calendar/{start,callback}`
+routes (ADR-021) do a real HMAC-state-CSRF-protected authorization-code exchange, storing the result
+through ADR-020's structured-credential vault path. Code-complete but currently inert in every
+deployed environment: Google's app verification needs a real public domain and privacy policy
+(`docs/design/google-oauth-verification-checklist.md`) neither exists yet, so `GOOGLE_OAUTH_CLIENT_ID`/
+`SECRET` are unset and the route 404s "isn't connectable yet." Every other OAuth-only service (Meta/TikTok
+social, Google Business, most booking/membership platforms) is still `"oauth-pending"` — same honest
+message as before, no dead-end paste field.
 
 **Isolation model — three nested rings:**
 
@@ -312,6 +321,22 @@ line whenever a trust-core path changed, and only the maintainer ever writes it.
 
 Most recent work first — see each package's own CHANGELOG-equivalent (PR history) for full detail.
 
+- **PR 2B (this snapshot)** — Google Calendar Hands OAuth connect, real end to end. `apps/api`'s
+  `/hands-oauth/google-calendar/{start,callback}` routes (ADR-021), `handsAuth.ts`'s three-way
+  `"key" | "oauth-live" | "oauth-pending"` classification replacing the old two-way one, Calendar's
+  badge now a genuine connect link. Code-complete, inert pending a real domain for Google's app
+  verification — `GOOGLE_OAUTH_CLIENT_ID`/`SECRET` unset in every environment today.
+- **PR #99 (merged)** — OAuth Hands credential refresh infrastructure (ADR-020): structured
+  `credentialKind: "oauth"` storage, provider-agnostic `HandsCredentialRefresher`, single-flight
+  refresh (verified necessary by reading `@open-multi-agent/core`'s source, not assumed), fail-closed
+  on every refresh-failure path. Also closed a real gap found while verifying before building: a
+  Hands tool connected at pre-flight but failing live never reached `missingHands` — fixed via
+  `handsTool.ts`'s new `onLiveFailure` callback.
+- **PR #98 (merged)** — Fixed §5's then-gap directly: `HandsConnectPanel`'s single paste-a-key input
+  dead-ended on every OAuth-only service. `handsAuth.ts` (new) classifies every `handsTool`, driving
+  which affordance the badge shows — registry-backed, not a hardcoded component list.
+- **PR #97 (merged)** — This document's previous regen (through #96), plus `docs/TRACKING.md` rule 12
+  requiring regeneration on any trust-core/data-model/flow-changing PR.
 - **PR #96 (merged)** — Just-in-time Hands granting flow: draft mode + JIT connect. Fixes #22. Vault
   gained a `(tenantId, subAgentId, capabilityScope)` index; the executor pre-flight-checks every
   Hands tool's connection before offering it to the LLM; the router forces `effect: undefined` on
@@ -336,5 +361,6 @@ Most recent work first — see each package's own CHANGELOG-equivalent (PR histo
 - **PR #90 (merged)** — Tool-use-capable executor + Hands/Brain key providers. Fixes #37.
 - **PR #87–89 (merged)** — Final UI fidelity pass against the reference design.
 - **Not yet started** — issue #13 (per-role Brain key picker, today's connect flow is one provider
-  company-wide); real OAuth support for Hands connect (or, short of that, disabling the connect
-  badge for OAuth-only services) per §5's known gap.
+  company-wide); Meta Graph API OAuth (checklist ready at `docs/design/meta-app-review-checklist.md`,
+  §2g's second-ranked target — code not built); the two `railway variable set` lines that activate
+  Google Calendar OAuth once a real domain and client credentials exist (ADR-021).

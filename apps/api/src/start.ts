@@ -15,4 +15,4 @@ import { readServerConfigFromEnv, startServer } from "./server.js";
 // sets it fresh every deploy — see ADR-007).
 const config = readServerConfigFromEnv();
 const pool = createPool({ connectionString: config.databaseUrl });
-startServer(config, createDevTrustCore(pool), pool);
+startServer(config, createDevTrustCore(pool, { google: config.google ?? undefined }), pool);
