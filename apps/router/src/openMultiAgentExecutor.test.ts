@@ -253,3 +253,51 @@ test("issue #22: when every needed Hands tool IS connected, missingHands is abse
   assert.deepEqual(outcome, { result: "sent" });
   assert.ok(!("missingHands" in outcome));
 });
+
+// PR 2A's verified gap (ADR-020): missingHands used to come ONLY from the
+// pre-flight resolveHandsKeyId filter, before the LLM's run even starts.
+// A tool that WAS connected pre-flight (resolveHandsKeyId returns a real
+// id) but fails when actually called — decrypt error, or an OAuth refresh
+// failure — never reached missingHands, so the router could still submit
+// the caller's original requested effect even though the Hands call never
+// actually succeeded. This is the regression test for the fix: a live
+// decrypt failure must land in missingHands exactly like a pre-flight
+// absence does.
+test("PR 2A: a Hands tool connected at pre-flight but failing on the actual call (e.g. an OAuth refresh failure) still lands in missingHands", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0011"), 60_000); },
+  };
+  const fakeHandsVault: HandsKeyProvider = {
+    // Connected at pre-flight (a real key id comes back)...
+    resolveHandsKeyId: () => "hands-key-1",
+    // ...but the actual decrypt (where OAuth's refresh-on-expiry lives)
+    // fails — simulating an expired credential whose refresh just failed.
+    async decryptHandsKey() {
+      throw new Error("token expired and refresh failed");
+    },
+  };
+  const handsTools: HandsToolSpec[] = [makeHandsSpec({ name: "post_to_calendar", service: "google-calendar", subAgentId: "scheduling" })];
+
+  const executor = new OpenMultiAgentExecutor(
+    fakeVault,
+    ROUTER,
+    "claude-sonnet-4-6",
+    () => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runAgent: async (config: { customTools?: readonly { execute: (i: any, c: any) => Promise<any> }[] }) => {
+        // The tool IS offered (pre-flight said connected) — the LLM calls
+        // it, gets a clean isError result, and still produces some output.
+        const tool = config.customTools?.[0];
+        const result = await tool?.execute({}, {});
+        assert.equal(result?.isError, true);
+        return { output: "drafted anyway" } as never;
+      },
+    }),
+    fakeHandsVault,
+    handsTools,
+  );
+
+  const outcome = await executor.execute(makeTask({ subAgentId: "scheduling" }));
+
+  assert.deepEqual(outcome, { result: "drafted anyway", missingHands: ["google-calendar"] });
+});

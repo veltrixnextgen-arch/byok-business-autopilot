@@ -7,4 +7,10 @@ export * from "./secretHandle.js";
 export * from "./auditLog.js";
 export * from "./types.js";
 export { Vault } from "./vault.js";
-export type { StoreBrainKeyInput, StoreHandsKeyInput, BrainKeyProvider, HandsKeyProvider } from "./vault.js";
+export type {
+  StoreBrainKeyInput,
+  StoreHandsKeyInput,
+  BrainKeyProvider,
+  HandsKeyProvider,
+  HandsCredentialRefresher,
+} from "./vault.js";

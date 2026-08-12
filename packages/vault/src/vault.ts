@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { brainAad, decrypt, encrypt, handsAad } from "./crypto.js";
+import { brainAad, decrypt, encrypt, handsAad, zeroBuffer } from "./crypto.js";
 import type { Kms } from "./kms.js";
 import { DekStore } from "./dekStore.js";
 import { maskFingerprint } from "./fingerprint.js";
@@ -8,6 +8,8 @@ import type { AuditLog } from "./auditLog.js";
 import { InMemoryAuditLog } from "./auditLog.js";
 import {
   AccessDeniedError,
+  HandsRefreshFailedError,
+  HandsRefreshTokenRevokedError,
   KeyNotFoundError,
   ScopeBindingError,
   ValidationFailedError,
@@ -16,13 +18,64 @@ import {
 import type {
   BrainKeyRecord,
   HandsKeyRecord,
+  OAuthCredential,
   PublicKeyRecord,
+  RefreshedCredential,
   RequesterIdentity,
   VaultEvent,
   VaultEventListener,
 } from "./types.js";
 
 const DEFAULT_TTL_MS = 60_000;
+const DEFAULT_REFRESH_TIMEOUT_MS = 10_000;
+// Refresh this far ahead of the credential's real expiry, not exactly at
+// it — closes the window where a token that reads as "still valid" when
+// decryptHandsKey checks it expires for real before the actual Hands
+// service call completes (network latency, provider processing time).
+const EXPIRY_SAFETY_MARGIN_MS = 60_000;
+
+/**
+ * Provider-agnostic OAuth token refresh (PR 2A). One implementation per
+ * Hands service that uses OAuth (Google Calendar, Meta, ...) — vault.ts's
+ * decryptHandsKey owns everything provider-independent (expiry check,
+ * single-flight de-dup, timeout enforcement, re-encrypt-in-place, fail-
+ * closed classification); a refresher owns only the one HTTP call to its
+ * provider's token endpoint. This is what lets a new OAuth Hands service
+ * "plug in" without touching decryptHandsKey itself — register one more
+ * entry in the constructor's `handsCredentialRefreshers` map.
+ */
+export interface HandsCredentialRefresher {
+  /** Must throw HandsRefreshTokenRevokedError specifically when the
+   *  provider's response means the refresh token itself is dead (e.g.
+   *  OAuth's `invalid_grant`) — any other failure (network error, 5xx,
+   *  malformed response) should throw a plain Error or
+   *  HandsRefreshFailedError; decryptHandsKey classifies/wraps it either
+   *  way, but only HandsRefreshTokenRevokedError triggers revocation. */
+  refresh(refreshToken: string): Promise<RefreshedCredential>;
+}
+
+// Bounds a promise to `ms` — rejects with `onTimeout()` if it hasn't
+// settled by then, and always clears its timer so a settled promise never
+// leaves a dangling handle. This is what makes "never a hang" true for a
+// refresher implementation regardless of whether that implementation
+// enforces its own timeout (PR 2B's real Google/Meta refreshers should,
+// but this guarantees the property even if one doesn't).
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(onTimeout()), ms);
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 export interface StoreBrainKeyInput {
   tenantId: string;
@@ -40,8 +93,15 @@ export interface StoreHandsKeyInput {
   subAgentId: string;
   capabilityScope: string;
   service: string;
+  /** For credentialKind "oauth", this is `Buffer.from(JSON.stringify(credential))`
+   *  for an OAuthCredential (types.ts) — never a bare access token string. */
   plaintext: Buffer;
   validate?: (plaintext: Buffer) => Promise<boolean>;
+  /** Defaults to "opaque" (a pasted static key/token, issue #22 — decrypted
+   *  and handed back unchanged). "oauth" (PR 2A) makes decryptHandsKey
+   *  check expiry and refresh via a registered HandsCredentialRefresher for
+   *  `service` before ever returning a handle. */
+  credentialKind?: "opaque" | "oauth";
 }
 
 /** The narrow interface OpenMultiAgentExecutor depends on — mockable in
@@ -113,6 +173,16 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   // becomes unreachable via lookup, same as an orphaned prior BrainKeyRecord.
   private readonly handsKeyIndex = new Map<string, string>();
   private readonly listeners: VaultEventListener[] = [];
+  // In-flight OAuth refresh promises, keyed by Hands key id. A second
+  // decryptHandsKey call for the SAME expired key while a refresh is
+  // already running awaits this same promise instead of starting its own
+  // — verified necessary, not speculative: @open-multi-agent/core's
+  // ToolExecutor.executeBatch runs a turn's tool calls concurrently
+  // (Promise.all + a 4-way semaphore, dist/tool/executor.js), so an LLM
+  // that calls the same Hands tool twice in one turn really can reach
+  // decryptHandsKey twice before either finishes (docs/DECISIONS.md
+  // ADR-020).
+  private readonly inFlightRefreshes = new Map<string, Promise<OAuthCredential>>();
 
   private static handsIndexKey(tenantId: string, subAgentId: string, capabilityScope: string): string {
     return `${tenantId}::${subAgentId}::${capabilityScope}`;
@@ -122,6 +192,8 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     kms: Kms,
     private readonly audit: AuditLog = new InMemoryAuditLog(),
     private readonly ttlMs: number = DEFAULT_TTL_MS,
+    private readonly handsCredentialRefreshers: ReadonlyMap<string, HandsCredentialRefresher> = new Map(),
+    private readonly refreshTimeoutMs: number = DEFAULT_REFRESH_TIMEOUT_MS,
   ) {
     this.dekStore = new DekStore(kms);
   }
@@ -259,6 +331,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       material,
       maskedFingerprint: maskFingerprint(input.plaintext),
       revoked: false,
+      credentialKind: input.credentialKind ?? "opaque",
       createdAt: now(),
       updatedAt: now(),
     };
@@ -370,6 +443,36 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       );
     }
 
+    // Opaque (default, issue #22): unchanged behavior — hand the decrypted
+    // bytes straight back, no expiry/refresh concept applies.
+    if (record.credentialKind !== "oauth") {
+      this.audit.append({
+        operation: "decrypt-granted",
+        keyId,
+        tenantId: record.tenantId,
+        requester,
+        at: now(),
+        detail: `scope=${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
+      });
+      return new SecretHandle(plaintext, this.ttlMs);
+    }
+
+    // OAuth (PR 2A): plaintext is the JSON-serialized OAuthCredential, not
+    // itself the thing a Hands tool should ever see — parse it, zero the
+    // raw buffer immediately (it carries the refreshToken, which must
+    // never reach a tool's invoke() the way a plain accessToken does), and
+    // hand back a fresh SecretHandle wrapping ONLY the access token.
+    let credential: OAuthCredential;
+    try {
+      credential = JSON.parse(plaintext.toString("utf8")) as OAuthCredential;
+    } finally {
+      zeroBuffer(plaintext);
+    }
+
+    const freshCredential = this.credentialIsExpired(credential)
+      ? await this.getOrRefreshCredential(keyId, record, credential, requester)
+      : credential;
+
     this.audit.append({
       operation: "decrypt-granted",
       keyId,
@@ -378,7 +481,107 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       at: now(),
       detail: `scope=${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
     });
-    return new SecretHandle(plaintext, this.ttlMs);
+    return new SecretHandle(Buffer.from(freshCredential.accessToken, "utf8"), this.ttlMs);
+  }
+
+  private credentialIsExpired(credential: OAuthCredential): boolean {
+    if (!credential.expiresAt) return false; // no expiry info -> defensively treat as non-expiring
+    return Date.parse(credential.expiresAt) - Date.now() <= EXPIRY_SAFETY_MARGIN_MS;
+  }
+
+  // Single-flight: a second caller for the same keyId while a refresh is
+  // already in progress awaits THIS SAME promise rather than starting a
+  // second refresh call against the provider (ADR-020) — every concurrent
+  // caller gets the same resolved credential or the same thrown error,
+  // whichever this one settled to.
+  private getOrRefreshCredential(
+    keyId: string,
+    record: HandsKeyRecord,
+    credential: OAuthCredential,
+    requester: RequesterIdentity,
+  ): Promise<OAuthCredential> {
+    let inFlight = this.inFlightRefreshes.get(keyId);
+    if (!inFlight) {
+      inFlight = this.performRefresh(record, credential, requester).finally(() => {
+        this.inFlightRefreshes.delete(keyId);
+      });
+      this.inFlightRefreshes.set(keyId, inFlight);
+    }
+    return inFlight;
+  }
+
+  // Fail-closed on every path: this either resolves with a genuinely fresh
+  // credential or rejects — there is no branch that returns a stale/expired
+  // accessToken. Bounded by withTimeout so a hanging provider call can
+  // never hang the caller. A single attempt, no internal retry loop — a
+  // transient failure surfaces immediately as a draft-mode result (via
+  // handsTool.ts's catch -> OpenMultiAgentExecutor's missingHands, see
+  // ADR-020) rather than this method silently hammering the provider's
+  // token endpoint.
+  private async performRefresh(
+    record: HandsKeyRecord,
+    credential: OAuthCredential,
+    requester: RequesterIdentity,
+  ): Promise<OAuthCredential> {
+    if (!credential.refreshToken) {
+      throw new HandsRefreshFailedError(
+        `Hands key "${record.id}" (${record.service}) expired and has no refresh token — cannot refresh.`,
+      );
+    }
+    const refresher = this.handsCredentialRefreshers.get(record.service);
+    if (!refresher) {
+      throw new HandsRefreshFailedError(`No credential refresher registered for service "${record.service}".`);
+    }
+
+    let result: RefreshedCredential;
+    try {
+      result = await withTimeout(
+        refresher.refresh(credential.refreshToken),
+        this.refreshTimeoutMs,
+        () => new HandsRefreshFailedError(`Refreshing "${record.service}" credential timed out after ${this.refreshTimeoutMs}ms.`),
+      );
+    } catch (err) {
+      if (err instanceof HandsRefreshTokenRevokedError) {
+        // Durable, not transient: the provider says this refresh token can
+        // never work again. Revoke for real — same purge + audit + emit
+        // path a manual revoke uses (#22/#37's revoke-cancels-queued
+        // listener fires identically) — rather than leaving a "connected"
+        // key that fails the same way on every future call.
+        await this.revokeHandsKey(record.id, requester);
+        throw err;
+      }
+      if (err instanceof HandsRefreshFailedError) throw err;
+      throw new HandsRefreshFailedError(`Refreshing "${record.service}" credential failed: ${(err as Error).message}`);
+    }
+
+    const refreshed: OAuthCredential = {
+      accessToken: result.accessToken,
+      refreshToken: credential.refreshToken,
+      expiresAt: result.expiresAt,
+      scope: credential.scope,
+    };
+
+    // Re-encrypt in place — SAME record id, SAME AAD scope-binding. Any
+    // caller already holding this key id (a Hands tool spec, a status
+    // check) keeps working unchanged; only the material behind it rotates.
+    const dek = await this.dekStore.getOrCreateDek(record.tenantId);
+    record.material = encrypt(Buffer.from(JSON.stringify(refreshed), "utf8"), dek, handsAad(record.subAgentId, record.capabilityScope));
+    record.updatedAt = now();
+    // maskedFingerprint deliberately untouched — it's the user-visible
+    // "you connected this" identity from the initial store, not a live
+    // reflection of the access token, which rotates silently and often;
+    // updating it here would make the UI's masked fingerprint flicker on
+    // every background refresh for no reason the user did anything.
+    this.audit.append({
+      operation: "rotate",
+      keyId: record.id,
+      tenantId: record.tenantId,
+      requester,
+      at: now(),
+      detail: `silent OAuth refresh (${record.service})`,
+    });
+
+    return refreshed;
   }
 
   // ---- shared -----------------------------------------------------------
