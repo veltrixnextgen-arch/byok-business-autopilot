@@ -60,6 +60,7 @@ test("GET status reports connected: true with the key's public status once one e
     service: "stripe",
     maskedFingerprint: "sk-...abcd",
     revoked: false,
+    credentialKind: "opaque",
     createdAt: "",
     updatedAt: "",
   };
@@ -95,6 +96,7 @@ test("POST stores the key against the session's tenantId and a tenant-user reque
           service: input.service,
           maskedFingerprint: "sk-...abcd",
           revoked: false,
+          credentialKind: "opaque",
           createdAt: "",
           updatedAt: "",
         } satisfies PublicKeyRecord;

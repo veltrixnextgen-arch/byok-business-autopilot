@@ -56,6 +56,20 @@ export function createHandsTool(
   handsVault: HandsKeyProvider,
   requester: RequesterIdentity,
   tenantId: string,
+  // Verified gap (PR 2A): OpenMultiAgentExecutor's pre-flight filter only
+  // catches a Hands tool with NO key stored at all — resolveHandsKeyId
+  // returning null. A key that WAS connected at pre-flight but fails here
+  // (decrypt error, or — new with OAuth — an expired credential whose
+  // refresh fails) never reached missingHands before this: the LLM saw a
+  // clean isError tool result and could still produce a result the router
+  // would submit with the caller's ORIGINAL requested effect intact,
+  // because task.missingHands stayed empty. onLiveFailure closes that —
+  // called on every decrypt/refresh failure here, feeding the SAME
+  // missingHands list the pre-flight filter already populates (see
+  // openMultiAgentExecutor.ts), so router.ts's existing
+  // `effect: task.missingHands ? undefined : input.effect` forces draft
+  // mode for THIS failure mode too, with zero changes to router.ts itself.
+  onLiveFailure?: (service: string) => void,
 ): ToolDefinition {
   return defineTool({
     name: spec.name,
@@ -65,6 +79,7 @@ export function createHandsTool(
     execute: async (input) => {
       const keyId = handsVault.resolveHandsKeyId(tenantId, spec.subAgentId, spec.capabilityScope);
       if (!keyId) {
+        onLiveFailure?.(spec.service);
         return { data: `"${spec.service}" isn't connected yet for "${spec.name}" — working in draft mode.`, isError: true };
       }
 
@@ -76,6 +91,7 @@ export function createHandsTool(
           requester,
         );
       } catch (err) {
+        onLiveFailure?.(spec.service);
         return { data: `Hands key unavailable for "${spec.name}": ${(err as Error).message}`, isError: true };
       }
 

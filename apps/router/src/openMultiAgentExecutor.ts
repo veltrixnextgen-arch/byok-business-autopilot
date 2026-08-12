@@ -65,6 +65,14 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
       return { error: `Brain key unavailable for role "${task.teamId}": ${(err as Error).message}` };
     }
 
+    // Populated two ways: the pre-flight filter below (no key stored at
+    // all, before the LLM ever sees the tool) AND createHandsTool's
+    // onLiveFailure callback (a key WAS connected at pre-flight but the
+    // actual decrypt/refresh call during the run still failed — PR 2A's
+    // verified gap, see handsTool.ts's comment on createHandsTool). Either
+    // source lands here, and router.ts's existing
+    // `effect: task.missingHands ? undefined : input.effect` treats them
+    // identically — one required change, not two.
     const missingHands: string[] = [];
     const customTools =
       this.handsVault === undefined
@@ -76,7 +84,9 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
               if (!connected) missingHands.push(spec.service);
               return connected;
             })
-            .map((spec) => createHandsTool(spec, this.handsVault!, this.requester, task.tenantId));
+            .map((spec) =>
+              createHandsTool(spec, this.handsVault!, this.requester, task.tenantId, (service) => missingHands.push(service)),
+            );
 
     return handle.use(async (apiKeyBuffer) => {
       try {

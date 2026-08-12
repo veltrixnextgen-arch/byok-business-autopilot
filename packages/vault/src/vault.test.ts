@@ -5,9 +5,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Vault } from "./vault.js";
+import type { HandsCredentialRefresher } from "./vault.js";
 import { LocalKms } from "./kms.js";
-import { AccessDeniedError, KeyNotFoundError, ScopeBindingError, SecretExpiredError } from "./types.js";
-import type { RequesterIdentity } from "./types.js";
+import {
+  AccessDeniedError,
+  HandsRefreshFailedError,
+  HandsRefreshTokenRevokedError,
+  KeyNotFoundError,
+  ScopeBindingError,
+  SecretExpiredError,
+} from "./types.js";
+import type { OAuthCredential, RefreshedCredential, RequesterIdentity } from "./types.js";
 
 const ROUTER: RequesterIdentity = { kind: "router-service", serviceId: "router-1" };
 const ONBOARDING: RequesterIdentity = { kind: "onboarding-service", serviceId: "onboarding-1" };
@@ -16,6 +24,60 @@ function makeVault(ttlMs = 60_000): Vault {
   const dir = mkdtempSync(join(tmpdir(), "vault-test-"));
   const kms = new LocalKms(join(dir, "master.key"));
   return new Vault(kms, undefined, ttlMs);
+}
+
+function makeVaultWithRefreshers(
+  refreshers: ReadonlyMap<string, HandsCredentialRefresher>,
+  refreshTimeoutMs = 5_000,
+): Vault {
+  const dir = mkdtempSync(join(tmpdir(), "vault-test-"));
+  const kms = new LocalKms(join(dir, "master.key"));
+  return new Vault(kms, undefined, 60_000, refreshers, refreshTimeoutMs);
+}
+
+// A HandsCredentialRefresher test double that records every refreshToken it
+// was called with, so single-flight de-dup (only ONE call for N concurrent
+// decrypts) and never-called-when-not-needed assertions have something real
+// to check against.
+function fakeRefresher(fn: (refreshToken: string) => Promise<RefreshedCredential>): HandsCredentialRefresher & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    async refresh(refreshToken: string) {
+      calls.push(refreshToken);
+      return fn(refreshToken);
+    },
+  };
+}
+
+const EXPIRED_ISO = new Date(Date.now() - 1_000).toISOString();
+const FRESH_ISO = new Date(Date.now() + 3_600_000).toISOString();
+
+async function storeOAuthHandsKey(
+  vault: Vault,
+  opts: { service: string; accessToken: string; refreshToken?: string; expiresAt?: string; tenantId?: string },
+) {
+  const credential: OAuthCredential = {
+    accessToken: opts.accessToken,
+    refreshToken: opts.refreshToken,
+    expiresAt: opts.expiresAt,
+  };
+  const record = await vault.storeHandsKey(
+    {
+      tenantId: opts.tenantId ?? "tenant-a",
+      subAgentId: "cmo.social",
+      capabilityScope: "social-post",
+      service: opts.service,
+      plaintext: Buffer.from(JSON.stringify(credential), "utf8"),
+      credentialKind: "oauth",
+    },
+    ONBOARDING,
+  );
+  return record.id;
+}
+
+function decryptOAuth(vault: Vault, keyId: string) {
+  return vault.decryptHandsKey(keyId, { subAgentId: "cmo.social", capabilityScope: "social-post" }, ROUTER);
 }
 
 test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a masked fingerprint never the real key", async () => {
@@ -346,6 +408,187 @@ test("audit log records every operation and never contains key material", async 
 
   const serializedLog = JSON.stringify(events);
   assert.ok(!serializedLog.includes("audit-test-secret"));
+});
+
+// PR 2A — OAuth credential storage and refresh (ADR-020). Every test below
+// is one of the fail-closed properties named explicitly in the PR: refresh
+// failure, network error, revoked refresh token, and expired-with-no-
+// refresh-token must all end in a thrown error and NO SecretHandle, never a
+// retry loop, never a stale-token handle, never a hang.
+
+test("OAuth: a non-expired credential is returned as-is, no refresher ever called", async () => {
+  const refresher = fakeRefresher(async () => ({ accessToken: "should-not-be-used", expiresAt: FRESH_ISO }));
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-fresh", refreshToken: "refresh-1", expiresAt: FRESH_ISO });
+
+  const handle = await decryptOAuth(vault, keyId);
+  assert.equal(await handle.use((buf) => buf.toString("utf8")), "tok-fresh");
+  assert.deepEqual(refresher.calls, []);
+});
+
+test("OAuth: an expired credential is silently refreshed and the new access token is returned", async () => {
+  const refresher = fakeRefresher(async (refreshToken) => {
+    assert.equal(refreshToken, "refresh-1");
+    return { accessToken: "tok-refreshed", expiresAt: FRESH_ISO };
+  });
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  const handle = await decryptOAuth(vault, keyId);
+  assert.equal(await handle.use((buf) => buf.toString("utf8")), "tok-refreshed");
+  assert.equal(refresher.calls.length, 1);
+
+  // Re-encrypted in place, same key id — a second decrypt sees the new
+  // token without a second refresh (it's fresh now).
+  const handle2 = await decryptOAuth(vault, keyId);
+  assert.equal(await handle2.use((buf) => buf.toString("utf8")), "tok-refreshed");
+  assert.equal(refresher.calls.length, 1, "the second decrypt must not re-refresh an already-fresh token");
+
+  const status = vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post");
+  assert.ok(status, "the key must still be connected, not revoked, after a successful refresh");
+});
+
+test("OAuth fail-closed: expired with no refresh token throws immediately, refresher never called, no handle returned", async () => {
+  const refresher = fakeRefresher(async () => ({ accessToken: "unreachable", expiresAt: FRESH_ISO }));
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", expiresAt: EXPIRED_ISO }); // no refreshToken
+
+  await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshFailedError);
+  assert.deepEqual(refresher.calls, []);
+});
+
+test("OAuth fail-closed: refresh failure (generic provider error) throws, key stays connected (transient, not revoked)", async () => {
+  const refresher = fakeRefresher(async () => {
+    throw new Error("provider returned 500");
+  });
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshFailedError);
+  assert.equal(refresher.calls.length, 1);
+  assert.ok(vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), "a transient refresh failure must not revoke the key — it may succeed next time");
+});
+
+test("OAuth fail-closed: network error during refresh is classified as HandsRefreshFailedError, never a stale handle", async () => {
+  const refresher = fakeRefresher(async () => {
+    throw new Error("ECONNRESET");
+  });
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  let handleReturned = false;
+  try {
+    await decryptOAuth(vault, keyId);
+    handleReturned = true;
+  } catch (err) {
+    assert.ok(err instanceof HandsRefreshFailedError);
+  }
+  assert.equal(handleReturned, false, "a network error during refresh must never produce a usable handle");
+});
+
+test("OAuth fail-closed: a revoked refresh token throws HandsRefreshTokenRevokedError AND the key becomes actually revoked", async () => {
+  const refresher = fakeRefresher(async () => {
+    throw new HandsRefreshTokenRevokedError("invalid_grant");
+  });
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  const revokedEvents: string[] = [];
+  vault.onEvent((e) => {
+    if (e.type === "key.revoked") revokedEvents.push(e.keyId);
+  });
+
+  await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshTokenRevokedError);
+
+  assert.equal(vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), null, "a revoked-refresh-token failure must actually revoke the stored key, not just fail this one call");
+  assert.deepEqual(revokedEvents, [keyId], "the same key.revoked event a manual revoke fires must fire here too — #22/#37's revoke-cancels-queued listener depends on it");
+
+  // And it must actually stay revoked — a later decrypt attempt fails
+  // cleanly (KeyNotFoundError), not by re-attempting a doomed refresh.
+  await assert.rejects(() => decryptOAuth(vault, keyId), KeyNotFoundError);
+  assert.equal(refresher.calls.length, 1, "no retry against a refresh token already known to be dead");
+});
+
+test("OAuth fail-closed: a hanging refresher never hangs the caller — bounded by refreshTimeoutMs", async () => {
+  // Settles eventually (well after the 50ms refreshTimeoutMs below) rather
+  // than never — a truly eternal `new Promise(() => {})` has nothing left
+  // to await it once withTimeout's own race settles, and node:test's
+  // runner flags that dangling, forever-pending promise at file-exit,
+  // cascading a "cancelledByParent" failure into every later test in this
+  // file (caught in CI, not locally — a slower/differently-scheduled
+  // runner made the dangling-promise window actually observable). The
+  // property under test — the CALLER rejects on the bounded timeout, long
+  // before the refresher itself would ever resolve — is unaffected by
+  // giving the refresher a real, if distant, resolution.
+  const refresher = fakeRefresher(
+    () => new Promise<RefreshedCredential>((resolve) => setTimeout(() => resolve({ accessToken: "too-late", expiresAt: FRESH_ISO }), 300)),
+  );
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]), 50);
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  const start = Date.now();
+  await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshFailedError);
+  assert.ok(Date.now() - start < 2_000, "must reject on the bounded timeout, not hang indefinitely");
+});
+
+test("OAuth: concurrent decrypts on the same expiring credential single-flight — the refresher is called exactly once", async () => {
+  let resolveRefresh!: (v: RefreshedCredential) => void;
+  const refresher = fakeRefresher(() => new Promise<RefreshedCredential>((resolve) => { resolveRefresh = resolve; }));
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  // Two callers race in before either sees a result — verified reachable in
+  // practice, not just theoretical: @open-multi-agent/core's
+  // ToolExecutor.executeBatch runs a turn's tool calls through Promise.all
+  // with a 4-way semaphore (dist/tool/executor.js), so an LLM double-
+  // calling the same Hands tool in one turn really does reach
+  // decryptHandsKey twice concurrently (ADR-020).
+  const first = decryptOAuth(vault, keyId);
+  const second = decryptOAuth(vault, keyId);
+
+  await sleep(10); // let both calls reach the in-flight map before the refresh resolves
+  resolveRefresh({ accessToken: "tok-refreshed-once", expiresAt: FRESH_ISO });
+
+  const [handleA, handleB] = await Promise.all([first, second]);
+  assert.equal(await handleA.use((buf) => buf.toString("utf8")), "tok-refreshed-once");
+  assert.equal(await handleB.use((buf) => buf.toString("utf8")), "tok-refreshed-once");
+  assert.equal(refresher.calls.length, 1, "must not double-refresh — this is the property the in-flight map exists to guarantee");
+});
+
+test("OAuth: a failed single-flight refresh rejects every concurrent caller, and clears the in-flight slot for a later retry", async () => {
+  let attempt = 0;
+  const refresher = fakeRefresher(async () => {
+    attempt += 1;
+    if (attempt === 1) throw new Error("first attempt fails");
+    return { accessToken: "tok-second-attempt", expiresAt: FRESH_ISO };
+  });
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  const [firstResult, secondResult] = await Promise.allSettled([decryptOAuth(vault, keyId), decryptOAuth(vault, keyId)]);
+  assert.equal(firstResult.status, "rejected");
+  assert.equal(secondResult.status, "rejected");
+  assert.equal(refresher.calls.length, 1, "both concurrent callers shared the one failed attempt, not two");
+
+  // The in-flight slot must have been cleared (the `finally` in
+  // getOrRefreshCredential) so a later call isn't stuck awaiting a
+  // promise that already settled — it starts a fresh attempt.
+  const handle = await decryptOAuth(vault, keyId);
+  assert.equal(await handle.use((buf) => buf.toString("utf8")), "tok-second-attempt");
+  assert.equal(refresher.calls.length, 2);
+});
+
+test("OAuth: the refreshed access token is still never serializable — same redaction as every other SecretHandle", async () => {
+  const refresher = fakeRefresher(async () => ({ accessToken: "tok-secret-refreshed", expiresAt: FRESH_ISO }));
+  const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]));
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
+
+  const handle = await decryptOAuth(vault, keyId);
+  const serialized = JSON.stringify({ someHandle: handle });
+  const stringified = String(handle);
+
+  assert.ok(!serialized.includes("tok-secret-refreshed"));
+  assert.ok(!stringified.includes("tok-secret-refreshed"));
 });
 
 test("LocalKms generates and persists a master key file on first run, reuses it after", async () => {
