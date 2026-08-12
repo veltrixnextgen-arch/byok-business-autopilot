@@ -1,4 +1,5 @@
 import type { Agent, OrgChart, Task } from "@byok/contracts";
+import { authMethodForTool } from "@byok/templates";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
@@ -573,6 +574,15 @@ function AgentCard({
               </Badge>
             );
           }
+          // #22's original panel is a single "paste an API key" input —
+          // honest only for services that actually have a pasteable key
+          // (docs/design/tool-registry.md §2b/§2e). For OAuth-only
+          // services there is no key to paste, so the badge must not
+          // promise one: authMethodForTool (packages/templates,
+          // registry-driven so a new template inherits the right
+          // behavior without a component change) decides which panel
+          // this badge opens.
+          const oauthOnly = authMethodForTool(tool) === "oauth";
           return (
             <button
               key={tool}
@@ -580,13 +590,17 @@ function AgentCard({
               onClick={() => setConnectingTool(connectingTool === tool ? null : tool)}
               className="inline-flex items-center rounded-full border border-border px-3 py-1 font-mono text-xs tracking-wide text-text-secondary transition-colors duration-calm-fast ease-calm hover:border-accent/50 hover:text-text"
             >
-              {tool} · connect
+              {tool} · {oauthOnly ? "draft only" : "connect"}
             </button>
           );
         })}
       </div>
 
-      {connectingTool && (
+      {connectingTool && authMethodForTool(connectingTool) === "oauth" && (
+        <HandsOAuthPendingPanel agentName={agent.name} tool={connectingTool} onDismiss={() => setConnectingTool(null)} />
+      )}
+
+      {connectingTool && authMethodForTool(connectingTool) === "key" && (
         <HandsConnectPanel
           agentName={agent.name}
           tool={connectingTool}
@@ -608,12 +622,42 @@ function AgentCard({
   );
 }
 
+// Companion to HandsConnectPanel for OAuth-only services (see
+// authMethodForTool, packages/templates/src/handsAuth.ts) — no input,
+// nothing to submit. The agent is already, structurally, unable to act
+// without this connection (#22's executor pre-flight check forces
+// effect: undefined the moment a required Hands tool isn't connected —
+// see docs/architecture/system-architecture.md §4), so this panel's only
+// job is to stop the UI from implying a paste field would help. Dismiss
+// just closes it — there is no "skip" action distinct from the default
+// state, unlike HandsConnectPanel, because nothing was ever offered to
+// decline.
+function HandsOAuthPendingPanel({ agentName, tool, onDismiss }: { agentName: string; tool: string; onDismiss: () => void }) {
+  return (
+    <div className="mt-3 rounded-xl border border-border-subtle bg-bg-glass-subtle p-3.5">
+      <p className="text-sm text-text-secondary">
+        {agentName} drafts with <strong className="text-text">{tool}</strong> today — connecting it needs a sign-in
+        flow we haven't built yet. It'll keep preparing the work for you to send yourself until then.
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="mt-2 text-xs text-text-muted underline underline-offset-4 hover:text-text-secondary"
+      >
+        Got it
+      </button>
+    </div>
+  );
+}
+
 // Just-in-time Hands connect (issue #22, Screen 12: "connect now or skip;
 // agents without tools work in draft mode"). Deliberately no per-service
 // walkthrough content — unlike Brain's ConnectScreen, no product doc has
 // written per-service mini-guides yet (docs/design/tool-registry.md is
 // research/inventory, not copy-ready steps), so this stays honest: paste
 // a key, or skip and the agent keeps working in draft mode either way.
+// Only ever rendered for a tool authMethodForTool classifies as "key" —
+// see HandsOAuthPendingPanel for the OAuth-only counterpart.
 function HandsConnectPanel({
   agentName,
   subAgentId,

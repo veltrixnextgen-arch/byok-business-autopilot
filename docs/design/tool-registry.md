@@ -218,6 +218,90 @@ Chief of Staff, Cash-flow forecast, Tax-deadline tracker (all Hands-free) · Con
 
 ---
 
+## 2e. CRITICAL — the live connect UI has no OAuth path (found re-verifying this registry against #22, August 2026)
+
+Issue #22 shipped an inline "connect" affordance on every Hands badge in the org chart
+(`HandsConnectPanel`, `apps/web/src/components/OrgChartScreen.tsx:611-676`). It is **one generic
+component for every service**: a single password-type text input labeled `Paste your {tool} API
+key`, wired identically regardless of what `tool` actually is (`OrgChartScreen.tsx:654-661`,
+`handleConnect` at 634-645 posts straight to `POST /me/hands-keys` as an opaque string — see
+`apps/api/src/routes/handsKeys.ts`).
+
+That's a harder failure than §2b/§2c's gating findings. Gating means *some* businesses get turned
+away at a review wall. This means **the UI has no way to complete a connection for any OAuth-only
+service, for any business, ever** — there is no key to paste. Cross-referencing §2b's per-service
+auth column against every `handsTool` string actually declared in `packages/templates` today:
+
+| `handsTool` string (as declared in templates) | Real auth shape | Paste-a-key UI works? |
+|---|---|---|
+| `Instagram/Meta`, `Instagram/Facebook`, `Instagram/TikTok` | OAuth only (Meta Graph API / TikTok Content Posting API) — no API-key concept exists | **No — structurally impossible** |
+| `Google Business` | OAuth only, plus the §2b access-request gate | **No** |
+| `Calendar` (Google Calendar / Outlook) | OAuth only | **No** |
+| `GitHub` | GitHub App installation (OAuth-style consent + install), not a bearer key a user has sitting around | **No, not the intended pattern** — a PAT would technically parse but isn't what §2b recommends and carries a human's full account scope, not the app's fine-grained one |
+| `Twitter/X` | OAuth 2.0 (or paid API-key tier, see §2b) | **Partial** — OAuth path broken, paid key-tier path technically pastable |
+| `Booking platform`, `Membership platform`, `Membership/payment platform` (Calendly/Acuity/Mindbody/Wild Apricot) | OAuth (Calendly, Acuity, Wild Apricot) or partner-gated (Mindbody) | **No**, except wherever a provider exposes a legacy personal token |
+| `Stripe`, `Square` | OAuth preferred, but both also issue a pasteable secret/access token | **Yes, works today** (not the 5-minute OAuth click §2b recommends, but functional) |
+| `Shopify/Etsy` | Shopify custom-app token is pasteable; Etsy API v3 needs an OAuth-issued token, no static key | **Partial** — Shopify yes, Etsy no |
+| `CRM` (HubSpot/Pipedrive/Salesforce) | HubSpot private-app token is pasteable; Pipedrive/Salesforce lean OAuth | **Partial** — HubSpot yes |
+| `Resend/ConvertKit`, `Email`, `Shipping carrier`, `Discord`, `Payroll provider` | API key (Resend, EasyPost/Shippo) or bot-token install (Discord, itself a pasteable secret) or moot (Payroll — already gated off in §2d regardless) | **Yes, works today** |
+
+**Net effect:** every sub-agent whose Hands badge is Meta/TikTok social, Google Calendar, Google
+Business, or most booking/membership platforms hits a dead end on the *first* click, independent of
+whether that business would have cleared Meta's App Review or Google's access-request form. This is
+the more urgent half of the concern that prompted this addendum — a business-verification wall at
+least lets *some* users through; a missing input type lets through *none*. §2d's "fully automatable
+today" list below is now understood to describe backend/provider-side readiness only, **not** what
+today's actual connect UI can complete — real OAuth support (or, at minimum, disabling the connect
+affordance for OAuth-only tools in favor of an honest "not yet connectable, working in draft mode"
+state) is unbuilt follow-up work, not a documentation gap.
+
+## 2f. Rate limits — closing §2b's coverage gap (researched August 2026)
+
+§2b left rate limits unconfirmed for most services outside a handful (Etsy, HubSpot, Front, Zendesk,
+Salesforce). Filled in below for every service actually reachable through a template's `handsTool`
+today, keyed the same way as §2b. None of these change any §2b/§2c/§2d recommendation on their own —
+they're additive context for capacity planning once a real connection exists — except where noted.
+
+- **Stripe** — 100 req/s live mode (25 req/s sandbox); stricter sub-limits on specific endpoints (Files API 20 read + 20 write/s, Search API 20 read/s, Payouts 15 req/s + 30 concurrent/business). Far above any single SMB's real call volume. Source: [Stripe rate limits](https://docs.stripe.com/rate-limits).
+- **Square** — no single published blanket number; documented per-endpoint (e.g. Team API 35 req/s/application), 429 + exponential-backoff-with-jitter is the documented handling pattern. Source: [Square error handling](https://developer.squareup.com/docs/build-basics/general-considerations/handling-errors).
+- **Shopify Admin API (GraphQL)** — cost-based, not request-count: standard plans get a 1,000-point bucket restoring 50 points/s (Shopify Plus: 2,000-point bucket, 100–500 points/s depending on sub-plan); 1,000 points is a hard per-query ceiling regardless of plan. Comfortably sufficient for the Inventory/Fulfillment sub-agents' read-heavy, batched pattern. Source: [Shopify GraphQL Admin API rate limits](https://no7software.co.uk/blog/shopify-graphql-admin-api-rate-limits-production).
+- **Meta Graph API (Instagram/Facebook)** — Business Use Case model: 200 calls/user/hour, scaling with the app's total impressions (4,800 × impressions/24h) rather than a flat app-wide cap; private-reply calls capped separately at 750/hour/Page. Generous for one business's own account, but this is moot until §2e's OAuth gap is closed. Source: [Meta Graph API rate limiting](https://developers.facebook.com/docs/graph-api/overview/rate-limiting/).
+- **TikTok Content Posting API** — 6 requests/minute per user token, daily cap of roughly 15–25 videos/account (tier-dependent, shared across all API clients, not all published). Also moot until §2e's OAuth gap is closed. Source: [TikTok API rate limits 2026](https://www.getphyllo.com/post/tiktok-api-rate-limits-in-2026-quotas-errors-workarounds).
+- **WhatsApp Business Cloud API** (evaluated, still not recommended per §2's WhatsApp writeup) — throughput ~80 messages/second standard tier (up to 1,000 mps at the enterprise "Unlimited" tier); separate messaging-tier cap (1K/10K/100K unique contacts/24h) gated by phone-number quality rating and, since October 2025, shared across every number in one Meta Business Portfolio rather than per-number. Doesn't change the existing "don't wire this in" recommendation — the business-verification and per-template-review gates in §2 remain the binding constraint, not throughput. Source: [WhatsApp messaging limits 2026](https://chatarmin.com/en/blog/whats-app-messaging-limits).
+- **Google Calendar API** — 1,000,000 requests/day/project (currently unbilled, Google states billing details arrive later in 2026 with 90 days' notice); per-minute 10,000 req/min/project and 600 req/min/user/project for projects created on/after May 1 2026 (older projects keep prior quotas). Sliding-window enforcement, 403/429 on breach. Ample for Scheduling/Event coordinator's read+write pattern. Source: [Google Calendar API usage limits](https://developers.google.com/workspace/calendar/api/guides/quota).
+- **Microsoft Graph (Outlook Calendar/Mail)** — ~4 req/s/app/mailbox for calendar GETs specifically, with a 10,000-requests-per-10-minutes burst allowance shared across mail/calendar/contacts endpoints (≈16 req/s/mailbox sustained); a separate 130,000-req/10s/app global ceiling across all tenants. 429 + `Retry-After` on breach. Source: [Microsoft Graph throttling limits](https://learn.microsoft.com/en-us/graph/throttling-limits).
+- **Google Business Profile API** — QPM + QPD dimensions, but **every new GCP project starts at zero quota** until the §2b access-request form is separately approved (a second, quota-specific gate layered on top of the already-documented up-to-14-day access gate); Business Information API further caps at 10 edits/minute/listing once granted. Reinforces §2d's existing "must stay draft-only for MVP" call — now for two independent gates, not one. Source: [Google Business Profile API limits](https://developers.google.com/my-business/content/limits).
+- **GitHub Apps** — installation tokens get a minimum 5,000 req/hour, scaling up with the installation's repo/user count to a 12,500 req/hour ceiling (15,000 req/hour on GitHub Enterprise Cloud orgs). Far above what Build/QA/Deploy agents need per business. Source: [GitHub App rate limits](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/rate-limits-for-github-apps).
+- **Calendly** — 60 req/min (Free/Standard/Teams), 120 req/min (Enterprise). Source: [Calendly API rate limits](https://www.stitchflow.com/user-management/calendly/api).
+- **Kit (ConvertKit) v4** — 120 requests/rolling-60s per API key (≈2 req/s average), shared across every caller using the same key. Source: [Kit API overview](https://help.kit.com/en/articles/9902901-kit-api-overview).
+- **Resend** — flat 2 req/s per account on every tier including Free (Free plan additionally caps at 3,000 emails/month, 100/day, one domain — the send-volume ceiling binds well before the rate limit would). Source: [Resend API rate limit changelog](https://resend.com/changelog/api-rate-limit).
+
+**Still unconfirmed after this pass** (absence of evidence, not confirmed absence — flagged rather than guessed): Acuity Scheduling, Mindbody, Wild Apricot, Clover, Toast, Gusto, Rippling, Postmark, Pipedrive. All but Postmark are already flagged draft-only or heavily gated in §2b/§2d for reasons independent of throughput, so the missing number doesn't currently change any recommendation; re-check before any of them moves off draft-only.
+
+## 2g. Per-sub-agent recommendation, ranked by OAuth + no approval gate + free tier
+
+Every Hands-touching sub-agent from §3, one row, ranked service choice first by (1) OAuth available,
+(2) no per-connection approval gate, (3) usable free tier — in that order, consistent with §2's
+stated OAuth-first principle. "Today's UI" reflects §2e's finding, not just backend readiness.
+
+| Sub-agent | Recommended service | Meets OAuth+no-gate+free-tier? | Today's UI (post-#22) |
+|---|---|---|---|
+| Invoicing, Expense categorization | Stripe | OAuth ✅, no per-connection gate ✅ (contingent on pre-existing verified account), free ✅ (no API fee) | **Works** — Stripe has a pasteable secret key fallback |
+| Membership billing | Wild Apricot over Mindbody | OAuth ✅, no gate found (unconfirmed rate limit) vs. Mindbody's partner-gate ❌ | **Broken** — OAuth-only, no paste fallback |
+| Social manager | Meta (Instagram/Facebook) over TikTok/X | OAuth ✅ (one-time platform review, not per-user), free ✅, but real per-connection review only for Runwisely itself | **Broken today** — §2e; also contingent on Runwisely's own Meta App Review, unconfirmed as cleared |
+| Email marketing | Resend over Postmark/ConvertKit | API key (not OAuth, but no review gate) ✅, free tier ✅ (3,000/mo) | **Works** |
+| SEO agent (Google Business Profile) | — (draft-only by design) | OAuth exists but **two** stacked gates (§2f) | **Broken** — moot, stays draft-only regardless |
+| Tier-1 triage | Outlook over Gmail | OAuth ✅, no CASA-class gate ✅, free tier depends on the business's own O365 subscription | **Broken** — OAuth-only |
+| Lead qualifier, CRM hygiene | HubSpot over Pipedrive/Salesforce | OAuth ✅, no gate for private use ✅, free tier ✅ (100 req/10s, 250K/day) | **Works** — HubSpot has a pasteable private-app token |
+| Scheduling, Event coordinator | Google Calendar over Outlook | OAuth ✅, no gate (Calendar's sensitive-scope review is platform-level for Runwisely) ✅, free ✅ (1M req/day) | **Broken** — OAuth-only |
+| Vendor manager, Booking scheduler | Square over Clover/Toast | OAuth ✅, no gate found ✅, free (no API fee) ✅ | **Works** — Square has a pasteable token |
+| Inventory, Fulfillment/logistics | Shopify (custom-app token) + EasyPost | Shopify: self-serve token, no review ✅; EasyPost: API key, no gate, 3,000 free labels/mo ✅ | **Works** — both are pasteable |
+| Build agent, QA/smoke-test agent, Deploy coordinator | GitHub (private App install) | OAuth-style consent ✅, no review for private install ✅, free ✅ | **Broken as specced** — needs a real GitHub App install flow, not a pasted key |
+| Onboarding (Discord path) | Discord | Bot-token install (consent-screen pattern) ✅, no gate at this scale ✅, free ✅ | **Works** — bot tokens are themselves pasteable secrets |
+| Onboarding (email path) | Resend | Same as Email marketing above | **Works** |
+
+---
+
 ## 3. Role registry — every sub-agent currently in `packages/templates`
 
 One table per team (`teamHint`). `#` = number of templates (of 6) that include this sub-agent, as a rough signal of how universal it is. Brain reasons that deviate from §1's tier default are called out explicitly; a blank reason means "the tier default applies, nothing role-specific to say."

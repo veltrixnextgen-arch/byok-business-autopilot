@@ -255,3 +255,55 @@ describe("OrgChartScreen — just-in-time Hands connect (issue #22)", () => {
     expect(connectHandsKey).not.toHaveBeenCalled();
   });
 });
+
+const CHART_WITH_OAUTH_ONLY_HANDS: OrgChart = {
+  ...CHART,
+  agents: [{ ...CHART.agents[0], hands: ["Instagram/Meta"] }],
+} as unknown as OrgChart;
+
+// Follow-up to issue #22: HandsConnectPanel's paste-a-key input is honest
+// only for services that actually have a pasteable key
+// (docs/design/tool-registry.md §2b/§2e found most Hands services don't).
+// authMethodForTool (packages/templates) is what decides which panel a
+// badge opens — these tests cover the OAuth-only branch specifically.
+describe("OrgChartScreen — OAuth-only Hands tool shows an honest draft-mode state, not a key field", () => {
+  it("labels the badge 'draft only', not 'connect', for an OAuth-only tool", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_OAUTH_ONLY_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+
+    render(<OrgChartScreen />);
+
+    expect(await screen.findByRole("button", { name: "Instagram/Meta · draft only" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Instagram/Meta · connect" })).toBeNull();
+  });
+
+  it("clicking the badge shows the honest message with no paste-a-key input, and never calls connectHandsKey", async () => {
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART_WITH_OAUTH_ONLY_HANDS,
+      costUsd: 0.01,
+      error: null,
+    });
+    getHandsKeyStatus.mockResolvedValue(null);
+
+    render(<OrgChartScreen />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Instagram/Meta · draft only" }));
+
+    expect(await screen.findByText(/needs a sign-in flow we haven't built yet/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/Paste your Instagram\/Meta API key/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Got it" }));
+    expect(screen.queryByText(/needs a sign-in flow we haven't built yet/i)).toBeNull();
+    expect(connectHandsKey).not.toHaveBeenCalled();
+  });
+});

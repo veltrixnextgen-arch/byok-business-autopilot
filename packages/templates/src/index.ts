@@ -7,6 +7,7 @@ import { localTemplate } from "./local.js";
 import { physicalSpaceTemplate } from "./physicalSpace.js";
 
 export * from "./types.js";
+export * from "./handsAuth.js";
 export { ecommerceTemplate, serviceTemplate, saasTemplate, contentTemplate, localTemplate, physicalSpaceTemplate };
 
 export const allTemplates: Record<BusinessTemplateId, BusinessTemplate> = {
