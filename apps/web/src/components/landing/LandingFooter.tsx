@@ -22,6 +22,14 @@ export function LandingFooter() {
         </nav>
         <p className="font-mono text-xs text-text-muted">© 2026 Runwisely</p>
       </div>
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-5 border-t border-border-subtle px-5 py-5 sm:justify-start sm:px-8">
+        <Link to="/privacy" className="font-mono text-xs text-text-muted transition-colors duration-landing-hover ease-landing hover:text-text-secondary">
+          Privacy Policy
+        </Link>
+        <Link to="/data-deletion" className="font-mono text-xs text-text-muted transition-colors duration-landing-hover ease-landing hover:text-text-secondary">
+          Data Deletion
+        </Link>
+      </div>
     </footer>
   );
 }
