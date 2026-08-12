@@ -115,7 +115,14 @@ async function reachSubmittingPhase() {
   // scheduled environment, where a same-tick assumption was observed to
   // flake even though it never did locally.
   const continueButton = await screen.findByRole("button", { name: /continue/i });
-  await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false));
+  // Recurred in CI (PR #98, 2026-08-12) even with the waitFor already in
+  // place — 5/5 local reruns passed, so this isn't a real race in
+  // TextQuestion's synchronous local-state update, just @testing-library's
+  // default 1000ms waitFor timeout occasionally too tight for GitHub
+  // Actions' shared/throttled runners under this monorepo's parallel test
+  // load. Widened rather than removed — the wait itself is still correct
+  // and necessary, per the comment above.
+  await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false), { timeout: 3000 });
   fireEvent.click(continueButton);
 
   await waitFor(() => expect(screen.getByText("Building your company…")).toBeTruthy());
