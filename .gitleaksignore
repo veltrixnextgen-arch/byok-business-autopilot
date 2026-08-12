@@ -23,3 +23,13 @@ d338bf33eb02fba4c2064950e83cfb400d89b21a:docs/design/tool-registry.md:generic-ap
 # value verbatim in its own comment text, before that got reworded —
 # same false positive, this time on .gitleaksignore itself.
 1e333f53a96be1818d76e2350df76037a7673176:.gitleaksignore:stripe-access-token:12
+
+# apps/api/src/oauth/state.test.ts line 5 (commit 08a6622, PR 2B): a
+# hand-authored fake HMAC-secret test fixture whose placeholder value
+# happened to match the generic-api-key entropy/shape — never a real
+# secret. Renamed to a non-matching shape in the very next commit
+# (547c7ca), same pattern as the stripe-access-token entries above; this
+# now-superseded commit's own diff (still part of the PR's commit range)
+# still trips the rule, so its fingerprint is ignored here rather than
+# rewriting already-pushed history.
+08a66227de0072f52fe5e86276021b34e785a6af:apps/api/src/oauth/state.test.ts:generic-api-key:5
