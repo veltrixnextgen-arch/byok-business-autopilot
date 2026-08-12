@@ -43,6 +43,7 @@ Per ADR-010 — these apply for the whole Phase B build, not just the first step
 9. **Performance budget, enforced in CI: apps/web's initial JS bundle stays under 150KB gzipped** — the build fails if it's exceeded. Report the bundle size in every UI PR.
 10. **Every screen renders from server data via route loaders.** No screen holds duplicate business logic — if the engine decides it, the screen displays it, it doesn't re-derive it.
 11. **Delete rather than comment out.** No dead code, no "we might need this."
+12. **Regenerate `docs/architecture/system-architecture.md` as part of any PR touching trust core, the data model, or the product flow.** Scope: a new/changed migration, a new/renamed package, a changed trust-core interface (e.g. `BrainKeyProvider`/`HandsKeyProvider` signatures), a new deployable, or a change to the signup/onboarding/connect/task flow diagrammed in §3. The doc states its own generation commit at the top — a merged PR in scope that leaves that commit stale is the signal this rule exists to prevent. Docs-only or UI-fidelity-only PRs (no trust-core/data-model/flow change) are exempt. Added 2026-08-11 after the doc drifted three PRs (#94, #95, #96) past its own stated snapshot with no regen in any of them.
 
 ## Known state: apps/web's build toolchain (resolved 2026-08-04, STEP 6)
 
