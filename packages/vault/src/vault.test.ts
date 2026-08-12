@@ -510,7 +510,19 @@ test("OAuth fail-closed: a revoked refresh token throws HandsRefreshTokenRevoked
 });
 
 test("OAuth fail-closed: a hanging refresher never hangs the caller — bounded by refreshTimeoutMs", async () => {
-  const refresher = fakeRefresher(() => new Promise<RefreshedCredential>(() => {})); // never resolves
+  // Settles eventually (well after the 50ms refreshTimeoutMs below) rather
+  // than never — a truly eternal `new Promise(() => {})` has nothing left
+  // to await it once withTimeout's own race settles, and node:test's
+  // runner flags that dangling, forever-pending promise at file-exit,
+  // cascading a "cancelledByParent" failure into every later test in this
+  // file (caught in CI, not locally — a slower/differently-scheduled
+  // runner made the dangling-promise window actually observable). The
+  // property under test — the CALLER rejects on the bounded timeout, long
+  // before the refresher itself would ever resolve — is unaffected by
+  // giving the refresher a real, if distant, resolution.
+  const refresher = fakeRefresher(
+    () => new Promise<RefreshedCredential>((resolve) => setTimeout(() => resolve({ accessToken: "too-late", expiresAt: FRESH_ISO }), 300)),
+  );
   const vault = makeVaultWithRefreshers(new Map([["google-calendar", refresher]]), 50);
   const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-stale", refreshToken: "refresh-1", expiresAt: EXPIRED_ISO });
 
