@@ -57,3 +57,18 @@ v3's wedding-photographer fixture tied `content` vs. `ecommerce` 1-1. This run i
 ## Verdict: **PASS**
 
 All six charts remain structurally distinct under the new interview schema, the real `complianceLocked` bug this run caught is fixed and verified with zero mismatches across every agent in every chart, the branch-question mechanism is exercised for real (not just typechecked) and visibly shapes chart content, jurisdiction handling is unchanged and correct, and the average per-signup cost ($0.0407) stays inside the platform's own CAC target.
+
+## Addendum (2026-08-13) — a seventh template, and the incident that added it
+
+Item 4 above ("no keyword signal for genuinely novel business shapes beyond the six templates") stopped being theoretical: a real run of `meal-prep-subscription.json` got misrouted to `saas` — see `docs/DECISIONS.md` ADR-023 for the full incident and fix. Two new fixtures are now permanent members of this suite (picked up automatically by `test/run-differentiation.ts`, no code change needed):
+
+| | Barbershop (TX) | Meal-prep subscription (BC) |
+|---|---|---|
+| Template | `local` (score 3, decisive) | **`food-hospitality`** (new 7th template — score 3, decisive) |
+| Branch answers used | staffing: a-few-staff, customerFlow: both | productionModel/deliveryModel/offeringType — not asked in this run (fixture predates the branch questions being added to the template) |
+| Jurisdiction | US/TX | CA/BC |
+| Teams / Agents / Tasks | 6 / 17 / 20 | 7 / 23 / 26 |
+| Compliance agents | License & Permit Tracker (TX barber/cosmetology) | Food Safety Compliance (template) + a customize-added weekly allergen-label review |
+| Per-signup cost | $0.0348 | $0.0405 |
+
+Both resolve with `confidence: "high"` under ADR-023's redesign (structured interview answers as primary signal, keyword table audited for business-model leaks, food-hospitality added as its own template rather than blending local+service). The meal-prep chart's real customize-pass additions: subscription health monitoring, weekly order aggregation, commissary-kitchen facility research, cold-chain courier research, weekly allergen-label compliance, and a subscriber onboarding sequence — zero software-product tasks, zero B2B sales-pipeline tasks.

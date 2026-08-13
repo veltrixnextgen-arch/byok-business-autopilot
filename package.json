@@ -23,6 +23,7 @@
   "scripts": {
     "extract": "npm run extract --workspace @byok/extraction --",
     "templates:test": "npm run test --workspace @byok/templates",
+    "extraction:test": "npm run test --workspace @byok/extraction",
     "router:test": "npm run test --workspace @byok/router",
     "vault:test": "npm run test --workspace @byok/vault",
     "cost-gate:test": "npm run test --workspace @byok/cost-gate",
@@ -37,7 +38,7 @@
     "web:check-bundle-size": "npm run check-bundle-size --workspace @byok/web",
     "web:test": "npm run test --workspace @byok/web",
     "typecheck": "npm run build --workspaces --if-present && npm run web:typecheck",
-    "test": "npm run templates:test && npm run db:test && npm run auth:test && npm run jobs:test && npm run api:test && npm run router:test && npm run vault:test && npm run cost-gate:test && npm run approval-queue:test && npm run web:test",
+    "test": "npm run templates:test && npm run extraction:test && npm run db:test && npm run auth:test && npm run jobs:test && npm run api:test && npm run router:test && npm run vault:test && npm run cost-gate:test && npm run approval-queue:test && npm run web:test",
     "test:integration": "npm run test:integration --workspace @byok/cost-gate && npm run test:integration --workspace @byok/approval-queue && npm run test:integration --workspace @byok/router",
     "lint": "eslint .",
     "dev": "docker compose up -d --wait && concurrently -n api,web -c blue,green \"npm run dev --workspace @byok/api\" \"npm run dev --workspace @byok/web\""
@@ -50,6 +51,6 @@
   "overrides": {
     "h3": "1.15.11",
     "js-yaml": "^4.1.0",
-    "nanoid": "3.3.17"
+    "nanoid": "3.3.18"
   }
 }

@@ -5,10 +5,11 @@ import { saasTemplate } from "./saas.js";
 import { contentTemplate } from "./content.js";
 import { localTemplate } from "./local.js";
 import { physicalSpaceTemplate } from "./physicalSpace.js";
+import { foodHospitalityTemplate } from "./foodHospitality.js";
 
 export * from "./types.js";
 export * from "./handsAuth.js";
-export { ecommerceTemplate, serviceTemplate, saasTemplate, contentTemplate, localTemplate, physicalSpaceTemplate };
+export { ecommerceTemplate, serviceTemplate, saasTemplate, contentTemplate, localTemplate, physicalSpaceTemplate, foodHospitalityTemplate };
 
 export const allTemplates: Record<BusinessTemplateId, BusinessTemplate> = {
   ecommerce: ecommerceTemplate,
@@ -17,4 +18,5 @@ export const allTemplates: Record<BusinessTemplateId, BusinessTemplate> = {
   content: contentTemplate,
   local: localTemplate,
   "physical-space": physicalSpaceTemplate,
+  "food-hospitality": foodHospitalityTemplate,
 };

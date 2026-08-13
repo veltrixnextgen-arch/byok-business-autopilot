@@ -51,4 +51,4 @@ export type TeamHint =
 // and the other is a per-client, just-in-time credential (ADR-002).
 export type HandsScope = "own-backoffice" | "client-facing";
 
-export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local" | "physical-space";
+export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local" | "physical-space" | "food-hospitality";

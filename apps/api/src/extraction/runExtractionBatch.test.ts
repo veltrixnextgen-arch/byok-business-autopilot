@@ -24,8 +24,9 @@ const FAKE_CHART: OrgChart = {
     templateSelection: {
       primary: "service",
       blendedWith: null,
-      scores: { ecommerce: 0, service: 5, saas: 0, content: 0, local: 0, "physical-space": 0 },
+      scores: { ecommerce: 0, service: 5, saas: 0, content: 0, local: 0, "physical-space": 0, "food-hospitality": 0 },
       tie: false,
+      confidence: "high",
     },
     calls: [],
     costUsd: 0.03,
