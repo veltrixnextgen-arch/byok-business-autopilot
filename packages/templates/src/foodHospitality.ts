@@ -1,0 +1,331 @@
+import type { BusinessTemplate, TemplateTask } from "./types.js";
+import { chiefOfStaffTask } from "./common.js";
+
+// Food-service/hospitality (restaurant, cafe, catering, meal-prep/delivery)
+// — added per docs/DECISIONS.md ADR-023, after a real end-to-end run of "a
+// subscription meal-prep company in Vancouver" got misrouted to the saas
+// template (no keyword table entry existed for this whole category) and,
+// even after fixing that routing bug,
+// landed on a local+service blend that pulled in ill-fitting B2B
+// sales-pipeline tasks (lead qualifier, outreach drafter — service.ts's
+// generic client-acquisition scaffold, not a fit for a consumer food
+// business). This template exists so food/hospitality ideas get their own
+// scaffold instead of borrowing from whichever adjacent template happens to
+// score highest.
+//
+// Distinguishing shape vs. local.ts (which this would otherwise blend
+// with): real production/kitchen operations (menu planning against
+// ingredient cost and seasonality, cold-chain inventory, batch-cook
+// scheduling) and a genuine "delivery" team for the actual fulfillment work
+// — not local.ts's generic in-store/POS ops, and not service.ts's
+// client-acquisition-pipeline "delivery" scaffold. Compliance is food-safety
+// specific (handling, health permits, allergen labelling) rather than the
+// generic license-tracker customize.ts has had to improvise per-run until
+// now.
+const tasks: TemplateTask[] = [
+  chiefOfStaffTask,
+
+  // CFO — own back-office finance, same shape as local.ts/service.ts
+  // wherever the job is identical (consistency.test.ts enforces matching
+  // tier/autonomy for any shared task id across templates).
+  {
+    id: "cfo.invoicing.create",
+    text: "Create invoices/receipts for catering orders and larger accounts",
+    agentType: "invoicing",
+    agentLabel: "Invoicing",
+    teamHint: "cfo",
+    frequency: "weekly",
+    stakes: "low",
+    tier: "T2",
+    autonomy: "earnable",
+    handsTool: "Square",
+  },
+  {
+    id: "cfo.expenses.categorize",
+    text: "Tag ingredient, packaging, and kitchen-rent expenses and flag anomalies",
+    agentType: "expense-categorization",
+    agentLabel: "Expense categorization",
+    teamHint: "cfo",
+    frequency: "weekly",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "eligible-early",
+    autonomyNote: "after 10 approvals",
+    handsTool: "Square",
+  },
+  {
+    id: "cfo.cashflow.forecast",
+    text: "30/60/90-day cash-flow projection with runway alerts",
+    agentType: "cashflow-forecast",
+    agentLabel: "Cash-flow forecast",
+    teamHint: "cfo",
+    frequency: "monthly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    autonomyNote: "reports only",
+    handsTool: null,
+  },
+  {
+    id: "cfo.tax.tracker",
+    text: "Track tax deadlines and food-service license/health-permit renewals",
+    agentType: "tax-deadline-tracker",
+    agentLabel: "Tax-deadline tracker",
+    teamHint: "cfo",
+    frequency: "monthly",
+    stakes: "medium",
+    tier: "T1",
+    autonomy: "locked",
+    handsTool: null,
+  },
+
+  // CMO — local/menu-driven presence, same shape as local.ts.
+  {
+    id: "cmo.social.local",
+    text: "Draft social posts about menu items, specials, and seasonal offerings",
+    agentType: "social-manager",
+    agentLabel: "Social manager",
+    teamHint: "cmo",
+    frequency: "daily",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "earnable",
+    handsTool: "Instagram/Facebook",
+  },
+  {
+    id: "cmo.seo.googlebusiness",
+    text: "Keep the Google Business listing, menu, and local SEO fresh",
+    agentType: "seo-agent",
+    agentLabel: "SEO agent",
+    teamHint: "cmo",
+    frequency: "monthly",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "eligible-early",
+    handsTool: "Google Business",
+  },
+  {
+    id: "cmo.email.promos",
+    text: "Draft menu/email promos for the customer list",
+    agentType: "email-marketing",
+    agentLabel: "Email marketing",
+    teamHint: "cmo",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    autonomyNote: "drafts only — sending stays locked",
+    handsTool: "Resend",
+  },
+
+  // Ops — production, not retail-store ops: menu/ingredient planning,
+  // sourcing, kitchen scheduling, cold-chain inventory. This is the core of
+  // what distinguishes a food business from local.ts's generic
+  // storefront-ops shape.
+  {
+    id: "ops.menu.planning",
+    text: "Plan the rotating weekly menu against seasonal ingredient availability and cost targets",
+    agentType: "menu-planner",
+    agentLabel: "Menu planner",
+    teamHint: "ops",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    autonomyNote: "proposes the menu, founder approves",
+    handsTool: null,
+  },
+  {
+    id: "ops.vendor.tracking",
+    text: "Track ingredient/supplier orders and flag reorder points before the next cook",
+    agentType: "vendor-manager",
+    agentLabel: "Vendor manager",
+    teamHint: "ops",
+    frequency: "weekly",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "eligible-early",
+    handsTool: "POS",
+  },
+  {
+    id: "ops.kitchen.prep",
+    text: "Draft the weekly kitchen production and batch-cook schedule from confirmed orders",
+    agentType: "kitchen-scheduler",
+    agentLabel: "Kitchen scheduler",
+    teamHint: "ops",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    handsTool: null,
+  },
+  {
+    id: "ops.inventory.coldchain",
+    text: "Track cold-chain and perishable ingredient inventory — temperature-sensitive reorder alerts and expiry dates",
+    agentType: "inventory",
+    agentLabel: "Cold-chain inventory",
+    teamHint: "ops",
+    frequency: "daily",
+    stakes: "medium",
+    tier: "T1",
+    autonomy: "eligible-early",
+    autonomyNote: "alerts",
+    handsTool: null,
+  },
+
+  // Delivery — the paid fulfillment work itself. Distinct from CFO's own
+  // finance (primitives.ts's TeamHint doc) and distinct from service.ts's
+  // client-acquisition-pipeline "delivery" scaffold: there is no B2B sales
+  // pipeline here, just getting real food to real customers correctly.
+  {
+    id: "delivery.route.plan",
+    text: "Plan delivery routes and assign customer time-window slots",
+    agentType: "delivery-routing",
+    agentLabel: "Delivery routing",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    handsTool: null,
+  },
+  {
+    id: "delivery.quality.check",
+    text: "Check packaged orders for temperature, packaging integrity, and order accuracy before dispatch",
+    agentType: "delivery-qa",
+    agentLabel: "Delivery QA",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "high",
+    tier: "T2",
+    autonomy: "locked",
+    autonomyNote: "food safety on the line — human confirms before dispatch at MVP-0",
+    handsTool: null,
+  },
+  {
+    id: "delivery.handoff.confirm",
+    text: "Confirm delivery completion and flag missed drop-offs or access issues for follow-up",
+    agentType: "delivery-handoff",
+    agentLabel: "Delivery handoff",
+    teamHint: "delivery",
+    frequency: "weekly",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "earnable",
+    handsTool: null,
+  },
+
+  // Support
+  {
+    id: "support.triage.inbound",
+    text: "Read inbound questions (dietary restrictions, allergies, order issues), tag urgency, draft replies to known questions",
+    agentType: "tier1-triage",
+    agentLabel: "Tier-1 triage",
+    teamHint: "support",
+    frequency: "daily",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "earnable",
+    autonomyNote: "known-answer replies",
+    handsTool: "Shared inbox",
+  },
+  {
+    id: "support.subscription.manage",
+    text: "Process pause, skip, and cancellation requests, and flag updated production quantities to ops",
+    agentType: "subscription-manager",
+    agentLabel: "Subscription manager",
+    teamHint: "support",
+    frequency: "weekly",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    handsTool: null,
+  },
+
+  // Compliance — real food-safety obligations, not a generic license
+  // tracker. requiresProfessionalVerification is mandatory whenever
+  // teamHint is "compliance" (assemble.ts's hard invariant).
+  {
+    id: "compliance.food-safety",
+    text: "Check that food handling, kitchen/health-permit, and allergen-labelling requirements are current for the jurisdiction, and flag any gaps or renewal deadlines for a qualified food-safety professional to review",
+    agentType: "food-safety-compliance",
+    agentLabel: "Food safety compliance",
+    teamHint: "compliance",
+    frequency: "monthly",
+    stakes: "high",
+    tier: "T3",
+    autonomy: "locked",
+    autonomyNote: "flags for human + a licensed food-safety/health inspector, never advises autonomously",
+    handsTool: null,
+    requiresProfessionalVerification: true,
+  },
+
+  // People — kitchen/delivery staff are common even at small scale.
+  {
+    id: "people.jobpost.write",
+    text: "Draft job posts when hiring signals appear",
+    agentType: "job-post-writer",
+    agentLabel: "Job-post writer",
+    teamHint: "people",
+    frequency: "adhoc",
+    stakes: "medium",
+    tier: "T2",
+    autonomy: "earnable",
+    handsTool: null,
+  },
+  {
+    id: "people.applicant.summarize",
+    text: "Summarize applicants for human screening",
+    agentType: "applicant-summarizer",
+    agentLabel: "Applicant summarizer",
+    teamHint: "people",
+    frequency: "adhoc",
+    stakes: "medium",
+    tier: "T1",
+    autonomy: "eligible-early",
+    autonomyNote: "assists screening, never auto-rejects — the human decides",
+    handsTool: null,
+  },
+];
+
+export const foodHospitalityTemplate: BusinessTemplate = {
+  id: "food-hospitality",
+  name: "Food & hospitality",
+  description: "A food-service or hospitality business — restaurant, cafe, catering, or meal-prep/delivery — that prepares and serves food, with real food-safety and health-permit obligations.",
+  tasks,
+  branchQuestions: [
+    {
+      id: "productionModel",
+      prompt: "Where is the food actually prepared?",
+      kind: "single-select",
+      options: [
+        { value: "commercial-kitchen", label: "Own commercial kitchen / commissary" },
+        { value: "shared-kitchen", label: "Rented or shared commercial kitchen" },
+        { value: "home-kitchen", label: "Home kitchen (cottage-food rules)" },
+        { value: "existing-restaurant", label: "An existing restaurant's own kitchen" },
+      ],
+    },
+    {
+      id: "deliveryModel",
+      prompt: "How does food reach customers?",
+      kind: "single-select",
+      options: [
+        { value: "self-delivery", label: "We deliver ourselves" },
+        { value: "third-party-courier", label: "Third-party courier platform" },
+        { value: "pickup-only", label: "Pickup only" },
+        { value: "shipped-nationally", label: "Shipped nationally (frozen/shelf-stable)" },
+      ],
+    },
+    {
+      id: "offeringType",
+      prompt: "What's the core offering?",
+      kind: "single-select",
+      options: [
+        { value: "subscription-meal-plans", label: "Subscription meal plans" },
+        { value: "catering-events", label: "Catering for events" },
+        { value: "restaurant-daily-menu", label: "Restaurant with a daily menu" },
+        { value: "food-truck-mobile", label: "Food truck / mobile" },
+      ],
+    },
+  ],
+};

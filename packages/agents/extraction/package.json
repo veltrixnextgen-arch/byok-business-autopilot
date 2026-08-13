@@ -10,7 +10,8 @@
   },
   "scripts": {
     "extract": "tsx src/cli.ts",
-    "build": "tsc -p ."
+    "build": "tsc -p .",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@byok/templates": "*",

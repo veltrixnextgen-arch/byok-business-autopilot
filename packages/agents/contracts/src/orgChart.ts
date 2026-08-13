@@ -106,6 +106,13 @@ export interface TemplateSelection {
    *  explicit tiebreak priority, not a clean win. Surfaced so callers/
    *  reports can flag genuinely ambiguous ideas instead of hiding it. */
   tie: boolean;
+  /** "low" whenever blendedWith is set or tie is true — the top two
+   *  candidates are close enough that the primary pick is closer to a
+   *  guess than a decision (the makerspace/meal-prep case). Callers that
+   *  ask the founder to disambiguate (see extraction.ts's /questions
+   *  route) key off this rather than re-deriving it from tie/blendedWith
+   *  themselves. */
+  confidence: "high" | "low";
 }
 
 export interface CategoryCorrection {

@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { SignupExtractionBatchStore } from "@byok/db";
-import { assembleOrgChart, getInterviewQuestionsForTemplate, guessAnswersFromIdea, selectTemplate } from "@byok/extraction";
+import { assembleOrgChart, getInterviewQuestionsForSelection, guessAnswersFromIdea, selectTemplate } from "@byok/extraction";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../context.js";
@@ -26,6 +26,14 @@ const partialAnswersSchema = z.object({
   stage: stageSchema.optional(),
   whoIsWorkingOnIt: whoIsWorkingOnItSchema.optional(),
   branchAnswers: z.record(z.string(), z.string()).optional(),
+  // Answer to the disambiguation question (interviewQuestions.ts's
+  // buildDisambiguationQuestion), sent flat like every other in-progress
+  // answer during the interview — not yet nested into branchAnswers,
+  // which only happens client-side at final submission
+  // (InterviewScreen.tsx's buildFullAnswers). Not part of InterviewAnswers
+  // itself (fullAnswersSchema below) — by submission time it's just
+  // another branchAnswers entry, same as any template branch question.
+  templateDisambiguation: z.string().optional(),
 });
 
 const fullAnswersSchema = z.object({
@@ -110,10 +118,27 @@ export function extractionRoute(deps: ExtractionRouteDeps) {
     .post("/questions", zValidator("json", questionsSchema), (c) => {
       const { idea, answers } = c.req.valid("json");
       const guess = guessAnswersFromIdea(idea);
-      const merged = { ...guess, ...answers };
+      // templateDisambiguation arrives flat (like every other in-progress
+      // answer) — selectTemplate's override check reads it from
+      // branchAnswers, the shape it'll actually have in the final
+      // InterviewAnswers too (InterviewScreen.tsx buckets it there
+      // automatically at submission), so this is the one place it needs
+      // translating between the two shapes.
+      const merged = {
+        ...guess,
+        ...answers,
+        branchAnswers: answers?.templateDisambiguation
+          ? { ...(answers.branchAnswers ?? {}), templateDisambiguation: answers.templateDisambiguation }
+          : answers?.branchAnswers,
+      };
       const selection = selectTemplate(idea, merged);
       const templateHint = selection.scores[selection.primary] > 0 ? selection.primary : null;
-      const questions = getInterviewQuestionsForTemplate(templateHint);
+
+      const needsDisambiguation = selection.confidence === "low" && !answers?.templateDisambiguation && selection.blendedWith !== null;
+      const questions = getInterviewQuestionsForSelection(
+        templateHint,
+        needsDisambiguation ? { needed: true, candidates: [selection.primary, selection.blendedWith!] } : null,
+      );
       return c.json({ questions, templateHint, guess });
     })
     // Blocks until the batch finishes (or fails/queues/skips) — extraction

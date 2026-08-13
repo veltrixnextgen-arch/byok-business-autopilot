@@ -46,9 +46,9 @@
     },
     "meal-prep-subscription.json": {
       "status": "ok",
-      "costUsd": 0.043605399999999996,
-      "template": "local+service",
-      "completedAt": "2026-08-13T05:58:37.810Z"
+      "costUsd": 0.0404658,
+      "template": "food-hospitality",
+      "completedAt": "2026-08-13T19:06:59.715Z"
     }
   }
 }
