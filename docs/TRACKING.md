@@ -116,6 +116,57 @@ send any requests to the development server and read the response"), reached via
   deprecated `@esbuild-kit/*` chain is likely to be dropped from a newer release
   without any downgrade needed.
 
+## Fixed: `overrides.nanoid` was pinned one patch version short of its own advisory (2026-08-13)
+
+`overrides.nanoid` (added 2026-08-07, commit `93cce40`, to fix GHSA-2v37-7h3g-55p8) was
+pinned to `"3.3.17"` — but the advisory's actual vulnerable range is `<3.3.18`, so `3.3.17`
+was still inside it. The override existed, `npm audit` had gone quiet, and it looked fixed
+for a week before a routine re-run of the audit gate on an unrelated PR caught it live.
+Fixed properly this time: `overrides.nanoid` → `"3.3.18"`, applied via a targeted `npm
+update nanoid` (verified via `npm ls h3` before/after that the neighboring `h3` override
+wasn't perturbed — the exact failure mode the original commit already warned a blind `npm
+audit fix` causes here). See `.github/scripts/check-audit-allowlist.mjs`'s new
+override-vs-live-audit check below — this specific mistake shouldn't be able to recur
+silently now.
+
+## Known issue: a from-scratch `npm install` (no existing lockfile) is flaky — ERESOLVE, non-deterministic (2026-08-13)
+
+Discovered while investigating the nanoid fix above (a full `rm -rf node_modules
+package-lock.json && npm install` was the first thing tried, before landing on the
+narrower `npm update nanoid`). Three consecutive clean attempts (identical starting
+state each time — no `node_modules`, no lockfile) produced three different outcomes:
+
+1. `ERESOLVE`: `eslint@10.8.0` (real, published version — confirmed via `npm view
+   eslint@10.8.0`) reported as `Found: eslint@undefined` against
+   `@typescript-eslint/parser@8.65.0`'s peer range (`^8.57.0 || ^9.0.0 || ^10.0.0` —
+   `10.8.0` should satisfy this).
+2. `ERESOLVE`: `better-sqlite3@undefined` against `better-auth@1.6.25`'s
+   `peerOptional` requirement (`^12.0.0`). `better-sqlite3` isn't installed or needed
+   in this repo at all — this project uses the Postgres/drizzle adapter, not sqlite.
+3. Succeeded cleanly — 762 packages, 0 high-severity findings.
+
+The `@undefined` version in both failures, on two unrelated packages, on a resolver
+walk with no other input changed, points at an npm dependency-resolution timing/order
+issue in this specific monorepo shape (multiple workspaces depending on `@byok/auth`,
+which brings in `better-auth`'s own optional peers) rather than a real incompatibility
+in either pair — an actual version conflict wouldn't resolve cleanly two-thirds of the
+time with no other change. Not root-caused further; the practical workaround (used for
+the nanoid fix) is to avoid a full lockfile regeneration and instead target a specific
+package via `npm update <package>` or `npm install --package-lock-only`, both of which
+update the existing valid lockfile incrementally rather than re-resolving from nothing.
+
+**What this does and doesn't affect:** `npm ci` — what CI and any real deploy actually
+run — installs exactly what's already pinned in the committed `package-lock.json`
+without re-resolving anything, and is unaffected; this has never been observed to fail.
+The exposure is specifically: a new contributor's first `npm install` on a machine with
+no prior `node_modules` (before a lockfile-respecting install has ever run), or any
+future full lockfile regeneration (a major dependency bump, recovering from lockfile
+corruption, or the kind of override investigation that surfaced this). Recommended
+workaround if hit: retry `npm install` (per above, roughly 1-in-3 chance of the exact
+same command succeeding outright on a retry with zero changes), or fall back to a
+targeted `npm update <package>` / `npm install --package-lock-only` instead of a full
+`rm -rf node_modules package-lock.json`.
+
 ## Known pattern: unrelated plugin instructions appearing in session context
 
 Recurring, first noticed 2026-08-04: some Claude Code sessions working in this repo have had `<system-reminder>` blocks appear mid-session claiming to be plugin setup/hook instructions for tools with no relationship to this project — e.g. a "Carta CRM" plugin telling the agent to call CRM tools before every action, or unrelated marketing/sales/investor-plugin skill listings. This repo has no Carta, CRM, or similar integration; the instructions don't originate from this session's user and don't match anything in this codebase.

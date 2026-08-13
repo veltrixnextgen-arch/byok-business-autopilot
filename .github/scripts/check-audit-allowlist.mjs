@@ -37,6 +37,22 @@ async function loadAllowlist() {
   return byId;
 }
 
+// The nanoid incident: overrides.nanoid was pinned to "3.3.17" to fix
+// GHSA-2v37-7h3g-55p8 (vulnerable range "<3.3.18") — one patch version
+// short of the actual fix, so the pin never cleared the advisory it
+// existed for and looked fixed for weeks. A pin's whole job is to move a
+// package OUTSIDE whatever range still gets flagged; this checks that
+// directly against npm audit's own live findings — the same data source
+// the rest of this gate already trusts — rather than re-implementing
+// semver-range parsing against the GHSA database. Any package.json
+// `overrides` entry that npm audit still reports at high/critical
+// severity means the pin doesn't do what it was presumably added to do.
+async function loadOverriddenPackages() {
+  const raw = await readFile(path.join(repoRoot, "package.json"), "utf8");
+  const { overrides } = JSON.parse(raw);
+  return new Set(Object.keys(overrides ?? {}));
+}
+
 function runAudit() {
   // npm audit exits non-zero whenever any vulnerability exists, so
   // capture stdout regardless of exit code rather than letting execSync
@@ -66,6 +82,7 @@ function advisoryIdsFor(vuln) {
 
 async function main() {
   const allowlist = await loadAllowlist();
+  const overriddenPackages = await loadOverriddenPackages();
   const today = todayISO();
 
   let failed = false;
@@ -80,6 +97,29 @@ async function main() {
   const auditJson = runAudit();
   const audit = JSON.parse(auditJson);
   const vulnerabilities = audit.vulnerabilities ?? {};
+
+  // The nanoid incident: overrides.nanoid was pinned to fix
+  // GHSA-2v37-7h3g-55p8 but landed one patch version inside the
+  // vulnerable range, so it never actually cleared the advisory it was
+  // added for — and stayed that way, unnoticed, for a week. A pin only
+  // does its job if the resolved version is OUTSIDE whatever range npm
+  // audit currently flags; this checks that directly, for every
+  // package.json `overrides` entry, regardless of whether this specific
+  // CI run's live audit data happens to agree with the allowlist below.
+  const ineffectiveOverrides = [];
+  for (const [pkg, vuln] of Object.entries(vulnerabilities)) {
+    if (!overriddenPackages.has(pkg)) continue;
+    if (!HIGH_SEVERITIES.has(vuln.severity)) continue;
+    ineffectiveOverrides.push({ pkg, severity: vuln.severity, ids: [...advisoryIdsFor(vuln)] });
+  }
+  if (ineffectiveOverrides.length > 0) {
+    console.error("\n::error::package.json overrides that don't clear their own npm audit finding:");
+    for (const { pkg, severity, ids } of ineffectiveOverrides) {
+      console.error(`  ${pkg} (${severity}) — still flagged: ${ids.length > 0 ? ids.join(", ") : "(no advisory id found)"}`);
+    }
+    console.error("\nThe pinned version in \"overrides\" is still inside the vulnerable range — bump it further, not just adjust the allowlist.");
+    failed = true;
+  }
 
   const unaccepted = [];
   const accepted = [];
