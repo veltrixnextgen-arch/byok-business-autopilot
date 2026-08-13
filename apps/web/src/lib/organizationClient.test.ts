@@ -11,7 +11,7 @@ vi.mock("./authClient", () => ({
   },
 }));
 
-import { resolveActiveOrganizationId } from "./organizationClient";
+import { listOrganizations, resolveActiveOrganizationId, switchOrganization } from "./organizationClient";
 
 afterEach(() => {
   authClientFetch.mockReset();
@@ -62,5 +62,39 @@ describe("resolveActiveOrganizationId", () => {
 
     expect(authClientFetch).toHaveBeenCalledWith("/organization/list", expect.objectContaining({ headers }));
     expect(organizationSetActive).toHaveBeenCalledWith(expect.objectContaining({ fetchOptions: { headers } }));
+  });
+});
+
+// The company switcher's data source — client-side only, so no headers
+// to forward (a real browser fetch already carries the session cookie).
+describe("listOrganizations", () => {
+  it("returns the organization list", async () => {
+    const orgs = [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }];
+    authClientFetch.mockResolvedValue({ data: orgs, error: null });
+
+    expect(await listOrganizations()).toEqual(orgs);
+    expect(authClientFetch).toHaveBeenCalledWith("/organization/list", { method: "GET" });
+  });
+
+  it("returns an empty array rather than null/undefined when the fetch yields no data", async () => {
+    authClientFetch.mockResolvedValue({ data: null, error: { message: "failed" } });
+
+    expect(await listOrganizations()).toEqual([]);
+  });
+});
+
+describe("switchOrganization", () => {
+  it("calls setActive with the given organization id", async () => {
+    organizationSetActive.mockResolvedValue({ error: null });
+
+    await switchOrganization("org-2");
+
+    expect(organizationSetActive).toHaveBeenCalledWith({ organizationId: "org-2" });
+  });
+
+  it("throws when setActive fails, so the switcher can show a real error instead of silently no-op'ing", async () => {
+    organizationSetActive.mockResolvedValue({ error: { message: "nope" } });
+
+    await expect(switchOrganization("org-2")).rejects.toThrow("nope");
   });
 });

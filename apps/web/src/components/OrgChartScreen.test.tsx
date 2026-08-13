@@ -17,6 +17,13 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
+// AppShell has its own test file and its own real network calls
+// (company list, session) — tested in isolation there, not re-exercised
+// here on every OrgChartScreen test.
+vi.mock("./AppShell", () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("../lib/extractionClient", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/extractionClient")>();
   return {

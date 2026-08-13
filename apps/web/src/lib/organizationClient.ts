@@ -1,7 +1,9 @@
 import { authClient } from "./authClient";
 
-interface OrganizationSummary {
+export interface OrganizationSummary {
   id: string;
+  name: string;
+  slug: string;
   createdAt: string;
 }
 
@@ -29,4 +31,17 @@ export async function resolveActiveOrganizationId(headers?: Record<string, strin
     fetchOptions,
   });
   return error ? null : mostRecent.id;
+}
+
+// Client-side only (the company switcher renders after hydration, never
+// during beforeLoad) — no header-forwarding needed here the way
+// resolveActiveOrganizationId's server-side callers require.
+export async function listOrganizations(): Promise<OrganizationSummary[]> {
+  const { data } = await authClient.$fetch<OrganizationSummary[]>("/organization/list", { method: "GET" });
+  return data ?? [];
+}
+
+export async function switchOrganization(organizationId: string): Promise<void> {
+  const { error } = await authClient.organization.setActive({ organizationId });
+  if (error) throw new Error(error.message ?? "Could not switch companies — try again.");
 }
