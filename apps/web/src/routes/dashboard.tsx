@@ -2,17 +2,24 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { DashboardScreen } from "../components/DashboardScreen";
 import { authClient } from "../lib/authClient";
 import { loadIdea } from "../lib/extractionClient";
+import { resolveActiveOrganizationId } from "../lib/organizationClient";
+import { serverAuthHeaders } from "../lib/serverAuthHeaders";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
-    const { data } = await authClient.getSession();
+    const headers = serverAuthHeaders();
+    const { data } = await authClient.getSession({ fetchOptions: { headers } });
     if (!data) {
       throw redirect({ to: "/login" });
     }
     // A signed-up user with no organization yet has nowhere for
     // tenantMiddleware to scope them to — send them to create one instead
-    // of rendering a dashboard that can only ever show a 401.
-    if (!data.session.activeOrganizationId) {
+    // of rendering a dashboard that can only ever show a 401. A null
+    // activeOrganizationId doesn't necessarily mean "no organization" —
+    // it means "not active on THIS session" (see organizationClient.ts) —
+    // so check for a real one before concluding onboarding is needed.
+    const activeOrganizationId = data.session.activeOrganizationId ?? (await resolveActiveOrganizationId(headers));
+    if (!activeOrganizationId) {
       throw redirect({ to: "/onboarding" });
     }
     // A pending idea means the interview was never finished — whatever
