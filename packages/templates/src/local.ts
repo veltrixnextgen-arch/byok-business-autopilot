@@ -21,6 +21,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Square",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.expenses.categorize",
@@ -34,6 +37,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: "Square",
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.forecast",
@@ -47,6 +53,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cfo.tax.tracker",
@@ -59,6 +68,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "locked",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cfo.payroll.prep",
@@ -71,6 +83,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "locked",
     handsTool: "Payroll provider",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
 
   // CMO — local presence
@@ -85,6 +100,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Instagram/Facebook",
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.seo.googlebusiness",
@@ -97,6 +115,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: "Google Business",
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.email.promos",
@@ -110,6 +131,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Resend",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Ops — scheduling/vendor/inventory, POS-heavy
@@ -124,6 +148,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Calendar",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "ops.vendor.tracking",
@@ -136,6 +163,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: "POS",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "threshold",
   },
   {
     id: "ops.vendor.comms",
@@ -155,6 +185,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "ordering never autonomous",
     handsTool: "POS",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "ops.inventory.levels",
@@ -168,6 +201,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "alerts",
     handsTool: "POS",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "threshold",
   },
 
   // Support
@@ -183,6 +219,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "support.escalation.detect",
@@ -196,6 +235,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "always routes to human",
     handsTool: null,
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
 
   // People — hiring signals common for staffed local businesses
@@ -210,6 +252,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "people.applicant.summarize",
@@ -223,6 +268,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "assists screening, never auto-rejects — the human decides",
     handsTool: null,
+    cadence: null,
+    batchable: true,
+    triggerType: "event",
   },
 ];
 
