@@ -19,6 +19,9 @@ const tasks: TemplateTask[] = [
     tier: "T3",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "productdev.build.propose",
@@ -32,6 +35,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "code proposals only, zero production credentials",
     handsTool: "GitHub",
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "productdev.qa.smoketest",
@@ -44,6 +50,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "locked",
     handsTool: "GitHub",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "productdev.deploy.coordinate",
@@ -57,6 +66,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "the human approves every production deploy, always",
     handsTool: "GitHub",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
 
   // CMO — build-in-public
@@ -71,6 +83,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Twitter/X",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.content.landing",
@@ -83,6 +98,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.social.waitlist",
@@ -95,6 +113,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.seo.landing",
@@ -108,6 +129,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "reports",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // CFO — lite
@@ -122,6 +146,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Stripe",
+    cadence: "monthly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.expenses.categorize",
@@ -135,6 +162,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: null,
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.runway",
@@ -148,6 +178,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Support — waitlist
@@ -162,6 +195,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Email",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "support.triage.inbound",
@@ -175,6 +211,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
 ];
 

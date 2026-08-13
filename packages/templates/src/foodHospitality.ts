@@ -39,6 +39,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Square",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.expenses.categorize",
@@ -52,6 +55,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: "Square",
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.forecast",
@@ -65,6 +71,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cfo.tax.tracker",
@@ -77,6 +86,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "locked",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // CMO — local/menu-driven presence, same shape as local.ts.
@@ -91,6 +103,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Instagram/Facebook",
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.seo.googlebusiness",
@@ -103,6 +118,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: "Google Business",
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.email.promos",
@@ -116,6 +134,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Resend",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Ops — production, not retail-store ops: menu/ingredient planning,
@@ -134,6 +155,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "proposes the menu, founder approves",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "ops.vendor.tracking",
@@ -146,6 +170,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: "POS",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "threshold",
   },
   {
     id: "ops.kitchen.prep",
@@ -158,6 +185,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "ops.inventory.coldchain",
@@ -171,6 +201,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "alerts",
     handsTool: null,
+    cadence: "daily",
+    batchable: true,
+    triggerType: "threshold",
   },
 
   // Delivery — the paid fulfillment work itself. Distinct from CFO's own
@@ -188,6 +221,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "delivery.quality.check",
@@ -201,6 +237,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "food safety on the line — human confirms before dispatch at MVP-0",
     handsTool: null,
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "delivery.handoff.confirm",
@@ -213,6 +252,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
 
   // Support
@@ -228,6 +270,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "support.subscription.manage",
@@ -240,6 +285,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: null,
+    batchable: true,
+    triggerType: "event",
   },
 
   // Compliance — real food-safety obligations, not a generic license
@@ -258,6 +306,9 @@ const tasks: TemplateTask[] = [
     autonomyNote: "flags for human + a licensed food-safety/health inspector, never advises autonomously",
     handsTool: null,
     requiresProfessionalVerification: true,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // People — kitchen/delivery staff are common even at small scale.
@@ -272,6 +323,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "people.applicant.summarize",
@@ -285,6 +339,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "assists screening, never auto-rejects — the human decides",
     handsTool: null,
+    cadence: null,
+    batchable: true,
+    triggerType: "event",
   },
 ];
 

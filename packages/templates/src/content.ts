@@ -21,6 +21,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.social.clips",
@@ -33,6 +36,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Instagram/TikTok",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cmo.seo.growth",
@@ -46,6 +52,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "recommendations",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.email.newsletter",
@@ -59,6 +68,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Resend/ConvertKit",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.ad.sponsorcopy",
@@ -72,6 +84,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "spend",
     handsTool: null,
+    cadence: "monthly",
+    batchable: true,
+    triggerType: "cadence",
   },
 
   // CFO — lite, sponsorship/ad-revenue focus
@@ -86,6 +101,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Stripe",
+    cadence: "monthly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.invoicing.remind",
@@ -99,6 +117,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Stripe",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "cfo.expenses.categorize",
@@ -112,6 +133,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: null,
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.forecast",
@@ -125,6 +149,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Support — audience/community
@@ -140,6 +167,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "support.community.onboarding",
@@ -152,6 +182,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Discord",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Sales — light, brand deals only
@@ -167,6 +200,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "sending, always",
     handsTool: "Email",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "sales.crm.sponsors",
@@ -180,6 +216,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10",
     handsTool: "CRM",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
 ];
 

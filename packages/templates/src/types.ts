@@ -10,14 +10,16 @@
 export type {
   AutonomyDefault,
   BusinessTemplateId,
+  Cadence,
   Frequency,
   HandsScope,
   Stakes,
   TeamHint,
   Tier,
+  TriggerType,
 } from "@byok/contracts";
 
-import type { AutonomyDefault, BusinessTemplateId, Frequency, HandsScope, InterviewQuestion, Stakes, TeamHint, Tier } from "@byok/contracts";
+import type { AutonomyDefault, BusinessTemplateId, Cadence, Frequency, HandsScope, InterviewQuestion, Stakes, TeamHint, Tier, TriggerType } from "@byok/contracts";
 
 export interface TemplateTask {
   /** Stable id within the template, e.g. "cfo.invoicing.create". */
@@ -36,6 +38,19 @@ export interface TemplateTask {
   autonomy: AutonomyDefault;
   /** Extra nuance from the catalog, e.g. "sending" (Invoicing: drafts ⏳ / sending 🔒). */
   autonomyNote?: string;
+  /** R1 scheduling metadata (docs/architecture/automation-runtime-plan.md
+   *  §3). Independent of `frequency`, which stays a descriptive catalog
+   *  label driving the customize pass's frequencyAdjustments — this is the
+   *  interval R3's scheduler actually fires on. null for event-driven
+   *  tasks with no standing schedule of their own. */
+  cadence: Cadence | null;
+  /** Whether this task's work can be combined across many items into one
+   *  model call for its cadence/event window, rather than one call per
+   *  item — the primary cost lever under continuous operation (plan §6). */
+  batchable: boolean;
+  /** What initiates a run: a schedule, an inbound event, or a threshold
+   *  check (plan §3). */
+  triggerType: TriggerType;
   /** Hands tool this task will eventually need (service API), or null if none. */
   handsTool: string | null;
   /** Required whenever handsTool is set AND the tool could plausibly serve

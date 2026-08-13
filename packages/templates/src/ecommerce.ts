@@ -21,6 +21,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Stripe",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.invoicing.remind",
@@ -34,6 +37,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Stripe",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "cfo.expenses.categorize",
@@ -47,6 +53,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: "Stripe",
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.forecast",
@@ -60,6 +69,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cfo.tax.tracker",
@@ -72,6 +84,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "locked",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // CMO — content/social/email, SEO minimal
@@ -87,6 +102,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "posting stays locked",
     handsTool: "Instagram/Meta",
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.content.blog",
@@ -99,6 +117,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.email.campaigns",
@@ -112,6 +133,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Resend",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cmo.seo.listings",
@@ -125,6 +149,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "reports",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Ops — inventory/fulfillment heavy
@@ -140,6 +167,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "alerts",
     handsTool: "Shopify/Etsy",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "threshold",
   },
   {
     id: "ops.inventory.reorder",
@@ -153,6 +183,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "alerts",
     handsTool: "Shopify/Etsy",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "threshold",
   },
   {
     id: "ops.fulfillment.status",
@@ -166,6 +199,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "status updates",
     handsTool: "Shipping carrier",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "ops.fulfillment.delay",
@@ -178,6 +214,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Shipping carrier",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "ops.vendor.tracking",
@@ -190,6 +229,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: null,
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "ops.vendor.comms",
@@ -203,6 +245,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "ordering never autonomous",
     handsTool: null,
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
 
   // Support — lite
@@ -218,6 +263,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "support.escalation.detect",
@@ -231,6 +279,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "always routes to human",
     handsTool: null,
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
 ];
 

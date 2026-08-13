@@ -14,4 +14,7 @@ export const chiefOfStaffTask: TemplateTask = {
   tier: "T3",
   autonomy: "earnable",
   handsTool: null,
+  cadence: "weekly",
+  batchable: false,
+  triggerType: "cadence",
 };

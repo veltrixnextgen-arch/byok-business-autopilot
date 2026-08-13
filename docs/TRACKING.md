@@ -13,6 +13,10 @@ In build order, matching `docs/strategy/master-plan-v2.md` §4-5:
 5. **MVP-2: Full org**
 6. **MVP-3: Deploy layer**
 
+**Beyond MVP-3 — the runtime.** Everything above gets a company assembled and its keys connected; nothing above makes an agent actually run without a human click. `docs/architecture/automation-runtime-plan.md` is the design for that missing third phase — Charter → cascade → scheduler → task chains → unattended execution under the existing safety model, phased R1–R7. **R1 (cadence metadata) shipped 2026-08-13.**
+
+**R1 done.** `TemplateTask` gained three fields (`packages/agents/contracts/src/primitives.ts`'s new `Cadence`/`TriggerType` types, re-exported and consumed in `packages/templates/src/types.ts`): `cadence` (the interval R3's scheduler will actually fire on — `"15min" | "hourly" | "nightly" | "daily" | "weekly" | "monthly"`, or `null` for event-driven tasks with no standing schedule), `batchable` (whether the task's work combines into one model call across its window), and `triggerType` (`"cadence" | "event" | "threshold"`). Populated with genuine per-task reasoning across all ~135 tasks in all seven templates, calibrated against the plan's own §3 examples — which corrected two real mismatches the existing `frequency` field was carrying: every cash-flow-forecast task was `frequency: "monthly"` where the plan calls for weekly, and every support-triage task was `frequency: "daily"` with no way to express "event-driven" at all (the reason `frequency` alone couldn't have covered R1, confirmed before writing any code rather than assumed). `frequency` itself is untouched — it stays the descriptive catalog label driving the customize pass's `frequencyAdjustments`; `cadence` is the new, independent scheduling field. Verified: full-monorepo typecheck, `templates:test`, `extraction:test`, `api:test` (124 tests total), and `npm run lint` all pass clean. R2 (Charter + cascade) is next per the plan's build order — not started.
+
 ## Labels
 
 | Label | Color | Meaning |

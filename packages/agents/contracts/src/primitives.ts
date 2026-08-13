@@ -52,3 +52,19 @@ export type TeamHint =
 export type HandsScope = "own-backoffice" | "client-facing";
 
 export type BusinessTemplateId = "ecommerce" | "service" | "saas" | "content" | "local" | "physical-space" | "food-hospitality";
+
+// R1 (docs/architecture/automation-runtime-plan.md §3, §7): scheduling
+// metadata, finer-grained than Frequency and distinct from it. Frequency
+// describes how often the catalog says a task happens; Cadence is the
+// interval a scheduler (R3+) can actually fire on, down to the 15-minute
+// Agency-tier floor. null means the task has no standing schedule of its
+// own — it's driven by an event or has none yet (see TriggerType).
+export type Cadence = "15min" | "hourly" | "nightly" | "daily" | "weekly" | "monthly";
+
+// What initiates a run (plan §3): "cadence" fires on a schedule, "event"
+// fires on an inbound signal (a webhook, in R6 — until then the task has
+// no dispatch path and cadence stays null), "threshold" is itself
+// schedule-driven but only acts when a watched value crosses a limit
+// (plan §3c: "no new infrastructure, just a cadence trigger with a
+// condition") — its cadence field is the check interval, not the action.
+export type TriggerType = "cadence" | "event" | "threshold";

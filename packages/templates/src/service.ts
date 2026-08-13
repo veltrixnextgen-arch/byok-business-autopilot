@@ -31,6 +31,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     handsTool: "Stripe",
     handsScope: "own-backoffice",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.invoicing.remind",
@@ -45,6 +48,9 @@ const tasks: TemplateTask[] = [
     autonomyNote: "drafts only — sending stays locked",
     handsTool: "Stripe",
     handsScope: "own-backoffice",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "cfo.expenses.categorize",
@@ -58,6 +64,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10 approvals",
     handsTool: null,
+    cadence: "nightly",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "cfo.cashflow.forecast",
@@ -71,6 +80,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "reports only",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "cfo.tax.tracker",
@@ -83,6 +95,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "locked",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Delivery — the paid work itself, distinct from CFO's own back-office
@@ -103,6 +118,9 @@ const tasks: TemplateTask[] = [
     autonomyNote: "this is the paid deliverable — never autonomous at MVP-0",
     handsTool: "Client-facing systems (per-client, scoped access)",
     handsScope: "client-facing",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "delivery.core.qa",
@@ -115,6 +133,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "locked",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "delivery.core.handoff",
@@ -128,6 +149,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     handsTool: "Client-facing systems (per-client, scoped access)",
     handsScope: "client-facing",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Sales — the heart
@@ -142,6 +166,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "eligible-early",
     handsTool: "CRM",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "sales.outreach.draft",
@@ -155,6 +182,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "sending, always",
     handsTool: "Email",
+    cadence: "daily",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "sales.crm.hygiene",
@@ -168,6 +198,9 @@ const tasks: TemplateTask[] = [
     autonomy: "eligible-early",
     autonomyNote: "after 10",
     handsTool: "CRM",
+    cadence: "daily",
+    batchable: true,
+    triggerType: "cadence",
   },
   {
     id: "sales.proposal.build",
@@ -181,6 +214,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "sending",
     handsTool: "CRM",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Support — onboarding-heavy
@@ -195,6 +231,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: "Email",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "support.onboarding.setup",
@@ -207,6 +246,9 @@ const tasks: TemplateTask[] = [
     tier: "T2",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
   },
   {
     id: "support.triage.inbound",
@@ -220,6 +262,9 @@ const tasks: TemplateTask[] = [
     autonomy: "earnable",
     autonomyNote: "known-answer replies",
     handsTool: "Shared inbox",
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
   {
     id: "support.escalation.detect",
@@ -233,6 +278,9 @@ const tasks: TemplateTask[] = [
     autonomy: "locked",
     autonomyNote: "always routes to human",
     handsTool: null,
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   },
 
   // Compliance sub-agent (attaches to CFO — Part 2)
@@ -249,6 +297,9 @@ const tasks: TemplateTask[] = [
     autonomyNote: "flags for human + user's own lawyer/accountant, never advises autonomously",
     handsTool: null,
     requiresProfessionalVerification: true,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Minimal marketing
@@ -263,6 +314,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: null,
+    cadence: "monthly",
+    batchable: false,
+    triggerType: "cadence",
   },
 
   // Light scheduling (client calls)
@@ -277,6 +331,9 @@ const tasks: TemplateTask[] = [
     tier: "T1",
     autonomy: "earnable",
     handsTool: "Calendar",
+    cadence: "weekly",
+    batchable: true,
+    triggerType: "cadence",
   },
 ];
 
