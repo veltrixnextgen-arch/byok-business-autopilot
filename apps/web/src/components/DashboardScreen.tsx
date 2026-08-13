@@ -5,6 +5,7 @@ import { apiClient } from "../lib/apiClient";
 import { getBrainKeyStatus, type BrainKeyStatus } from "../lib/brainKeyClient";
 import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
+import { AppShell } from "./AppShell";
 import { Button, Card, cx } from "./ui";
 
 interface Me {
@@ -133,6 +134,7 @@ export function DashboardScreen() {
   const maxSpend = Math.max(1, ...(dashboard?.spendByRoleAllTime.map((r) => r.totalUsd) ?? [0]));
 
   return (
+    <AppShell active="/dashboard">
     <main className="mx-auto max-w-4xl px-6 py-16">
       <header className="mb-10 space-y-1">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Dashboard</p>
@@ -243,6 +245,7 @@ export function DashboardScreen() {
         !error && <p className="text-text-muted">Loading…</p>
       )}
     </main>
+    </AppShell>
   );
 }
 

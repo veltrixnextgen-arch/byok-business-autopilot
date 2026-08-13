@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
 import { connectHandsKey, getHandsKeyStatus, handsOAuthStartUrl, type HandsKeyStatus } from "../lib/handsKeyClient";
 import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
+import { AppShell } from "./AppShell";
 import { Badge, type BadgeTone, Button, Card, FormError, TextInput } from "./ui";
 
 type LoadState = { kind: "loading" } | { kind: "waiting" } | { kind: "error"; message: string } | { kind: "ready"; batchId: string; chart: OrgChart };
@@ -66,26 +67,34 @@ export function OrgChartScreen() {
 
   if (state.kind === "loading" || state.kind === "waiting") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-6 text-center">
-        <p className="text-text-secondary duration-calm-base ease-calm">
-          {state.kind === "waiting" ? "Still building your company…" : "Loading…"}
-        </p>
-      </main>
+      <AppShell active="/org-chart">
+        <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-6 text-center">
+          <p className="text-text-secondary duration-calm-base ease-calm">
+            {state.kind === "waiting" ? "Still building your company…" : "Loading…"}
+          </p>
+        </main>
+      </AppShell>
     );
   }
 
   if (state.kind === "error") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
-        <p role="alert" className="text-danger">
-          {state.message}
-        </p>
-        <Button onClick={() => navigate({ to: "/" })}>Start over</Button>
-      </main>
+      <AppShell active="/org-chart">
+        <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
+          <p role="alert" className="text-danger">
+            {state.message}
+          </p>
+          <Button onClick={() => navigate({ to: "/" })}>Start over</Button>
+        </main>
+      </AppShell>
     );
   }
 
-  return <OrgChartReveal batchId={state.batchId} initialChart={state.chart} />;
+  return (
+    <AppShell active="/org-chart">
+      <OrgChartReveal batchId={state.batchId} initialChart={state.chart} />
+    </AppShell>
+  );
 }
 
 // Bottom-up staged assembly (userflow-v2.md: tasks -> agent cards -> teams

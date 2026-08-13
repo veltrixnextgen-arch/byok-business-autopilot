@@ -9,6 +9,13 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
+// AppShell has its own test file and its own real network calls
+// (company list, session) — tested in isolation there, not re-exercised
+// here on every DashboardScreen test.
+vi.mock("./AppShell", () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 const meGet = vi.fn();
 const dashboardGet = vi.fn();
 vi.mock("../lib/apiClient", () => ({

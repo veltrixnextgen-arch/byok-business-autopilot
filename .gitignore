@@ -18,3 +18,4 @@ coverage/
 # dev/build run — never hand-edited, no reason to commit it.
 routeTree.gen.ts
 .tanstack/
+.vercel
