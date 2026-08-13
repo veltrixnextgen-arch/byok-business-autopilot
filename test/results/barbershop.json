@@ -1,0 +1,797 @@
+{
+  "meta": {
+    "idea": "A barbershop in Austin, Texas offering haircuts, beard trims, and hot towel shaves — walk-ins and appointments both welcome.",
+    "generatedAt": "2026-08-13T05:52:30.573Z",
+    "templateSelection": {
+      "primary": "local",
+      "blendedWith": null,
+      "scores": {
+        "ecommerce": 1,
+        "service": 0,
+        "saas": 1,
+        "content": 0,
+        "local": 2,
+        "physical-space": 1
+      },
+      "tie": false
+    },
+    "calls": [
+      {
+        "step": "customize",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 3702,
+        "outputTokens": 969,
+        "costUsd": 0.025641
+      },
+      {
+        "step": "category-validate",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2016,
+        "outputTokens": 88,
+        "costUsd": 0.0019648
+      },
+      {
+        "step": "onboarding-batch",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2262,
+        "outputTokens": 1351,
+        "costUsd": 0.007213600000000001
+      }
+    ],
+    "costUsd": 0.0348194
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "agentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "agentIds": [
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker",
+        "payroll-prep",
+        "license-compliance-tracker",
+        "revenue-mix-reporter"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "agentIds": [
+        "social-manager",
+        "seo-agent",
+        "email-marketing"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "agentIds": [
+        "scheduling",
+        "vendor-manager",
+        "inventory"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "agentIds": [
+        "tier1-triage",
+        "escalation",
+        "review-manager"
+      ]
+    },
+    {
+      "id": "people",
+      "roleTitle": "People Lead",
+      "isHuman": false,
+      "agentIds": [
+        "job-post-writer",
+        "applicant-summarizer"
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "id": "chief-of-staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "expense-categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Square"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "cashflow-forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "payroll-prep",
+      "name": "Nadia",
+      "title": "Payroll prep",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.payroll.prep"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Payroll provider"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "social-manager",
+      "name": "Rhys",
+      "title": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.local"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Instagram/Facebook"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "seo-agent",
+      "name": "Ana",
+      "title": "SEO agent",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.seo.googlebusiness"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Google Business"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "email-marketing",
+      "name": "Theo",
+      "title": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.promos"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Resend"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "scheduling",
+      "name": "Tess",
+      "title": "Scheduling",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.scheduling.shifts"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Calendar"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "vendor-manager",
+      "name": "Morgan",
+      "title": "Vendor manager",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.vendor.tracking",
+        "ops.vendor.comms"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "POS"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "inventory",
+      "name": "Nia",
+      "title": "Inventory",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.inventory.levels",
+        "customize.local.3.inventory"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "POS"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "tier1-triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Shared inbox"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "escalation",
+      "name": "Jules",
+      "title": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "job-post-writer",
+      "name": "Owen",
+      "title": "Job-post writer",
+      "teamId": "people",
+      "taskIds": [
+        "people.jobpost.write"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "applicant-summarizer",
+      "name": "Zara",
+      "title": "Applicant summarizer",
+      "teamId": "people",
+      "taskIds": [
+        "people.applicant.summarize"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "license-compliance-tracker",
+      "name": "Mira",
+      "title": "License & Permit Tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.local.1.license-compliance-tracker"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "review-manager",
+      "name": "Taylor",
+      "title": "Review & Reputation Manager",
+      "teamId": "support",
+      "taskIds": [
+        "customize.local.2.review-manager"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Google Business Profile API"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "revenue-mix-reporter",
+      "name": "Kai",
+      "title": "Service Mix & Revenue Reporter",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.local.4.revenue-mix-reporter"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag daily expenses and flag anomalies",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": "Square",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and local business license renewals",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.payroll.prep",
+      "text": "Summarize staff hours and prep the payroll-run checklist",
+      "agentType": "payroll-prep",
+      "agentLabel": "Payroll prep",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": "Payroll provider",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.local",
+      "text": "Draft local social posts (offers, events, new arrivals)",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Instagram/Facebook",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.seo.googlebusiness",
+      "text": "Keep the Google Business listing and local SEO fresh",
+      "agentType": "seo-agent",
+      "agentLabel": "SEO agent",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": "Google Business",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.promos",
+      "text": "Draft email/SMS promos for regulars",
+      "agentType": "email-marketing",
+      "agentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "ops.scheduling.shifts",
+      "text": "Manage staff shift calendar and appointment bookings",
+      "agentType": "scheduling",
+      "agentLabel": "Scheduling",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Calendar",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.tracking",
+      "text": "Track supplier/vendor orders and flag reorder points",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.comms",
+      "text": "Draft vendor reorder communications",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "ordering never autonomous",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "ops.inventory.levels",
+      "text": "Track in-store stock levels and reorder-point alerts",
+      "agentType": "inventory",
+      "agentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound calls/messages/DMs, tag urgency, draft replies to known questions",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect upset customers or complex cases and package context for the human",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "people.jobpost.write",
+      "text": "Draft job posts when hiring signals appear",
+      "agentType": "job-post-writer",
+      "agentLabel": "Job-post writer",
+      "teamHint": "people",
+      "frequency": "adhoc",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "people.applicant.summarize",
+      "text": "Summarize applicants for human screening",
+      "agentType": "applicant-summarizer",
+      "agentLabel": "Applicant summarizer",
+      "teamHint": "people",
+      "frequency": "adhoc",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "assists screening, never auto-rejects — the human decides",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "customize.local.1.license-compliance-tracker",
+      "text": "Check that the shop's barber licenses, facility permit, and Texas cosmetology/barbering registrations are current and flag any upcoming renewal deadlines for a human professional to act on.",
+      "agentType": "license-compliance-tracker",
+      "agentLabel": "License & Permit Tracker",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.2.review-manager",
+      "text": "Monitor online reviews (Google, Yelp) for new ratings, draft a personalized reply for each, and flag any negative reviews for human review before posting.",
+      "agentType": "review-manager",
+      "agentLabel": "Review & Reputation Manager",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Google Business Profile API",
+      "handsScope": "own-backoffice",
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.3.inventory",
+      "text": "Track retail product inventory (pomades, beard oils, aftershaves) separately from service supplies (towels, shaving cream, blades) and flag reorder points to the ops team.",
+      "agentType": "inventory",
+      "agentLabel": "Retail & Service Supply Tracker",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.4.revenue-mix-reporter",
+      "text": "Compile a weekly service-mix summary (haircuts vs. beard trims vs. hot towel shaves) and average ticket size to surface upsell opportunities for the founder.",
+      "agentType": "revenue-mix-reporter",
+      "agentLabel": "Service Mix & Revenue Reporter",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.local.1.license-compliance-tracker",
+      "customize.local.2.review-manager",
+      "customize.local.3.inventory",
+      "customize.local.4.revenue-mix-reporter"
+    ],
+    "removed": [
+      "cfo.invoicing.create"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "cmo.seo.googlebusiness",
+        "from": "monthly",
+        "to": "weekly"
+      }
+    ],
+    "categoryCorrections": [
+      {
+        "taskId": "customize.local.2.review-manager",
+        "from": "cmo",
+        "to": "support",
+        "reason": "Monitoring and replying to customer reviews is customer-facing communication and problem-resolution, not marketing content creation."
+      }
+    ],
+    "notes": "Removed invoice-creation (barbershop is cash/card at point-of-sale, not net-terms billing). Bumped Google Business SEO to weekly given how heavily walk-in discovery depends on local search. Added TX barber-license compliance tracker, review/reputation manager, dual-stream inventory task, and service-mix revenue reporter specific to this three-service barbershop model."
+  },
+  "onboardingBatch": {
+    "simulatedDay": [
+      {
+        "agentId": "scheduling",
+        "roleTitle": "Ops Lead",
+        "summary": "Tess confirmed 8 appointments for tomorrow and noted 3 walk-in slots open in the afternoon.",
+        "agentName": "Tess"
+      },
+      {
+        "agentId": "revenue-mix-reporter",
+        "roleTitle": "CFO",
+        "summary": "Kai compiled this week's service breakdown: 12 haircuts, 5 beard trims, 2 hot towel shaves — average ticket $32.",
+        "agentName": "Kai"
+      },
+      {
+        "agentId": "social-manager",
+        "roleTitle": "CMO",
+        "summary": "Rhys drafted a weekend promotion post highlighting beard trim specials for local Austin Instagram followers.",
+        "agentName": "Rhys"
+      },
+      {
+        "agentId": "tier1-triage",
+        "roleTitle": "Support Lead",
+        "summary": "Sam triaged 6 inbound calls, answered 4 scheduling questions, and flagged 1 complaint about wait times for you to review.",
+        "agentName": "Sam"
+      },
+      {
+        "agentId": "inventory",
+        "roleTitle": "Ops Lead",
+        "summary": "Nia flagged that beard oil and towel stock are both down to 2-week supply and alerted the ops team to reorder.",
+        "agentName": "Nia"
+      }
+    ],
+    "charterDraft": {
+      "sharpenedIdea": "A walk-in and appointment-based barbershop in Austin offering haircuts, beard trims, and hot towel shaves.",
+      "mvpDefinition": "A single-location barbershop operating 6 days a week with a booking system (online appointments + phone walk-in support), basic inventory management for supplies and retail products (pomades, beard oils, aftershaves), weekly staff scheduling, and light marketing via Google Business and local social posts. The core service offering is haircuts, beard trims, and traditional hot towel shaves at market rates. No expansion locations, no new service lines beyond these three offerings.",
+      "roleTasks": [
+        {
+          "roleTitle": "Chief of Staff",
+          "tasks": [
+            "Draft the weekly plan from founder input and team signals",
+            "Flag cross-team conflicts (e.g., inventory running low during heavy appointment weeks)"
+          ]
+        },
+        {
+          "roleTitle": "CFO",
+          "tasks": [
+            "Categorize daily expense receipts and flag unusual spending",
+            "Build 30-, 60-, and 90-day cash-flow projections and alert when runway is tight",
+            "Track all tax deadlines (quarterly estimated taxes, annual returns) and local Austin business license renewals",
+            "Summarize staff hours each week and prepare the payroll-run checklist",
+            "Monitor the shop's barber licenses, facility permit, and Texas cosmetology/barbering registrations to ensure they stay current and flag renewal deadlines",
+            "Compile a weekly summary of haircuts vs. beard trims vs. hot towel shaves with average ticket price to surface upsell opportunities"
+          ]
+        },
+        {
+          "roleTitle": "CMO",
+          "tasks": [
+            "Draft and schedule local social posts promoting haircut specials, events, or new arrival retail products",
+            "Keep the Google Business profile listing fresh with updated hours, photos, and keywords",
+            "Draft email and SMS promotions to repeat customers highlighting beard trim or hot towel shave specials"
+          ]
+        },
+        {
+          "roleTitle": "Ops Lead",
+          "tasks": [
+            "Manage the staff shift calendar and handle appointment bookings (both online and phone inquiries)",
+            "Track supplier and vendor orders (towels, shaving cream, blades, pomades, beard oils, aftershaves) and flag when stock hits reorder points",
+            "Draft reorder communications to vendors when inventory dips",
+            "Monitor in-store stock levels daily and separate retail products from service supplies",
+            "Alert the team when reorder points are reached"
+          ]
+        },
+        {
+          "roleTitle": "Support Lead",
+          "tasks": [
+            "Read and triage all inbound calls, messages, and DMs; tag by urgency and draft replies to routine questions",
+            "Detect upset customers or complex cases and package all context for the founder to review before responding",
+            "Monitor Google and Yelp reviews for new ratings, draft a personalized reply for each review, and escalate any negative reviews for human sign-off before posting"
+          ]
+        },
+        {
+          "roleTitle": "People Lead",
+          "tasks": [
+            "Draft job posts when the founder signals a hiring need (e.g., hiring a second barber)",
+            "Summarize applicants with key qualifications and experience so the founder can screen efficiently"
+          ]
+        }
+      ],
+      "monthOneGoals": [
+        "Confirm all barber licenses, facility permits, and Texas registrations are active and documented.",
+        "Establish a repeatable weekly booking rhythm with at least 60% appointment-slot fill rate and smooth walk-in flow.",
+        "Launch a Google Business profile with 3+ weekly social posts and email promotions to build local awareness.",
+        "Set up weekly cash-flow tracking and payroll-prep checklist to stay on top of expenses and staff costs.",
+        "Build inventory tracking for both retail products and service supplies with reorder alerts at 2-week stock level."
+      ],
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys — adjust anytime as revenue and expenses stabilize."
+    }
+  }
+}
