@@ -1,0 +1,16 @@
+{
+  "idea": "A barbershop in Austin, Texas offering haircuts, beard trims, and hot towel shaves — walk-ins and appointments both welcome.",
+  "answers": {
+    "whatCustomersPayFor": "Haircuts, beard trims, and hot towel shaves",
+    "whoTheCustomerIs": "consumers",
+    "howMoneyArrives": "one-time",
+    "howDeliveryReaches": "in-person",
+    "jurisdiction": { "country": "US", "stateOrProvince": "TX" },
+    "stage": "live-business",
+    "whoIsWorkingOnIt": "small-team-already",
+    "branchAnswers": {
+      "staffing": "a-few-staff",
+      "customerFlow": "both"
+    }
+  }
+}

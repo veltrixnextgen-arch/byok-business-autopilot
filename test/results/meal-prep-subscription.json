@@ -1,0 +1,1111 @@
+{
+  "meta": {
+    "idea": "A subscription meal-prep service in Vancouver — we cook fresh, healthy meals every week and deliver them straight to people's homes.",
+    "generatedAt": "2026-08-13T05:57:35.405Z",
+    "templateSelection": {
+      "primary": "local",
+      "blendedWith": "service",
+      "scores": {
+        "ecommerce": 0,
+        "service": 1,
+        "saas": 0.5,
+        "content": 0,
+        "local": 1,
+        "physical-space": 0
+      },
+      "tie": true
+    },
+    "calls": [
+      {
+        "step": "customize",
+        "model": "claude-sonnet-4-6",
+        "inputTokens": 3658,
+        "outputTokens": 1371,
+        "costUsd": 0.031539
+      },
+      {
+        "step": "category-validate",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2101,
+        "outputTokens": 118,
+        "costUsd": 0.0021528
+      },
+      {
+        "step": "onboarding-batch",
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 2497,
+        "outputTokens": 1979,
+        "costUsd": 0.0099136
+      }
+    ],
+    "costUsd": 0.043605399999999996
+  },
+  "teams": [
+    {
+      "id": "founder",
+      "roleTitle": "Founder / CEO",
+      "isHuman": true,
+      "agentIds": [
+        "chief-of-staff"
+      ]
+    },
+    {
+      "id": "cfo",
+      "roleTitle": "CFO",
+      "isHuman": false,
+      "agentIds": [
+        "expense-categorization",
+        "cashflow-forecast",
+        "tax-deadline-tracker",
+        "invoicing",
+        "compliance-review",
+        "food-safety-compliance"
+      ]
+    },
+    {
+      "id": "cmo",
+      "roleTitle": "CMO",
+      "isHuman": false,
+      "agentIds": [
+        "social-manager",
+        "email-marketing"
+      ]
+    },
+    {
+      "id": "ops",
+      "roleTitle": "Ops Lead",
+      "isHuman": false,
+      "agentIds": [
+        "vendor-manager",
+        "inventory",
+        "scheduling",
+        "delivery-routing",
+        "subscription-manager"
+      ]
+    },
+    {
+      "id": "support",
+      "roleTitle": "Support Lead",
+      "isHuman": false,
+      "agentIds": [
+        "tier1-triage",
+        "escalation",
+        "onboarding",
+        "churn-monitor"
+      ]
+    },
+    {
+      "id": "delivery",
+      "roleTitle": "Delivery Lead",
+      "isHuman": false,
+      "agentIds": [
+        "core-service-delivery",
+        "delivery-qa",
+        "delivery-handoff"
+      ]
+    },
+    {
+      "id": "sales",
+      "roleTitle": "Sales Lead",
+      "isHuman": false,
+      "agentIds": [
+        "lead-qualifier",
+        "outreach-drafter",
+        "crm-hygiene",
+        "proposal-builder"
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "id": "chief-of-staff",
+      "name": "Grace",
+      "title": "Chief of Staff",
+      "teamId": "founder",
+      "taskIds": [
+        "founder.chief-of-staff.weekly-plan"
+      ],
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "expense-categorization",
+      "name": "Wren",
+      "title": "Expense categorization",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.expenses.categorize"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Square"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "cashflow-forecast",
+      "name": "Sana",
+      "title": "Cash-flow forecast",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.cashflow.forecast"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "tax-deadline-tracker",
+      "name": "Leo",
+      "title": "Tax-deadline tracker",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.tax.tracker"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "social-manager",
+      "name": "Rhys",
+      "title": "Social manager",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.social.local",
+        "cmo.social.expertise"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Instagram/Facebook"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "email-marketing",
+      "name": "Ana",
+      "title": "Email marketing",
+      "teamId": "cmo",
+      "taskIds": [
+        "cmo.email.promos",
+        "customize.local.4.email-marketing"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Resend"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "vendor-manager",
+      "name": "Morgan",
+      "title": "Vendor manager",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.vendor.tracking",
+        "ops.vendor.comms"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "POS"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "inventory",
+      "name": "Tess",
+      "title": "Inventory",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.inventory.levels",
+        "customize.local.6.inventory"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "POS"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "tier1-triage",
+      "name": "Sam",
+      "title": "Tier-1 triage",
+      "teamId": "support",
+      "taskIds": [
+        "support.triage.inbound"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Shared inbox"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "escalation",
+      "name": "Nia",
+      "title": "Escalation",
+      "teamId": "support",
+      "taskIds": [
+        "support.escalation.detect"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "invoicing",
+      "name": "Dara",
+      "title": "Invoicing",
+      "teamId": "cfo",
+      "taskIds": [
+        "cfo.invoicing.remind",
+        "customize.local.7.invoicing"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Stripe"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "core-service-delivery",
+      "name": "Maya",
+      "title": "Service delivery",
+      "teamId": "delivery",
+      "taskIds": [
+        "delivery.core.execute"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Client-facing systems (per-client, scoped access)"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "delivery-qa",
+      "name": "Ivy",
+      "title": "Delivery QA",
+      "teamId": "delivery",
+      "taskIds": [
+        "delivery.core.qa"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "delivery-handoff",
+      "name": "Amir",
+      "title": "Delivery handoff",
+      "teamId": "delivery",
+      "taskIds": [
+        "delivery.core.handoff"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Client-facing systems (per-client, scoped access)"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "lead-qualifier",
+      "name": "Taylor",
+      "title": "Lead qualifier",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.qualifier.score"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "CRM"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "outreach-drafter",
+      "name": "Jordan",
+      "title": "Outreach drafter",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.outreach.draft"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Email"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "crm-hygiene",
+      "name": "Mira",
+      "title": "CRM hygiene",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.crm.hygiene"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "CRM"
+      ],
+      "autonomyDefault": "eligible-early",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "proposal-builder",
+      "name": "Yuki",
+      "title": "Proposal builder",
+      "teamId": "sales",
+      "taskIds": [
+        "sales.proposal.build"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "CRM"
+      ],
+      "autonomyDefault": "locked",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "onboarding",
+      "name": "Riko",
+      "title": "Onboarding",
+      "teamId": "support",
+      "taskIds": [
+        "support.onboarding.welcome",
+        "support.onboarding.setup"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [
+        "Email"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "compliance-review",
+      "name": "Devon",
+      "title": "Compliance sub-agent",
+      "teamId": "cfo",
+      "taskIds": [
+        "compliance.review"
+      ],
+      "tier": "T3",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "scheduling",
+      "name": "Jules",
+      "title": "Scheduling",
+      "teamId": "ops",
+      "taskIds": [
+        "ops.scheduling.calls"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [
+        "Calendar"
+      ],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "food-safety-compliance",
+      "name": "Casey",
+      "title": "Food Safety Compliance Monitor",
+      "teamId": "cfo",
+      "taskIds": [
+        "customize.local.1.food-safety-compliance"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "locked",
+      "complianceLocked": true,
+      "requiresProfessionalVerification": true
+    },
+    {
+      "id": "delivery-routing",
+      "name": "Kian",
+      "title": "Delivery Route Scheduler",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.local.2.delivery-routing"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "subscription-manager",
+      "name": "Nadia",
+      "title": "Subscription & Renewal Monitor",
+      "teamId": "ops",
+      "taskIds": [
+        "customize.local.3.subscription-manager"
+      ],
+      "tier": "T1",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    },
+    {
+      "id": "churn-monitor",
+      "name": "Noor",
+      "title": "Churn & Retention Monitor",
+      "teamId": "support",
+      "taskIds": [
+        "customize.local.5.churn-monitor"
+      ],
+      "tier": "T2",
+      "brain": null,
+      "hands": [],
+      "autonomyDefault": "earnable",
+      "complianceLocked": false,
+      "requiresProfessionalVerification": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "founder.chief-of-staff.weekly-plan",
+      "text": "Draft the weekly plan and flag cross-team conflicts for the founder",
+      "agentType": "chief-of-staff",
+      "agentLabel": "Chief of Staff",
+      "teamHint": "founder",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T3",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.expenses.categorize",
+      "text": "Tag daily expenses and flag anomalies",
+      "agentType": "expense-categorization",
+      "agentLabel": "Expense categorization",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10 approvals",
+      "handsTool": "Square",
+      "origin": "template"
+    },
+    {
+      "id": "cfo.cashflow.forecast",
+      "text": "30/60/90-day cash-flow projection with runway alerts",
+      "agentType": "cashflow-forecast",
+      "agentLabel": "Cash-flow forecast",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "reports only",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.tax.tracker",
+      "text": "Track tax deadlines and local business license renewals",
+      "agentType": "tax-deadline-tracker",
+      "agentLabel": "Tax-deadline tracker",
+      "teamHint": "cfo",
+      "frequency": "monthly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.local",
+      "text": "Draft local social posts (offers, events, new arrivals)",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Instagram/Facebook",
+      "origin": "template"
+    },
+    {
+      "id": "cmo.email.promos",
+      "text": "Draft email/SMS promos for regulars",
+      "agentType": "email-marketing",
+      "agentLabel": "Email marketing",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Resend",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.tracking",
+      "text": "Track supplier/vendor orders and flag reorder points",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "ops.vendor.comms",
+      "text": "Draft vendor reorder communications",
+      "agentType": "vendor-manager",
+      "agentLabel": "Vendor manager",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "ordering never autonomous",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "ops.inventory.levels",
+      "text": "Track in-store stock levels and reorder-point alerts",
+      "agentType": "inventory",
+      "agentLabel": "Inventory",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "alerts",
+      "handsTool": "POS",
+      "origin": "template"
+    },
+    {
+      "id": "support.triage.inbound",
+      "text": "Read inbound calls/messages/DMs, tag urgency, draft replies to known questions",
+      "agentType": "tier1-triage",
+      "agentLabel": "Tier-1 triage",
+      "teamHint": "support",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "autonomyNote": "known-answer replies",
+      "handsTool": "Shared inbox",
+      "origin": "template"
+    },
+    {
+      "id": "support.escalation.detect",
+      "text": "Detect upset customers or complex cases and package context for the human",
+      "agentType": "escalation",
+      "agentLabel": "Escalation",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "always routes to human",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "cfo.invoicing.remind",
+      "text": "Draft payment reminders matched to client history",
+      "agentType": "invoicing",
+      "agentLabel": "Invoicing",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "autonomyNote": "drafts only — sending stays locked",
+      "handsTool": "Stripe",
+      "handsScope": "own-backoffice",
+      "origin": "template"
+    },
+    {
+      "id": "delivery.core.execute",
+      "text": "Do the core paid work for each client",
+      "agentType": "core-service-delivery",
+      "agentLabel": "Service delivery",
+      "teamHint": "delivery",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "this is the paid deliverable — never autonomous at MVP-0",
+      "handsTool": "Client-facing systems (per-client, scoped access)",
+      "handsScope": "client-facing",
+      "origin": "template"
+    },
+    {
+      "id": "delivery.core.qa",
+      "text": "Check completed client work for accuracy before it goes out",
+      "agentType": "delivery-qa",
+      "agentLabel": "Delivery QA",
+      "teamHint": "delivery",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T2",
+      "autonomy": "locked",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "delivery.core.handoff",
+      "text": "Package and send finished work to the client",
+      "agentType": "delivery-handoff",
+      "agentLabel": "Delivery handoff",
+      "teamHint": "delivery",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Client-facing systems (per-client, scoped access)",
+      "handsScope": "client-facing",
+      "origin": "template"
+    },
+    {
+      "id": "sales.qualifier.score",
+      "text": "Score inbound leads and enrich them from public info",
+      "agentType": "lead-qualifier",
+      "agentLabel": "Lead qualifier",
+      "teamHint": "sales",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "sales.outreach.draft",
+      "text": "Draft personalized first-touch and follow-up outreach",
+      "agentType": "outreach-drafter",
+      "agentLabel": "Outreach drafter",
+      "teamHint": "sales",
+      "frequency": "daily",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending, always",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "sales.crm.hygiene",
+      "text": "Log interactions, update deal stages, flag stale deals",
+      "agentType": "crm-hygiene",
+      "agentLabel": "CRM hygiene",
+      "teamHint": "sales",
+      "frequency": "daily",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "eligible-early",
+      "autonomyNote": "after 10",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "sales.proposal.build",
+      "text": "Build quotes/proposals from templates and deal context",
+      "agentType": "proposal-builder",
+      "agentLabel": "Proposal builder",
+      "teamHint": "sales",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "locked",
+      "autonomyNote": "sending",
+      "handsTool": "CRM",
+      "origin": "template"
+    },
+    {
+      "id": "support.onboarding.welcome",
+      "text": "Draft welcome sequences for new clients",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": "Email",
+      "origin": "template"
+    },
+    {
+      "id": "support.onboarding.setup",
+      "text": "Draft setup guides and check-in messages for new clients",
+      "agentType": "onboarding",
+      "agentLabel": "Onboarding",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "compliance.review",
+      "text": "Flag contract red-flags and track regulation deadlines",
+      "agentType": "compliance-review",
+      "agentLabel": "Compliance sub-agent",
+      "teamHint": "compliance",
+      "frequency": "monthly",
+      "stakes": "high",
+      "tier": "T3",
+      "autonomy": "locked",
+      "autonomyNote": "flags for human + user's own lawyer/accountant, never advises autonomously",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "template"
+    },
+    {
+      "id": "cmo.social.expertise",
+      "text": "Draft occasional posts establishing professional expertise",
+      "agentType": "social-manager",
+      "agentLabel": "Social manager",
+      "teamHint": "cmo",
+      "frequency": "monthly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "template"
+    },
+    {
+      "id": "ops.scheduling.calls",
+      "text": "Manage calendar, booking confirmations and reminders for client calls",
+      "agentType": "scheduling",
+      "agentLabel": "Scheduling",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": "Calendar",
+      "origin": "template"
+    },
+    {
+      "id": "customize.local.1.food-safety-compliance",
+      "text": "Check that weekly meal production batches meet BC food-safety handling and labelling requirements, and flag any gaps for a qualified food-safety professional to review.",
+      "agentType": "food-safety-compliance",
+      "agentLabel": "Food Safety Compliance Monitor",
+      "teamHint": "compliance",
+      "frequency": "weekly",
+      "stakes": "high",
+      "tier": "T1",
+      "autonomy": "locked",
+      "handsTool": null,
+      "requiresProfessionalVerification": true,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.2.delivery-routing",
+      "text": "Track weekly delivery route, assign time-window slots to subscribers, and flag any address or access issues before dispatch.",
+      "agentType": "delivery-routing",
+      "agentLabel": "Delivery Route Scheduler",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.3.subscription-manager",
+      "text": "Monitor active subscriptions — flag pauses, cancellations, and upcoming renewals so production quantities can be adjusted before the weekly cook.",
+      "agentType": "subscription-manager",
+      "agentLabel": "Subscription & Renewal Monitor",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.4.email-marketing",
+      "text": "Draft and send the weekly menu announcement email to subscribers, including ingredients, allergens, and any new or seasonal items.",
+      "agentType": "email-marketing",
+      "agentLabel": "Weekly Menu Emailer",
+      "teamHint": "cmo",
+      "frequency": "weekly",
+      "stakes": "low",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.5.churn-monitor",
+      "text": "Monitor subscription churn signals (cancellations, pause rates, negative feedback) and draft a short retention-offer message for at-risk subscribers.",
+      "agentType": "churn-monitor",
+      "agentLabel": "Churn & Retention Monitor",
+      "teamHint": "support",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T2",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.6.inventory",
+      "text": "Track cold/insulated packaging and ice-pack inventory levels and trigger reorder alerts before the weekly cook day.",
+      "agentType": "inventory",
+      "agentLabel": "Packaging & Cold-Chain Inventory Tracker",
+      "teamHint": "ops",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    },
+    {
+      "id": "customize.local.7.invoicing",
+      "text": "Reconcile weekly subscription billing — match successful charges to active orders, flag failed payments, and queue dunning messages for declined cards.",
+      "agentType": "invoicing",
+      "agentLabel": "Subscription Billing Reconciler",
+      "teamHint": "cfo",
+      "frequency": "weekly",
+      "stakes": "medium",
+      "tier": "T1",
+      "autonomy": "earnable",
+      "handsTool": null,
+      "origin": "customize-added"
+    }
+  ],
+  "customization": {
+    "added": [
+      "customize.local.1.food-safety-compliance",
+      "customize.local.2.delivery-routing",
+      "customize.local.3.subscription-manager",
+      "customize.local.4.email-marketing",
+      "customize.local.5.churn-monitor",
+      "customize.local.6.inventory",
+      "customize.local.7.invoicing"
+    ],
+    "removed": [
+      "cfo.invoicing.create",
+      "cmo.seo.googlebusiness",
+      "ops.scheduling.shifts",
+      "cfo.payroll.prep",
+      "people.jobpost.write",
+      "people.applicant.summarize"
+    ],
+    "frequencyAdjustments": [
+      {
+        "taskId": "cfo.expenses.categorize",
+        "from": "daily",
+        "to": "weekly"
+      },
+      {
+        "taskId": "ops.inventory.levels",
+        "from": "daily",
+        "to": "weekly"
+      }
+    ],
+    "categoryCorrections": [
+      {
+        "taskId": "customize.local.5.churn-monitor",
+        "from": "sales",
+        "to": "support",
+        "reason": "Monitoring churn signals and drafting retention messages to at-risk subscribers is customer retention and communication, not new customer acquisition—support handles customer-facing problem-resolution including retention, not sales."
+      }
+    ],
+    "notes": "Removed staff-dependent tasks (payroll, shift scheduling, hiring) as this is a solo-operator at nothing-yet stage; removed in-store SEO/invoicing tasks irrelevant to a shipped subscription model. Added meal-prep-specific tasks: food-safety compliance, delivery routing, subscription management, menu email, churn monitoring, cold-chain packaging inventory, and subscription billing reconciliation. Adjusted inventory and expense categorization to weekly cadence matching the weekly cook-and-deliver cycle."
+  },
+  "onboardingBatch": {
+    "simulatedDay": [
+      {
+        "agentId": "chief-of-staff",
+        "roleTitle": "Chief of Staff",
+        "summary": "Drafted the weekly plan for meal prep: 4 menu options locked in, flagged potential conflict between new allergen labeling requirement and packaging lead time.",
+        "agentName": "Grace"
+      },
+      {
+        "agentId": "inventory",
+        "roleTitle": "Ops Lead",
+        "summary": "Checked cold storage inventory levels — ice packs at 60% capacity, flagged reorder needed 3 days before next cook day to meet Thursday delivery window.",
+        "agentName": "Tess"
+      },
+      {
+        "agentId": "email-marketing",
+        "roleTitle": "CMO",
+        "summary": "Drafted and sent this week's menu announcement to 45 active subscribers, highlighting new seasonal salmon option and flagging shellfish allergen in 2 meals.",
+        "agentName": "Ana"
+      },
+      {
+        "agentId": "food-safety-compliance",
+        "roleTitle": "CFO",
+        "summary": "Reviewed batch production notes from last week's cook and confirmed all meal containers met BC labeling requirements — no gaps flagged.",
+        "agentName": "Casey"
+      },
+      {
+        "agentId": "delivery-routing",
+        "roleTitle": "Ops Lead",
+        "summary": "Mapped out Thursday delivery route for 38 active subscribers, assigned time-window slots, and flagged one new address on the north side that needs access verification.",
+        "agentName": "Kian"
+      },
+      {
+        "agentId": "tier1-triage",
+        "roleTitle": "Support Lead",
+        "summary": "Triaged 4 inbound messages from subscribers — 3 allergen clarifications answered with a template reply, 1 account issue escalated to Nia for account recovery.",
+        "agentName": "Sam"
+      }
+    ],
+    "charterDraft": {
+      "sharpenedIdea": "A weekly subscription meal-prep service in Vancouver that sources fresh ingredients, batch-cooks healthy meals, and delivers them ready-to-eat to subscribers' homes.",
+      "mvpDefinition": "Launch with 4 fixed weekly meal options that rotate every 2–3 weeks, cooked in a licensed commercial kitchen and delivered within Vancouver's city limits on a set day each week. Start with a simple web form for subscriptions, handle billing via Stripe, and manage orders in a spreadsheet until we've validated demand — then move to purpose-built software. Each subscriber pays a weekly fixed rate for their chosen meals (e.g., 5 meals at $XX/week). Focus on nailing food safety, on-time delivery, and repeat customers before adding customization or expanding to new neighborhoods.",
+      "roleTasks": [
+        {
+          "roleTitle": "Chief of Staff",
+          "tasks": [
+            "Synthesize weekly updates from each team lead and draft a single-page plan for the week ahead.",
+            "Flag conflicts between teams — for example, if the delivery route conflicts with inventory reorder timing, or if new food-safety rules require menu or packaging changes.",
+            "Hold a 20-minute weekly sync with the founder to review blockers and adjust priorities."
+          ]
+        },
+        {
+          "roleTitle": "CFO",
+          "tasks": [
+            "Tag and categorize all daily expenses (ingredients, packaging, delivery vehicle, commercial kitchen rental, labor) and flag unusual spend patterns.",
+            "Run a rolling 30/60/90-day cash-flow forecast each week, tracking subscription revenue in, ingredient costs, and fixed overhead; alert the founder if runway drops below 3 months.",
+            "Monitor tax calendar for GST remittances, income tax deadlines, payroll deductions, and local business license renewals in BC.",
+            "Draft and send payment reminders to customers with failed subscription charges, and reconcile weekly billing — match successful Stripe charges to active orders and flag declined cards for follow-up.",
+            "Review contracts before signing (supplier agreements, delivery partner terms, kitchen rental) and flag legal red flags.",
+            "Check that every batch of meals meets BC health ministry food-handling and labeling standards, and escalate any non-compliance to a qualified food-safety professional."
+          ]
+        },
+        {
+          "roleTitle": "CMO",
+          "tasks": [
+            "Draft 2–3 weekly social posts for Instagram and Facebook promoting the weekly menu, highlighting seasonal specials, or sharing meal prep tips and expertise.",
+            "Draft and send the weekly menu announcement email to all active subscribers, clearly listing each meal option, key ingredients, allergens, and any new or seasonal additions."
+          ]
+        },
+        {
+          "roleTitle": "Ops Lead",
+          "tasks": [
+            "Track standing orders from suppliers (produce, proteins, packaging) against forecasted demand; flag when stock is approaching reorder thresholds and draft reorder communications to vendors.",
+            "Monitor weekly inventory — each ingredient's stock level, shelf life, and reorder points; also track cold storage, insulated packaging, and ice-pack inventory, and trigger reorders 3–4 days before the weekly cook.",
+            "Maintain the founder's calendar and send confirmation and reminder messages for all calls and client touchpoints.",
+            "Map the weekly delivery route, assign time-window slots to each subscriber, and verify all addresses and access info (buzzer codes, building restrictions) before dispatch day.",
+            "Monitor active subscriptions — flag pauses, cancellations, and upcoming renewals so the kitchen can adjust production quantities and the support team can reach out if needed."
+          ]
+        },
+        {
+          "roleTitle": "Support Lead",
+          "tasks": [
+            "Read all inbound support messages (email, text, DMs), tag by urgency (allergen question, access issue, billing problem, general inquiry), and draft replies to routine questions using templates.",
+            "Detect upset or frustrated customers and escalate their context to the human founder for personal outreach.",
+            "Draft welcome sequences for new subscribers (how to receive, how to heat, how to contact support) and send check-in messages at day 3 and week 2 to catch any issues early.",
+            "Monitor subscription churn signals — cancellations, pauses, negative feedback — and proactively draft a short retention offer (e.g., 20% off next month, or a free add-on meal) for at-risk subscribers."
+          ]
+        },
+        {
+          "roleTitle": "Delivery Lead",
+          "tasks": [
+            "Execute the core service: prepare, cook, and package all meals according to the weekly menu and subscriber orders on the designated cook day.",
+            "Check each packaged meal before shipment — verify correct meals for each order, proper labeling, cold-chain integrity, and no damage or contamination.",
+            "Pack finished meals into insulated boxes with ice packs, generate labels, and hand off to a delivery partner or driver for the weekly delivery window."
+          ]
+        },
+        {
+          "roleTitle": "Sales Lead",
+          "tasks": [
+            "Score and enrich inbound leads — qualifying whether they're active prospects (e.g., Vancouver residents, dietary preferences, budget fit) and gathering data from their website, LinkedIn, or public info.",
+            "Draft personalized first-contact outreach (via email or SMS) introducing the service and a light follow-up sequence if they don't convert.",
+            "Log all customer interactions, update deal stages in a simple CRM, and flag deals that haven't progressed in 2+ weeks.",
+            "Build quotes and proposals from templates, showing pricing, meal options, delivery schedule, and contract terms based on the prospect's preferences."
+          ]
+        }
+      ],
+      "monthOneGoals": [
+        "Onboard 30–50 paying subscribers with recurring weekly orders and demonstrate 90%+ delivery accuracy and on-time fulfillment.",
+        "Lock in a reliable commercial kitchen and validate ingredient sourcing and supplier lead times so the weekly cook is never delayed.",
+        "Build and send the first 4 weekly menu announcements with clear allergen labeling and track subscriber feedback to refine recipes and portions.",
+        "Set up a simple billing and delivery tracking workflow (even if mostly manual at first) so no meals are lost and no payments are missed.",
+        "Establish the weekly production routine — menus locked by Tuesday, shopping by Wednesday, cook day Thursday, delivery Friday — and hit it every single week."
+      ],
+      "budgetCeilingPlaceholder": "You'll set a real monthly ceiling when you connect your own keys."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "idea": "A subscription meal-prep service in Vancouver — we cook fresh, healthy meals every week and deliver them straight to people's homes.",
+  "answers": {
+    "whatCustomersPayFor": "Fresh, healthy, ready-to-eat meals delivered to your door every week",
+    "whoTheCustomerIs": "consumers",
+    "howMoneyArrives": "subscription",
+    "howDeliveryReaches": "shipped",
+    "jurisdiction": { "country": "CA", "stateOrProvince": "BC" },
+    "stage": "nothing-yet",
+    "whoIsWorkingOnIt": "solo",
+    "branchAnswers": {
+      "buildStage": "idea-only",
+      "needsWaitlist": "yes"
+    }
+  }
+}

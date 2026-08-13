@@ -1,6 +1,6 @@
 {
   "startedAt": "2026-08-03T07:31:33.952Z",
-  "updatedAt": "2026-08-03T07:35:38.581Z",
+  "updatedAt": "2026-08-13T05:53:21.856Z",
   "runs": {
     "candle-shop.json": {
       "status": "ok",
@@ -37,6 +37,18 @@
       "costUsd": 0.0426342,
       "template": "content",
       "completedAt": "2026-08-03T07:35:38.580Z"
+    },
+    "barbershop.json": {
+      "status": "ok",
+      "costUsd": 0.0348194,
+      "template": "local",
+      "completedAt": "2026-08-13T05:52:42.552Z"
+    },
+    "meal-prep-subscription.json": {
+      "status": "ok",
+      "costUsd": 0.043605399999999996,
+      "template": "local+service",
+      "completedAt": "2026-08-13T05:58:37.810Z"
     }
   }
 }

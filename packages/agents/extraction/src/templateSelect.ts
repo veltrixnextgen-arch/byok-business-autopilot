@@ -19,7 +19,7 @@ const KEYWORDS: Record<BusinessTemplateId, string[]> = {
     "broker", "brokerage", "advisor", "advisory", "mortgage", "loan", "firm",
   ],
   saas: [
-    "saas", "software", "app", "platform", "tool", "subscription", "web app",
+    "saas", "software", "app", "platform", "tool", "web app",
     "api", "build", "startup", "waitlist", "product-led",
   ],
   content: [
@@ -28,7 +28,8 @@ const KEYWORDS: Record<BusinessTemplateId, string[]> = {
   ],
   local: [
     "cafe", "coffee shop", "salon", "storefront", "brick-and-mortar", "local shop",
-    "restaurant", "walk-in", "in-store",
+    "restaurant", "walk-in", "in-store", "meal prep", "meal-prep", "catering",
+    "commissary", "kitchen",
   ],
   "physical-space": [
     "makerspace", "membership", "memberships", "coworking", "co-working", "gym",
