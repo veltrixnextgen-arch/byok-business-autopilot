@@ -11,7 +11,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("../lib/authClient", () => ({
-  authClient: { getSession: vi.fn() },
+  authClient: { getSession: vi.fn(), $fetch: vi.fn(), organization: { setActive: vi.fn() } },
 }));
 
 import { authClient } from "../lib/authClient";
@@ -21,6 +21,8 @@ import { Route } from "./dashboard";
 afterEach(() => {
   sessionStorage.clear();
   vi.mocked(authClient.getSession).mockReset();
+  vi.mocked(authClient.$fetch).mockReset();
+  vi.mocked(authClient.organization.setActive).mockReset();
 });
 
 async function getRedirectTarget(): Promise<string | undefined> {
@@ -44,9 +46,24 @@ describe("dashboard beforeLoad — idea/org guard", () => {
     expect(await getRedirectTarget()).toBe("/login");
   });
 
-  it("redirects to /onboarding when signed in with no active organization", async () => {
+  it("redirects to /onboarding when signed in with no active organization and no organization to fall back to", async () => {
     vi.mocked(authClient.getSession).mockResolvedValueOnce({ data: { session: { activeOrganizationId: null } } } as never);
+    vi.mocked(authClient.$fetch).mockResolvedValueOnce({ data: [], error: null } as never);
     expect(await getRedirectTarget()).toBe("/onboarding");
+  });
+
+  // The bug this backstops: a returning user's fresh session has no
+  // active organization set (Better Auth requires an explicit setActive
+  // per session) even though they already own one — without this
+  // fallback they were bounced to /onboarding on every fresh login.
+  it("does not redirect to /onboarding when activeOrganizationId is null but the user already owns an organization", async () => {
+    vi.mocked(authClient.getSession).mockResolvedValueOnce({ data: { session: { activeOrganizationId: null } } } as never);
+    vi.mocked(authClient.$fetch).mockResolvedValueOnce({
+      data: [{ id: "org_1", createdAt: "2026-01-01T00:00:00.000Z" }],
+      error: null,
+    } as never);
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({ error: null } as never);
+    expect(await getRedirectTarget()).toBeUndefined();
   });
 
   it("redirects to /interview when a pending idea exists, even with an active organization", async () => {
