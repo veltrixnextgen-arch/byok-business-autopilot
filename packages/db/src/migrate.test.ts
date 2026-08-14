@@ -162,6 +162,7 @@ test("verifySchemaCurrent resolves cleanly when every canary column is present",
   const pool = fakeInformationSchemaPool({
     signup_extraction_batches: ["id", "user_id", "tenant_id"],
     tenants: ["id", "slug", "monthly_ceiling_usd"],
+    router_tasks: ["id", "tenant_id", "prompt_tier"],
   });
   await assert.doesNotReject(() => verifySchemaCurrent(pool));
 });
@@ -170,6 +171,7 @@ test("verifySchemaCurrent throws SchemaDriftError naming the exact missing colum
   const pool = fakeInformationSchemaPool({
     signup_extraction_batches: ["id", "user_id"], // tenant_id missing, as it was on real staging
     tenants: ["id", "slug", "monthly_ceiling_usd"],
+    router_tasks: ["id", "tenant_id", "prompt_tier"],
   });
   await assert.rejects(
     () => verifySchemaCurrent(pool),
@@ -181,18 +183,21 @@ test("verifySchemaCurrent throws SchemaDriftError naming the exact missing colum
 });
 
 test("verifySchemaCurrent reports every missing canary at once, not just the first", async () => {
-  const pool = fakeInformationSchemaPool({ signup_extraction_batches: ["id"], tenants: ["id"] });
+  const pool = fakeInformationSchemaPool({ signup_extraction_batches: ["id"], tenants: ["id"], router_tasks: ["id"] });
   await assert.rejects(
     () => verifySchemaCurrent(pool),
     (err: unknown) =>
-      err instanceof SchemaDriftError && /tenant_id/.test(err.message) && /monthly_ceiling_usd/.test(err.message),
+      err instanceof SchemaDriftError &&
+      /tenant_id/.test(err.message) &&
+      /monthly_ceiling_usd/.test(err.message) &&
+      /prompt_tier/.test(err.message),
   );
 });
 
-test("schemaCanaries names exactly the two ALTER TABLE ADD COLUMN migrations that exist today", () => {
+test("schemaCanaries names exactly the three ALTER TABLE ADD COLUMN migrations that exist today", () => {
   const canaries = schemaCanaries();
   assert.deepEqual(
     canaries.map((c) => `${c.table}.${c.column}`),
-    ["signup_extraction_batches.tenant_id", "tenants.monthly_ceiling_usd"],
+    ["signup_extraction_batches.tenant_id", "tenants.monthly_ceiling_usd", "router_tasks.prompt_tier"],
   );
 });

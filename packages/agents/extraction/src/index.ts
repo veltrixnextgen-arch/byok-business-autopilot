@@ -8,6 +8,7 @@ export { findJurisdictionCoverage, formatJurisdictionPolicy } from "./jurisdicti
 export { assembleOrgChart, ComplianceMetadataError, HandsScopeViolationError } from "./assemble.js";
 export { guessAnswersFromIdea } from "./guessAnswers.js";
 export type { SpineGuess } from "./guessAnswers.js";
+export { generateCascade } from "./cascade.js";
 
 // Model ids each internal call uses — aliased since customize.ts and
 // onboardingBatch.ts both name their own constant CLAUDE_MODEL (correct
@@ -23,7 +24,10 @@ export type {
   ApiCallUsage,
   BrainRecommendation,
   CategoryCorrection,
+  CeoPrompt,
   Charter,
+  CharterStatus,
+  CompanyCharter,
   CustomizationLog,
   InterviewAnswers,
   InterviewQuestion,
@@ -31,7 +35,12 @@ export type {
   InterviewQuestionOption,
   OnboardingBatch,
   OrgChart,
+  PromptCascade,
+  PromptTier,
+  RoleLeadPrompt,
+  RoleMandate,
   SimulatedDayCard,
+  SubAgentPrompt,
   Task,
   Team,
   TemplateSelection,

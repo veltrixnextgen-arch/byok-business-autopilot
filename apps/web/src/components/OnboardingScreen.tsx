@@ -67,9 +67,14 @@ export function OnboardingScreen() {
     // /interview after signup for whatever reason, and /dashboard's own
     // beforeLoad bounced them here for lacking an org). Whatever the
     // path, don't drop the idea on the floor a second time — carry it
-    // the rest of the way instead of unconditionally landing on the
-    // still-placeholder dashboard.
-    await navigate({ to: loadIdea() ? "/interview" : "/dashboard" });
+    // the rest of the way instead of skipping straight past the Charter.
+    //
+    // R2/ADR-024: when there's no pending idea, a completed org chart was
+    // just claimed above — send the user to review and hand off its
+    // Charter (master-plan-v2.md Stage 4) instead of straight to the
+    // still-placeholder dashboard. CharterScreen itself navigates to
+    // /dashboard once the handoff completes.
+    await navigate({ to: loadIdea() ? "/interview" : "/charter" });
   }
 
   return (

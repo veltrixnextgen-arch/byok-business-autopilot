@@ -91,8 +91,19 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
     return handle.use(async (apiKeyBuffer) => {
       try {
         const orchestrator = this.orchestratorFactory(apiKeyBuffer.toString("utf8"), this.model);
+        // R2/ADR-024: the composed cascade prompt, when this dispatch has
+        // one — security-architecture.md §5.1's "immutable role prompts...
+        // composed by the router per dispatch". Omitted entirely (not an
+        // empty string) when task.systemPrompt is unset, matching
+        // customTools's existing "only include the key if there's a real
+        // value" pattern just below.
         const result = await orchestrator.runAgent(
-          { name: task.subAgentId, model: this.model, ...(customTools.length > 0 ? { customTools } : {}) },
+          {
+            name: task.subAgentId,
+            model: this.model,
+            ...(task.systemPrompt ? { systemPrompt: task.systemPrompt } : {}),
+            ...(customTools.length > 0 ? { customTools } : {}),
+          },
           task.payload,
         );
         const uniqueMissingHands = [...new Set(missingHands)];

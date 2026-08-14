@@ -7,3 +7,4 @@ export * from "./durableAuditLog.js";
 export * from "./signupExtractionBatches.js";
 export * from "./signupMetrics.js";
 export * from "./tenantCeiling.js";
+export * from "./companyCharters.js";
