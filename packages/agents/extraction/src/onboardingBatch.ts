@@ -16,7 +16,20 @@ import { actualCostUsd, guardEstimatedCost } from "./costGuard.js";
 // ($0.008 vs $0.03/call) with comparable quality once the prompt explicitly
 // banned "Label: task" prefixing (haiku's one real style tic — fixed below).
 export const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
-const MAX_OUTPUT_TOKENS = 3000;
+// Issue #124: 3000 was never stress-tested against a real-sized org chart.
+// A 20-task/17-agent e-commerce company hit stop_reason=max_tokens at
+// exactly 3000/3000, truncating the tool call mid-output (missing
+// simulatedDay/charterDraft) — pipeline.ts's graceful-degradation path
+// catches that and leaves onboardingBatch null, which is silently fatal
+// downstream: charter.ts's POST /me/charter/draft seeds the draft from
+// exactly this field, so a tenant whose org chart is large enough can
+// never draft or accept a Charter at all. Output length scales with
+// company size (one simulatedDay card + one charterDraft entry per
+// role/task), so the ceiling needs real headroom, not just enough for
+// the smallest possible chart. $0.25/signup (DEFAULT_MAX_COST_USD) has
+// ample room even at this size — Haiku's per-token cost is small enough
+// that this alone was never the binding constraint.
+const MAX_OUTPUT_TOKENS = 8000;
 
 // R2 (ADR-024): the Charter's budget ceiling is resolved deterministically,
 // never LLM-guessed — the interview doesn't collect a budget figure, and
