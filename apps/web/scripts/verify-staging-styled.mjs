@@ -142,8 +142,13 @@ try {
   // Registered *before* the navigation that triggers Dashboard mounting,
   // which is what triggers its useEffect's GET /me — a forward-looking
   // listener has to be armed before the request fires, not checked for
-  // after the fact.
-  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 15000 });
+  // after the fact. Unlike the old client-side-transition flow this
+  // replaced, this is now a hard navigation (page.goto, not router
+  // navigate()): SSR render + bundle download + hydration all happen
+  // before the client-side effect can even fire, so the listener's own
+  // timeout has to comfortably outlast goto's (30000ms) rather than race
+  // it — 15000ms measured live as too tight, failing this exact way.
+  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 40000 });
 
   await page.goto(`${webUrl}/dashboard`, { waitUntil: "networkidle", timeout: 30000 });
 
