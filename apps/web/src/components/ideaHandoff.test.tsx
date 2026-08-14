@@ -76,7 +76,7 @@ describe("idea hand-off: signup -> org creation -> interview", () => {
     expect(loadIdea()).toBe(idea);
   });
 
-  it("falls back to /dashboard at both signup and org creation when there is no pending idea", async () => {
+  it("falls back to /dashboard at signup and to /charter at org creation when there is no pending idea", async () => {
     vi.mocked(signUp.email).mockResolvedValueOnce({ error: null } as never);
     render(<SignupScreen />);
     fillAndSubmitSignup();
@@ -87,6 +87,8 @@ describe("idea hand-off: signup -> org creation -> interview", () => {
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({ error: null } as never);
     render(<OnboardingScreen />);
     fillAndSubmitOnboarding();
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: "/dashboard" }));
+    // R2/ADR-024: org creation now routes through the Charter review/handoff
+    // ceremony before the dashboard, not straight to it.
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: "/charter" }));
   });
 });

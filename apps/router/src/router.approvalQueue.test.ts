@@ -223,6 +223,76 @@ test("issue #22: a fully-connected result (no missingHands) keeps the effect and
   assert.equal(task.missingHands, undefined);
 });
 
+// ---- R2/ADR-024/T10: the CEO-tier dispatch pathway -------------------
+
+test("T10/ADR-004: a promptTier 'ceo' task routes through submitRecommendation, never submitProposedAction", async () => {
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  let proposedActionCalled = false;
+  const originalSubmitProposed = queue.submitProposedAction.bind(queue);
+  queue.submitProposedAction = (action) => {
+    proposedActionCalled = true;
+    return originalSubmitProposed(action);
+  };
+  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
+
+  const task = await router.submitTask({
+    subAgentId: "chief-of-staff",
+    teamId: "founder",
+    title: "Weekly synthesis",
+    payload: "...",
+    dedupKey: "ceo-task-1",
+    promptTier: "ceo",
+  });
+
+  assert.equal(proposedActionCalled, false);
+  assert.equal(queue.pendingActions().length, 0);
+  assert.equal(queue.pendingRecommendationItems().length, 1);
+  assert.equal(task.status, "awaiting_review");
+});
+
+test("T10/ADR-004: a promptTier 'ceo' task NEVER dispatches an effect, even when the caller requests one", async () => {
+  let dispatched = false;
+  const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
+  const queue = new ApprovalQueue(new AutonomyEngine(), effectExecutor);
+  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
+
+  await router.submitTask({
+    subAgentId: "chief-of-staff",
+    teamId: "founder",
+    title: "Approve the vendor payment",
+    payload: "...",
+    dedupKey: "ceo-task-2",
+    promptTier: "ceo",
+    // A caller (or a compromised/malformed prompt) requesting an effect for
+    // the CEO agent must be structurally refused, not merely discouraged —
+    // "no matter what its prompt becomes" (security-architecture.md T10).
+    effect: { kind: "pay", description: "Pay the vendor invoice" },
+  });
+
+  assert.equal(dispatched, false);
+  const [item] = queue.pendingRecommendationItems();
+  assert.ok(item);
+  assert.equal("effect" in (item as unknown as Record<string, unknown>), false);
+});
+
+test("a promptTier 'role-lead'/'sub-agent' task (or the default) is unaffected — still uses submitProposedAction", async () => {
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
+
+  await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Draft an invoice",
+    payload: "...",
+    dedupKey: "ceo-task-3",
+    // promptTier omitted — defaults to "sub-agent" (RouterTaskInput's own
+    // default, pre-R2 callers unaffected).
+  });
+
+  assert.equal(queue.pendingActions().length, 1);
+  assert.equal(queue.pendingRecommendationItems().length, 0);
+});
+
 test("ADR-008: dev/test environments are unaffected — a Router with neither dependency still constructs fine outside production", () => {
   const original = process.env.NODE_ENV;
   try {

@@ -47,7 +47,7 @@ The user writes nothing. They approve.
 | **Role-lead prompt** | Team mandate, its sub-agents' scopes, escalation rules, its slice of month-one goals | Charter or team edited |
 | **Sub-agent operating prompt** | Its specific task type, cadence, tone/brand context, tool scope, output contract, autonomy status, cost tier | Charter, agent rename, or autonomy change |
 
-**Rules that make this safe:** prompts are composed by the router per dispatch (never editable at runtime by anything the agent reads — ADR-011's immutable-prompt rule); every prompt is versioned with the Charter version that produced it; the user can view any agent's prompt and override it, and an override is recorded as a deliberate deviation.
+**Rules that make this safe:** prompts are composed by the router per dispatch (never editable at runtime by anything the agent reads — security-architecture.md §4/§5.1's immutable-prompt rule; corrected here from an earlier draft that miscited this as "ADR-011," which is actually about interview-question design and unrelated — see ADR-024); every prompt is versioned with the Charter version that produced it; the user can view any agent's prompt and override it, and an override is recorded as a deliberate deviation.
 
 ---
 

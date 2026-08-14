@@ -1,5 +1,11 @@
 import type { Auth } from "@byok/auth";
-import { TenantCeilingStore, type PoolLike, type SignupExtractionBatchStore, type SignupMetricsStore } from "@byok/db";
+import {
+  CompanyCharterStore,
+  TenantCeilingStore,
+  type PoolLike,
+  type SignupExtractionBatchStore,
+  type SignupMetricsStore,
+} from "@byok/db";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -9,6 +15,7 @@ import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
 import { brainKeyRoute } from "./routes/brainKeys.js";
 import { ceilingRoute } from "./routes/ceiling.js";
+import { charterRoute } from "./routes/charter.js";
 import { dashboardRoute } from "./routes/dashboard.js";
 import { extractionRoute } from "./routes/extraction.js";
 import { handsKeyRoute } from "./routes/handsKeys.js";
@@ -64,6 +71,9 @@ export function createApp(options: CreateAppOptions) {
   // Same reasoning as costActivity above — a thin pool wrapper (issue #15),
   // safe to construct here rather than adding a CreateAppOptions field.
   const ceilings = new TenantCeilingStore(options.pool);
+  // Same reasoning again (R2/ADR-024) — CompanyCharterStore is a thin
+  // withTenantScope wrapper with no state of its own.
+  const charters = new CompanyCharterStore(options.pool);
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
@@ -81,6 +91,7 @@ export function createApp(options: CreateAppOptions) {
       brainKeyRoute({ vault: options.trustCore.vault, batchStore: options.extraction.batchStore }),
     )
     .route("/me/ceiling", ceilingRoute({ ceilings }))
+    .route("/me/charter", charterRoute({ charters, batchStore: options.extraction.batchStore }))
     .route("/me/hands-keys", handsKeyRoute({ vault: options.trustCore.vault }))
     // Deliberately NOT under tenantMiddleware — see handsOAuth.ts's own
     // comment for why (holding a pooled DB connection open across an

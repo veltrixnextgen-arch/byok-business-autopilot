@@ -9,14 +9,15 @@ interface NavItem {
   to: string;
 }
 
-// The seven sections scoped for the app shell (dashboard rebuild pass).
-// Every item routes somewhere real — the ones without a built feature
-// yet (Agents, Approvals, Digest, Spending) still get a real route and
-// an honest "not built yet" screen, never a dead link. See each route
-// file for what backs it today.
+// The section list scoped for the app shell (dashboard rebuild pass, plus
+// Charter added in R2/ADR-024). Every item routes somewhere real — the
+// ones without a built feature yet (Agents, Approvals, Digest, Spending)
+// still get a real route and an honest "not built yet" screen, never a
+// dead link. See each route file for what backs it today.
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", to: "/dashboard" },
   { label: "Company", to: "/org-chart" },
+  { label: "Charter", to: "/charter" },
   { label: "Agents", to: "/agents" },
   { label: "Approvals", to: "/approvals" },
   { label: "Digest", to: "/digest" },

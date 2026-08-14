@@ -18,6 +18,8 @@ const MIGRATION_FILES = [
   "0005_signup_metrics.sql",
   "0006_signup_extraction_batch_tenant_transfer.sql",
   "0007_tenant_ceiling.sql",
+  "0008_company_charters.sql",
+  "0009_router_task_prompt_tier.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every
@@ -90,6 +92,7 @@ export interface SchemaCanary {
 const SCHEMA_CANARIES: readonly SchemaCanary[] = [
   { table: "signup_extraction_batches", column: "tenant_id", addedBy: "0006_signup_extraction_batch_tenant_transfer.sql" },
   { table: "tenants", column: "monthly_ceiling_usd", addedBy: "0007_tenant_ceiling.sql" },
+  { table: "router_tasks", column: "prompt_tier", addedBy: "0009_router_task_prompt_tier.sql" },
 ];
 
 export class SchemaDriftError extends Error {}

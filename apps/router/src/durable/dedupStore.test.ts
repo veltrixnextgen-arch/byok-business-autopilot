@@ -16,6 +16,7 @@ function makeTask(overrides: Partial<RouterTask> = {}): RouterTask {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "pending",
+    promptTier: "sub-agent",
     ...overrides,
   };
 }

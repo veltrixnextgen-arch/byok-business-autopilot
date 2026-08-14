@@ -22,6 +22,7 @@ function makeTask(overrides: Partial<RouterTask> = {}): RouterTask {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "pending",
+    promptTier: "sub-agent",
     ...overrides,
   };
 }
@@ -48,6 +49,46 @@ test("pulls the Brain key for the task's tenant + team (role), not a hardcoded o
   assert.deepEqual(requestedKeys, [{ tenantId: "tenant-b", roleId: "cmo" }]);
   assert.equal(calledWithApiKey, "sk-ant-fake-key-0001");
   assert.deepEqual(outcome, { result: "mock output" });
+});
+
+test("R2/ADR-024: task.systemPrompt reaches runAgent's config verbatim, composed by the router per dispatch", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return new SecretHandle(Buffer.from("sk-ant-fake-key-0003"), 60_000);
+    },
+  };
+
+  let seenConfig: { systemPrompt?: string } | undefined;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => ({
+    runAgent: async (config) => {
+      seenConfig = config as { systemPrompt?: string };
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask({ systemPrompt: "You are Sam, the invoicing agent. Only draft, never send." }));
+
+  assert.equal(seenConfig?.systemPrompt, "You are Sam, the invoicing agent. Only draft, never send.");
+});
+
+test("omits systemPrompt entirely (not an empty string) when the task carries none — pre-R2 callers unaffected", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return new SecretHandle(Buffer.from("sk-ant-fake-key-0004"), 60_000);
+    },
+  };
+
+  let sawSystemPromptKey = false;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => ({
+    runAgent: async (config) => {
+      sawSystemPromptKey = "systemPrompt" in config;
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask());
+
+  assert.equal(sawSystemPromptKey, false);
 });
 
 test("zeroes the secret handle after the call completes", async () => {

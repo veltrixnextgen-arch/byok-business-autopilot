@@ -36,9 +36,11 @@ afterEach(() => {
 });
 
 // Issue #38: the org-chart -> tenant handoff is triggered right after org
-// creation succeeds, today's earliest point a tenant exists.
+// creation succeeds, today's earliest point a tenant exists. R2/ADR-024:
+// from there, the user reviews and hands off the Charter (/charter) before
+// ever reaching the dashboard — not straight to /dashboard anymore.
 describe("OnboardingScreen — org-chart handoff (issue #38)", () => {
-  it("claims the org chart after org creation succeeds, before navigating on", async () => {
+  it("claims the org chart after org creation succeeds, before navigating to the Charter review", async () => {
     organizationCreate.mockResolvedValue({ data: { id: "org-1" }, error: null });
     organizationSetActive.mockResolvedValue({ error: null });
     claimOrgChart.mockResolvedValue({ id: "batch-1", status: "completed" });
@@ -49,10 +51,10 @@ describe("OnboardingScreen — org-chart handoff (issue #38)", () => {
     fireEvent.click(screen.getByRole("button", { name: /create company/i }));
 
     await waitFor(() => expect(claimOrgChart).toHaveBeenCalledOnce());
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/dashboard" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/charter" }));
   });
 
-  it("still navigates on when there is nothing eligible to claim — a non-blocking, best-effort step", async () => {
+  it("still navigates to the Charter review when there is nothing eligible to claim — a non-blocking, best-effort step", async () => {
     organizationCreate.mockResolvedValue({ data: { id: "org-1" }, error: null });
     organizationSetActive.mockResolvedValue({ error: null });
     claimOrgChart.mockRejectedValue(new Error("nothing to claim"));
@@ -62,10 +64,10 @@ describe("OnboardingScreen — org-chart handoff (issue #38)", () => {
     fireEvent.change(screen.getByPlaceholderText("Acme Studio"), { target: { value: "Acme Studio" } });
     fireEvent.click(screen.getByRole("button", { name: /create company/i }));
 
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/dashboard" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/charter" }));
   });
 
-  it("routes to the interview instead of the dashboard when an idea is still pending", async () => {
+  it("routes to the interview instead of the Charter review when an idea is still pending", async () => {
     organizationCreate.mockResolvedValue({ data: { id: "org-1" }, error: null });
     organizationSetActive.mockResolvedValue({ error: null });
     claimOrgChart.mockResolvedValue(null);
