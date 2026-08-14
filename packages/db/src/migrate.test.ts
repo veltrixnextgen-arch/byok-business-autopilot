@@ -141,6 +141,18 @@ test("0006_signup_extraction_batch_tenant_transfer.sql adds tenant_id and closes
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS signup_extraction_batches_tenant_id_unique/);
 });
 
+// Found live on staging's first redeploy since ADR-022 made migrations run
+// on every boot: 0006 above never dropped its own `owner_isolation` policy
+// before recreating it, so a second run of an already-migrated database
+// failed with "policy ... already exists" (CREATE POLICY has no IF NOT
+// EXISTS). Regression-tested directly against the fix file, not just
+// caught by re-running the real migration twice against a live database
+// (which this suite doesn't have access to).
+test("0011_fix_owner_isolation_idempotency.sql drops owner_isolation before recreating it", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0011_fix_owner_isolation_idempotency.sql"), "utf8");
+  assert.match(sql, /DROP POLICY IF EXISTS owner_isolation ON signup_extraction_batches;\s*\nCREATE POLICY owner_isolation ON signup_extraction_batches/);
+});
+
 // ADR-022 option (b): a boot-time check independent of whether
 // runMigrations ran (or ran successfully) this boot — regression coverage
 // for the exact incident that prompted it (2026-08-12: migrations 0006/0007
