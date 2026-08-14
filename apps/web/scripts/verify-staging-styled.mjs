@@ -133,24 +133,22 @@ try {
   // state, which never navigates onward on its own. Waiting for the URL
   // to leave /onboarding confirms org creation itself succeeded (that's
   // what OnboardingScreen's own submit handler awaits before navigating
-  // anywhere); this check's actual concern is /dashboard's styling, not
-  // the Charter ceremony, so it navigates there directly once a session
-  // with an active org exists — dashboard.tsx's beforeLoad only requires
-  // that (an active organization), never a Charter.
+  // anywhere).
   await page.waitForURL((url) => !url.pathname.includes("/onboarding"), { timeout: 15000 });
 
-  // Registered *before* the navigation that triggers Dashboard mounting,
-  // which is what triggers its useEffect's GET /me — a forward-looking
-  // listener has to be armed before the request fires, not checked for
-  // after the fact. Unlike the old client-side-transition flow this
-  // replaced, this is now a hard navigation (page.goto, not router
-  // navigate()): SSR render + bundle download + hydration all happen
-  // before the client-side effect can even fire, so the listener's own
-  // timeout has to comfortably outlast goto's (30000ms) rather than race
-  // it — 15000ms measured live as too tight, failing this exact way.
-  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 40000 });
-
-  await page.goto(`${webUrl}/dashboard`, { waitUntil: "networkidle", timeout: 30000 });
+  // NOT a page.goto: issue #118, confirmed live on staging — every
+  // authenticated route's beforeLoad checks the session via an SSR fetch
+  // (serverAuthHeaders.ts forwarding the incoming request's own Cookie
+  // header), and that can never work for a cross-site cookie (staging's
+  // session cookie is scoped to Railway's origin; a request TO Vercel can
+  // never carry it, regardless of SameSite/Partitioned). A hard reload of
+  // ANY protected route — not just /dashboard — bounces to /login even
+  // with a fully valid session. Clicking AppShell's own "Dashboard" nav
+  // link (AppShell.tsx's NAV_ITEMS) is a real client-side router
+  // transition, exactly how a real user reaches this page, and sidesteps
+  // the bug entirely rather than tripping over it.
+  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 15000 });
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
 
   const dashboardHeading = page.getByRole("heading", { name: /^dashboard$/i });
   await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
