@@ -122,7 +122,17 @@ test("0006_signup_extraction_batch_tenant_transfer.sql adds tenant_id and closes
 
   assert.match(sql, /ALTER TABLE signup_extraction_batches\s+ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants\(id\)/);
   assert.match(sql, /DROP POLICY IF EXISTS user_isolation ON signup_extraction_batches;/);
-  assert.match(sql, /CREATE POLICY owner_isolation ON signup_extraction_batches/);
+  // Found live on staging's first redeploy since ADR-022 made migrations
+  // run on every boot: this migration originally dropped ONLY
+  // user_isolation before creating owner_isolation, never itself —
+  // CREATE POLICY has no IF NOT EXISTS, so re-running this file (which
+  // happens on every subsequent boot, not just the first) failed with
+  // "policy owner_isolation ... already exists" and blocked every
+  // migration after it. A later migration re-declaring the policy can't
+  // fix this: migrations run unconditionally in order, so 0006 itself
+  // throws before a fix-up file ever gets a chance to run — the fix has
+  // to live here, in the file that's actually broken.
+  assert.match(sql, /DROP POLICY IF EXISTS owner_isolation ON signup_extraction_batches;\s*\nCREATE POLICY owner_isolation ON signup_extraction_batches/);
 
   // Pre-claim: exactly the 0004/0005 user-scoped behavior. Post-claim: a
   // real tenant-scoped branch, matching every other tenant-scoped table.
@@ -139,18 +149,6 @@ test("0006_signup_extraction_batch_tenant_transfer.sql adds tenant_id and closes
   // One claimed chart per tenant, enforced at the database level, not
   // just by claimLatestForTenant's own idempotency check.
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS signup_extraction_batches_tenant_id_unique/);
-});
-
-// Found live on staging's first redeploy since ADR-022 made migrations run
-// on every boot: 0006 above never dropped its own `owner_isolation` policy
-// before recreating it, so a second run of an already-migrated database
-// failed with "policy ... already exists" (CREATE POLICY has no IF NOT
-// EXISTS). Regression-tested directly against the fix file, not just
-// caught by re-running the real migration twice against a live database
-// (which this suite doesn't have access to).
-test("0011_fix_owner_isolation_idempotency.sql drops owner_isolation before recreating it", async () => {
-  const sql = await readFile(path.join(migrationsDir(), "0011_fix_owner_isolation_idempotency.sql"), "utf8");
-  assert.match(sql, /DROP POLICY IF EXISTS owner_isolation ON signup_extraction_batches;\s*\nCREATE POLICY owner_isolation ON signup_extraction_batches/);
 });
 
 // ADR-022 option (b): a boot-time check independent of whether
