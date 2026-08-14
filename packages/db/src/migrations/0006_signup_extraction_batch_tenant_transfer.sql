@@ -21,6 +21,7 @@ ALTER TABLE signup_extraction_batches
   ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
 
 DROP POLICY IF EXISTS user_isolation ON signup_extraction_batches;
+DROP POLICY IF EXISTS owner_isolation ON signup_extraction_batches;
 CREATE POLICY owner_isolation ON signup_extraction_batches
   FOR ALL
   USING (

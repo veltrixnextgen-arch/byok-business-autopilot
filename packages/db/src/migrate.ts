@@ -21,7 +21,6 @@ const MIGRATION_FILES = [
   "0008_company_charters.sql",
   "0009_router_task_prompt_tier.sql",
   "0010_tenant_tier_and_scheduler.sql",
-  "0011_fix_owner_isolation_idempotency.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every
