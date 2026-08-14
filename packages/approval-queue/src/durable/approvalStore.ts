@@ -1,5 +1,8 @@
 import { insertAuditEvent, withTenantScope, type DurableAuditLog, type PoolLike } from "@byok/db";
+import { isDevOrTestEnvironment } from "@byok/vault";
 import { UnknownActionError, UnknownRecommendationError, type ProposedAction, type RecommendationItem, type Verdict } from "../types.js";
+
+export class DevOnlyApprovalStoreGuardError extends Error {}
 
 export interface ResolveOutcome {
   action: ProposedAction;
@@ -28,6 +31,20 @@ interface StoredItem {
 
 export class InMemoryDurableApprovalStore implements DurableApprovalStore {
   private readonly items = new Map<string, StoredItem>();
+
+  // ADR-026: same reasoning as InMemoryDurableReservationStore's guard
+  // (packages/cost-gate) — this class resets on every restart and nothing
+  // outside this process can ever see a pending item held in it. Refusing
+  // to construct outside dev/test means a deployed environment that
+  // forgets to wire PostgresDurableApprovalStore fails loudly at boot.
+  constructor() {
+    if (!isDevOrTestEnvironment()) {
+      throw new DevOnlyApprovalStoreGuardError(
+        "InMemoryDurableApprovalStore cannot be constructed outside a dev or test environment (ADR-026) — " +
+          "use PostgresDurableApprovalStore for any deployed environment.",
+      );
+    }
+  }
 
   async submitProposedAction(action: ProposedAction, spotCheck: boolean): Promise<void> {
     this.items.set(action.id, { kind: "proposed-action", payload: action, status: "pending", spotCheck });

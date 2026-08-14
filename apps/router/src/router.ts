@@ -152,7 +152,7 @@ export class Router {
           stakesTags: tags,
           createdAt: task.updatedAt,
         };
-        this.approvalQueue.submitRecommendation(item);
+        await this.approvalQueue.submitRecommendation(item);
 
         task.status = "awaiting_review";
         task.approvalActionId = task.id;

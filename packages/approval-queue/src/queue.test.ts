@@ -6,6 +6,8 @@ import type { EffectExecutor, EffectResult } from "./effectExecutor.js";
 import { EffectOnRecommendationError, UnknownActionError } from "./types.js";
 import type { ProposedAction, RecommendationItem } from "./types.js";
 
+const TENANT = "tenant-a";
+
 function countingExecutor(): { executor: EffectExecutor; callCount: () => number } {
   let calls = 0;
   const executor: EffectExecutor = {
@@ -20,7 +22,7 @@ function countingExecutor(): { executor: EffectExecutor; callCount: () => number
 function makeAction(overrides: Partial<ProposedAction> = {}): ProposedAction {
   return {
     id: "action-1",
-    tenantId: "tenant-a",
+    tenantId: TENANT,
     agentName: "Alex",
     roleTitle: "CFO",
     taskType: "invoicing",
@@ -39,7 +41,7 @@ test("a pure draft (no effect) queues and APPROVE resolves with no dispatch", as
   const submitResult = await queue.submitProposedAction(makeAction());
   assert.equal(submitResult.queued, true);
 
-  const resolveResult = await queue.resolve("action-1", { kind: "APPROVE" });
+  const resolveResult = await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
   assert.equal(resolveResult.dispatched, false);
   assert.equal(callCount(), 0, "no effect descriptor means nothing to dispatch");
 });
@@ -51,7 +53,7 @@ test("an action WITH an effect dispatches only after APPROVE, never on intake", 
   await queue.submitProposedAction(makeAction({ effect: { kind: "send", description: "Email the invoice to the client" } }));
   assert.equal(callCount(), 0, "effect must not dispatch on intake");
 
-  const result = await queue.resolve("action-1", { kind: "APPROVE" });
+  const result = await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
   assert.equal(result.dispatched, true);
   assert.equal(callCount(), 1);
 });
@@ -63,7 +65,7 @@ test("REJECT requires feedback (type-enforced) and emits an agent.learning event
   queue.onEvent((e) => events.push(e.type));
 
   await queue.submitProposedAction(makeAction({ effect: { kind: "send", description: "..." } }));
-  const result = await queue.resolve("action-1", { kind: "REJECT", feedback: "Wrong amount — should be $500." });
+  const result = await queue.resolve(TENANT, "action-1", { kind: "REJECT", feedback: "Wrong amount — should be $500." });
 
   assert.equal(result.dispatched, false);
   assert.ok(events.includes("agent.learning"));
@@ -75,13 +77,13 @@ test("REJECT resets the consecutive-approval counter for that task type", async 
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
-  await queue.resolve("a1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   await queue.submitProposedAction(makeAction({ id: "a2" }));
-  await queue.resolve("a2", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a2", { kind: "APPROVE" });
   assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 2);
 
   await queue.submitProposedAction(makeAction({ id: "a3" }));
-  await queue.resolve("a3", { kind: "REJECT", feedback: "not quite right" });
+  await queue.resolve(TENANT, "a3", { kind: "REJECT", feedback: "not quite right" });
   assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 0);
 });
 
@@ -98,7 +100,7 @@ test("MODIFY substitutes the draft, then follows the approve-path (dispatches wi
   await queue.submitProposedAction(
     makeAction({ draft: "original text", effect: { kind: "send", description: "..." } }),
   );
-  const result = await queue.resolve("action-1", { kind: "MODIFY", editedOutput: "corrected text" });
+  const result = await queue.resolve(TENANT, "action-1", { kind: "MODIFY", editedOutput: "corrected text" });
 
   assert.equal(result.dispatched, true);
   assert.equal(dispatchedAction?.draft, "corrected text");
@@ -110,9 +112,9 @@ test("MODIFY counts toward the autonomy counter, same as APPROVE", async () => {
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
-  await queue.resolve("a1", { kind: "MODIFY", editedOutput: "edited" });
+  await queue.resolve(TENANT, "a1", { kind: "MODIFY", editedOutput: "edited" });
   await queue.submitProposedAction(makeAction({ id: "a2" }));
-  await queue.resolve("a2", { kind: "MODIFY", editedOutput: "edited" });
+  await queue.resolve(TENANT, "a2", { kind: "MODIFY", editedOutput: "edited" });
 
   assert.equal(autonomy.isActive("tenant-a", "invoicing"), false); // offered, not yet accepted
   assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 2);
@@ -121,7 +123,7 @@ test("MODIFY counts toward the autonomy counter, same as APPROVE", async () => {
 test("resolving an unknown action id throws", async () => {
   const { executor } = countingExecutor();
   const queue = new ApprovalQueue(new AutonomyEngine(), executor);
-  await assert.rejects(() => queue.resolve("does-not-exist", { kind: "APPROVE" }), UnknownActionError);
+  await assert.rejects(() => queue.resolve(TENANT, "does-not-exist", { kind: "APPROVE" }), UnknownActionError);
 });
 
 test("earned autonomy bypass: active + sampler skips -> dispatches without ever queuing", async () => {
@@ -131,7 +133,7 @@ test("earned autonomy bypass: active + sampler skips -> dispatches without ever 
 
   // Earn and accept autonomy first.
   await queue.submitProposedAction(makeAction({ id: "a1" }));
-  await queue.resolve("a1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   autonomy.acceptOffer("tenant-a", "invoicing");
 
   const events: string[] = [];
@@ -143,7 +145,7 @@ test("earned autonomy bypass: active + sampler skips -> dispatches without ever 
   assert.equal(result.queued, false);
   assert.equal(callCount(), 1, "a1 had no effect (never dispatches); only a2's bypass dispatches"); // a1 had no effect, only a2 dispatches
   assert.deepEqual(events, ["action.auto-approved"]);
-  assert.equal(queue.pendingActions().length, 0);
+  assert.equal((await queue.pendingActions(TENANT)).length, 0);
 });
 
 test("earned autonomy active but sampler selects spot-check -> still queues for human review", async () => {
@@ -152,13 +154,13 @@ test("earned autonomy active but sampler selects spot-check -> still queues for 
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
-  await queue.resolve("a1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   autonomy.acceptOffer("tenant-a", "invoicing");
 
   const result = await queue.submitProposedAction(makeAction({ id: "a2", effect: { kind: "send", description: "..." } }));
   assert.equal(result.queued, true);
   assert.equal(callCount(), 0, "must not dispatch until the spot-check is resolved");
-  assert.equal(queue.pendingActions().length, 1);
+  assert.equal((await queue.pendingActions(TENANT)).length, 1);
 });
 
 test("a spot-check REJECT auto-revokes autonomy for that task type", async () => {
@@ -167,12 +169,12 @@ test("a spot-check REJECT auto-revokes autonomy for that task type", async () =>
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
-  await queue.resolve("a1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   autonomy.acceptOffer("tenant-a", "invoicing");
   assert.equal(autonomy.isActive("tenant-a", "invoicing"), true);
 
   await queue.submitProposedAction(makeAction({ id: "a2" })); // gets spot-checked (queued)
-  await queue.resolve("a2", { kind: "REJECT", feedback: "actually wrong this time" });
+  await queue.resolve(TENANT, "a2", { kind: "REJECT", feedback: "actually wrong this time" });
 
   assert.equal(autonomy.isActive("tenant-a", "invoicing"), false);
 });
@@ -186,7 +188,7 @@ test("a deny-tagged action always queues, even when autonomy is active for that 
 
   // Earn + accept autonomy for "payments" using an ordinary, non-deny-tagged action.
   await queue.submitProposedAction(makeAction({ id: "a1", taskType: "payments", stakesTags: [] }));
-  await queue.resolve("a1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   autonomy.acceptOffer("tenant-a", "payments");
   assert.equal(autonomy.isActive("tenant-a", "payments"), true);
 
@@ -204,7 +206,7 @@ test("a deny-tagged action always queues, even when autonomy is active for that 
 function makeRecommendation(overrides: Partial<RecommendationItem> = {}): RecommendationItem {
   return {
     id: "rec-1",
-    tenantId: "tenant-a",
+    tenantId: TENANT,
     agentName: "Morgan",
     roleTitle: "CEO",
     summary: "Consider raising prices 5% next quarter",
@@ -219,18 +221,18 @@ test("a RecommendationItem submitted normally never dispatches anything on any v
   const { executor, callCount } = countingExecutor();
   const queue = new ApprovalQueue(new AutonomyEngine(), executor);
 
-  queue.submitRecommendation(makeRecommendation());
-  queue.resolveRecommendation("rec-1", { kind: "APPROVE" });
+  await queue.submitRecommendation(makeRecommendation());
+  await queue.resolveRecommendation(TENANT, "rec-1", { kind: "APPROVE" });
 
   assert.equal(callCount(), 0, "recommendations can never dispatch an effect — there is none to dispatch");
 });
 
-test("smuggling an effect onto a recommendation via a cast is rejected at runtime (defense in depth)", () => {
+test("smuggling an effect onto a recommendation via a cast is rejected at runtime (defense in depth)", async () => {
   const { executor } = countingExecutor();
   const queue = new ApprovalQueue(new AutonomyEngine(), executor);
 
   const tampered = { ...makeRecommendation(), effect: { kind: "pay", description: "sneaky" } } as unknown as RecommendationItem;
-  assert.throws(() => queue.submitRecommendation(tampered), EffectOnRecommendationError);
+  await assert.rejects(() => queue.submitRecommendation(tampered), EffectOnRecommendationError);
 });
 
 test("recommendation verdicts emit guidance events only, never agent.learning or action.queued", async () => {
@@ -239,8 +241,8 @@ test("recommendation verdicts emit guidance events only, never agent.learning or
   const events: string[] = [];
   queue.onEvent((e) => events.push(e.type));
 
-  queue.submitRecommendation(makeRecommendation());
-  queue.resolveRecommendation("rec-1", { kind: "REJECT", feedback: "not now" });
+  await queue.submitRecommendation(makeRecommendation());
+  await queue.resolveRecommendation(TENANT, "rec-1", { kind: "REJECT", feedback: "not now" });
 
   assert.deepEqual(events, ["recommendation.guidance"]);
 });
@@ -250,7 +252,7 @@ test("audit log records every intake and resolution, with no effect payload leak
   const queue = new ApprovalQueue(new AutonomyEngine(), executor);
 
   await queue.submitProposedAction(makeAction({ effect: { kind: "send", description: "...", detail: { to: "client@example.com" } } }));
-  await queue.resolve("action-1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
 
   const events = queue.auditEvents();
   assert.deepEqual(events.map((e) => e.kind), ["queued", "APPROVE"]);
@@ -264,7 +266,7 @@ test("revokeAutonomy() delegates to the autonomy engine", async () => {
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction());
-  await queue.resolve("action-1", { kind: "APPROVE" });
+  await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
   autonomy.acceptOffer("tenant-a", "invoicing");
   assert.equal(autonomy.isActive("tenant-a", "invoicing"), true);
 
