@@ -13,6 +13,14 @@ docs/architecture/security-architecture.md @veltrixnextgen-arch
 # intent extended to the persistence layer trust-core now depends on).
 packages/db/ @veltrixnextgen-arch
 
+# R3/ADR-025: packages/jobs went from a generic, unused BullMQ wrapper to
+# the thing that decides WHEN an unattended agent dispatch fires and
+# enforces the cadence-floor cost-safety limits (docs/architecture/
+# automation-runtime-plan.md §7) — the same "load-bearing for trust-core,
+# same review bar" reasoning packages/db already carries above, extended
+# to the scheduling layer trust-core now depends on.
+packages/jobs/ @veltrixnextgen-arch
+
 # ADR-009: the ESLint boundary rule and the CI gates that enforce it are
 # part of the security posture, not shell code — a change here can
 # silently disable the trust-core import boundary or the secret/audit

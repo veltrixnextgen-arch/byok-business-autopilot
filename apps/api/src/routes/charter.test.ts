@@ -36,7 +36,7 @@ const CHART: OrgChart = {
     { id: "agent-1", name: "Sam", title: "Expenses", teamId: "cfo" as never, taskIds: ["task-1"], tier: "T1", brain: null, hands: [], autonomyDefault: "earnable", complianceLocked: false, requiresProfessionalVerification: false },
   ],
   tasks: [
-    { id: "task-1", text: "Categorize expenses", agentType: "expense-categorization", agentLabel: "Expenses", teamHint: "cfo" as never, frequency: "weekly", stakes: "low", tier: "T1", autonomy: "earnable", handsTool: null, origin: "template" },
+    { id: "task-1", text: "Categorize expenses", agentType: "expense-categorization", agentLabel: "Expenses", teamHint: "cfo" as never, frequency: "weekly", stakes: "low", tier: "T1", autonomy: "earnable", handsTool: null, origin: "template", cadence: "nightly", batchable: true, triggerType: "cadence" },
   ],
   customization: { added: [], removed: [], frequencyAdjustments: [], categoryCorrections: [] },
   onboardingBatch: { simulatedDay: [], charterDraft: CHARTER_CONTENT },

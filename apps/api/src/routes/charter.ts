@@ -12,6 +12,13 @@ export interface CharterRouteDeps {
     "createDraft" | "updateDraft" | "getLatestDraft" | "getActive" | "accept" | "get"
   >;
   batchStore: Pick<SignupExtractionBatchStore, "latestForTenant">;
+  /** R3/ADR-025: syncs the tenant's BullMQ repeatable-job schedule against
+   *  the just-installed cascade — called after every successful accept, so
+   *  a Charter handoff makes the company actually run on its own, not just
+   *  installs prompts nothing dispatches yet. Optional so charter.test.ts's
+   *  existing R2-era tests don't all need a scheduler double; omitted in
+   *  those, it's simply not called. */
+  onAccepted?: (tenantId: string) => Promise<void>;
 }
 
 const roleMandateSchema = z.object({
@@ -100,6 +107,7 @@ export function charterRoute(deps: CharterRouteDeps) {
       const cascade = generateCascade(draft.content, batch.orgChart, previousActive?.cascade);
 
       const installed = await deps.charters.accept(tenantId, id, cascade);
+      await deps.onAccepted?.(tenantId);
       return c.json({ charter: installed });
     });
 }

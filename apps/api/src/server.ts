@@ -1,8 +1,26 @@
 import { serve } from "@hono/node-server";
 import { createAuth } from "@byok/auth";
-import { createDb, createPool, SignupExtractionBatchStore, SignupMetricsStore } from "@byok/db";
+import { PostgresDurableBatchStore } from "@byok/cost-gate";
+import {
+  CompanyCharterStore,
+  createDb,
+  createPool,
+  SchedulerInstrumentationStore,
+  SignupExtractionBatchStore,
+  SignupMetricsStore,
+  TenantScheduleStateStore,
+} from "@byok/db";
+import { createRepeatableQueue, createTenantWorker } from "@byok/jobs";
 import type { TrustCoreDeps } from "./context.js";
 import { createApp } from "./index.js";
+import type { ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
+import { createScheduledDispatchProcessor } from "./scheduler/scheduledDispatchProcessor.js";
+
+// One BullMQ queue/job name for every tenant's scheduled-dispatch jobs —
+// tenantScheduler.ts's own jobId-prefix scoping (`${tenantId}:...`) is what
+// keeps tenants isolated within it, the same way router_tasks/audit_log
+// share one table with RLS rather than a table per tenant.
+export const SCHEDULED_DISPATCH_JOB_NAME = "scheduled-dispatch";
 
 export interface ServerConfig {
   port: number;
@@ -38,6 +56,13 @@ export interface ServerConfig {
    *  these two env vars in a real deployment is the ONLY remaining step
    *  once real credentials exist — no code changes required. */
   google: { clientId: string; clientSecret: string; redirectUri: string } | null;
+  /** R3/ADR-025: backs the scheduler's BullMQ repeatable-job registry.
+   *  Required, same discipline as DATABASE_URL — a server that can't run
+   *  its own scheduled dispatch should fail at startup, not silently
+   *  never schedule anything. Already wired through CI/deploy-staging and
+   *  .env.example (redis://localhost:6379 locally, an Upstash rediss://
+   *  URL in staging) — this is the first real consumer. */
+  redisUrl: string;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -45,10 +70,12 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const authSecret = env.BETTER_AUTH_SECRET;
   const anthropicApiKey = env.ANTHROPIC_API_KEY;
   const internalMetricsToken = env.INTERNAL_METRICS_TOKEN;
+  const redisUrl = env.REDIS_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   if (!authSecret) throw new Error("BETTER_AUTH_SECRET is required");
   if (!anthropicApiKey) throw new Error("ANTHROPIC_API_KEY is required");
   if (!internalMetricsToken) throw new Error("INTERNAL_METRICS_TOKEN is required");
+  if (!redisUrl) throw new Error("REDIS_URL is required");
 
   const port = Number(env.PORT ?? 3000);
   const authBaseUrl = env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
@@ -62,7 +89,18 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
       ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/hands-oauth/google-calendar/callback` }
       : null;
 
-  return { port, databaseUrl, authSecret, authBaseUrl, webOrigin, crossSiteCookies, anthropicApiKey, internalMetricsToken, google };
+  return {
+    port,
+    databaseUrl,
+    authSecret,
+    authBaseUrl,
+    webOrigin,
+    crossSiteCookies,
+    anthropicApiKey,
+    internalMetricsToken,
+    google,
+    redisUrl,
+  };
 }
 
 /**
@@ -92,6 +130,30 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
   });
   const batchStore = new SignupExtractionBatchStore(pool);
   const metricsStore = new SignupMetricsStore(pool);
+
+  // R3/ADR-025: the scheduler's own repeatable-job registry and worker.
+  // Deliberately started IN-PROCESS with the HTTP server, not as a
+  // separate deployable — see docs/TRACKING.md's Railway phantom-service
+  // incident (an accidentally-provisioned second service crash-looped for
+  // days on the wrong start command). A dedicated worker process is a
+  // legitimate future scaling change; it is not free to reach for here
+  // just because it's the "more correct" shape, given this repo's own
+  // burned lesson about auto-provisioned services.
+  const redisConnection = { url: config.redisUrl };
+  const queue = createRepeatableQueue(SCHEDULED_DISPATCH_JOB_NAME, { connection: redisConnection });
+  const scheduledDispatchProcessor = createScheduledDispatchProcessor({
+    router: trustCore.router,
+    charters: new CompanyCharterStore(pool),
+    batchStore,
+    scheduleState: new TenantScheduleStateStore(pool),
+    instrumentation: new SchedulerInstrumentationStore(pool),
+    durableBatchStore: new PostgresDurableBatchStore(pool),
+    tierModelMap: trustCore.tierModelMap,
+  });
+  createTenantWorker<ScheduledDispatchPayload>(SCHEDULED_DISPATCH_JOB_NAME, (job) => scheduledDispatchProcessor(job.data), {
+    connection: redisConnection,
+  });
+
   const app = createApp({
     pool,
     auth,
@@ -103,6 +165,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     // oauth/state.ts's own comment on why a second required secret isn't
     // needed for this.
     handsOAuth: { stateSecret: config.authSecret, google: config.google },
+    scheduler: { queue, jobName: SCHEDULED_DISPATCH_JOB_NAME },
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {

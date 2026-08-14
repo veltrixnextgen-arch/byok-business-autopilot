@@ -161,7 +161,7 @@ function fakeInformationSchemaPool(columnsByTable: Record<string, string[]>) {
 test("verifySchemaCurrent resolves cleanly when every canary column is present", async () => {
   const pool = fakeInformationSchemaPool({
     signup_extraction_batches: ["id", "user_id", "tenant_id"],
-    tenants: ["id", "slug", "monthly_ceiling_usd"],
+    tenants: ["id", "slug", "monthly_ceiling_usd", "tier"],
     router_tasks: ["id", "tenant_id", "prompt_tier"],
   });
   await assert.doesNotReject(() => verifySchemaCurrent(pool));
@@ -170,7 +170,7 @@ test("verifySchemaCurrent resolves cleanly when every canary column is present",
 test("verifySchemaCurrent throws SchemaDriftError naming the exact missing column and which migration adds it", async () => {
   const pool = fakeInformationSchemaPool({
     signup_extraction_batches: ["id", "user_id"], // tenant_id missing, as it was on real staging
-    tenants: ["id", "slug", "monthly_ceiling_usd"],
+    tenants: ["id", "slug", "monthly_ceiling_usd", "tier"],
     router_tasks: ["id", "tenant_id", "prompt_tier"],
   });
   await assert.rejects(
@@ -190,14 +190,15 @@ test("verifySchemaCurrent reports every missing canary at once, not just the fir
       err instanceof SchemaDriftError &&
       /tenant_id/.test(err.message) &&
       /monthly_ceiling_usd/.test(err.message) &&
-      /prompt_tier/.test(err.message),
+      /prompt_tier/.test(err.message) &&
+      /tenants\.tier/.test(err.message),
   );
 });
 
-test("schemaCanaries names exactly the three ALTER TABLE ADD COLUMN migrations that exist today", () => {
+test("schemaCanaries names exactly the four ALTER TABLE ADD COLUMN migrations that exist today", () => {
   const canaries = schemaCanaries();
   assert.deepEqual(
     canaries.map((c) => `${c.table}.${c.column}`),
-    ["signup_extraction_batches.tenant_id", "tenants.monthly_ceiling_usd", "router_tasks.prompt_tier"],
+    ["signup_extraction_batches.tenant_id", "tenants.monthly_ceiling_usd", "router_tasks.prompt_tier", "tenants.tier"],
   );
 });

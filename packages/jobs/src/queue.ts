@@ -54,3 +54,12 @@ export function createTenantQueue<Payload extends TenantJobPayload>(
   const queue = new Queue<Payload>(name, { connection: config.connection, prefix: config.prefix });
   return new TenantQueue<Payload>(name, queue);
 }
+
+/** A real BullMQ `Queue` already satisfies `RepeatableQueueLike`
+ *  (tenantScheduler.ts) structurally — `.add`, `.getRepeatableJobs`, and
+ *  `.removeRepeatableByKey` are all native methods. This factory exists so
+ *  callers (apps/api's server bootstrap) never import `bullmq` directly
+ *  themselves, matching createTenantQueue's own reasoning. */
+export function createRepeatableQueue(name: string, config: QueueConfig): Queue {
+  return new Queue(name, { connection: config.connection, prefix: config.prefix });
+}

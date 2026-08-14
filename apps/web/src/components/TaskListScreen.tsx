@@ -23,6 +23,12 @@ function newCustomTask(text: string, teamHint: TeamHint): Task {
     autonomy: "earnable",
     handsTool: null,
     origin: "customize-added",
+    // R3 (ADR-025): matches packages/agents/extraction/src/
+    // scheduleMetadata.ts's own adhoc-frequency rule exactly — no fixed
+    // interval, fires on a signal instead of a standing schedule.
+    cadence: null,
+    batchable: false,
+    triggerType: "event",
   };
 }
 
