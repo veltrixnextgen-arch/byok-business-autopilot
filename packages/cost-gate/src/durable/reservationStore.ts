@@ -1,6 +1,9 @@
 import { insertAuditEvent, withTenantScope, type DurableAuditLog, type PoolLike } from "@byok/db";
 import { randomUUID } from "node:crypto";
+import { isDevOrTestEnvironment } from "@byok/vault";
 import type { CeilingConfig, CeilingLevel } from "../ceilings.js";
+
+export class DevOnlyReservationStoreGuardError extends Error {}
 
 export interface ReserveAtomicInput {
   tenantId: string;
@@ -59,6 +62,20 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
     { tenantId: string; roleId: string; taskType: string; amountUsd: number; status: "reserved" | "settled" | "released" }
   >();
   private readonly counters = new Map<string, { totalUsd: number; ceilingUsd: number | null }>();
+
+  // ADR-026: this class resets on every restart — staging ran on it for
+  // months (apps/api/src/dev/devTrustCore.ts) before R3's scheduler made
+  // that matter. Refusing to construct outside dev/test means a future
+  // deploy target that forgets to wire PostgresReservationStore fails
+  // loudly at boot, not silently at the next redeploy.
+  constructor() {
+    if (!isDevOrTestEnvironment()) {
+      throw new DevOnlyReservationStoreGuardError(
+        "InMemoryDurableReservationStore cannot be constructed outside a dev or test environment (ADR-026) — " +
+          "use PostgresReservationStore for any deployed environment.",
+      );
+    }
+  }
 
   private key(tenantId: string, level: CeilingLevel, scopeKey: string): string {
     return `${tenantId}|${level}|${scopeKey}`;

@@ -36,7 +36,7 @@ export function loadDevPricingTable(): PricingTable {
  *  on; local dev has no such env var, so it falls back to a gitignored
  *  local key file (see LocalKms's own comment). Both guard against
  *  ever running in a real NODE_ENV=production process regardless. */
-function createDevKms(): Kms {
+export function createDevKms(): Kms {
   const stagingMasterKey = process.env.STAGING_KMS_MASTER_KEY;
   if (stagingMasterKey) return new StagingKms(stagingMasterKey);
   return new LocalKms(join(process.cwd(), ".local-kms", "master.key"));

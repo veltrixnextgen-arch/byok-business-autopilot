@@ -11,7 +11,8 @@
     "test:integration": "tsx --test \"src/**/*.itest.ts\""
   },
   "dependencies": {
-    "@byok/db": "*"
+    "@byok/db": "*",
+    "@byok/vault": "*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

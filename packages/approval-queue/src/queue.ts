@@ -1,14 +1,8 @@
 import { AutonomyEngine, type AutonomyEvent } from "./autonomyEngine.js";
 import type { EffectExecutor, EffectResult } from "./effectExecutor.js";
 import { InMemoryQueueAuditLog, type QueueAuditEvent, type QueueAuditLog } from "./auditLog.js";
-import {
-  EffectOnRecommendationError,
-  UnknownActionError,
-  UnknownRecommendationError,
-  type ProposedAction,
-  type RecommendationItem,
-  type Verdict,
-} from "./types.js";
+import { InMemoryDurableApprovalStore, type DurableApprovalStore } from "./durable/approvalStore.js";
+import { EffectOnRecommendationError, type ProposedAction, type RecommendationItem, type Verdict } from "./types.js";
 
 export type QueueEvent =
   | { type: "action.queued"; actionId: string; tenantId: string; taskType: string; at: string }
@@ -36,15 +30,23 @@ export interface ResolveResult {
 // still dispatches through the same effectExecutor, never a shortcut that
 // skips this class.
 export class ApprovalQueue {
-  private readonly pending = new Map<string, ProposedAction>();
-  private readonly pendingRecommendations = new Map<string, RecommendationItem>();
-  private readonly spotCheckActionIds = new Set<string>();
   private readonly listeners: QueueEventListener[] = [];
 
   constructor(
     public readonly autonomy: AutonomyEngine,
     private readonly effectExecutor: EffectExecutor,
     private readonly audit: QueueAuditLog = new InMemoryQueueAuditLog(),
+    // ADR-026: pending-item state used to live in two plain in-memory Maps
+    // here — real per T10's queuing behavior, but gone on restart, and
+    // with no way for anything outside this process to ever see a pending
+    // item. `store` is the durable, tenant-scoped counterpart
+    // (packages/approval-queue/src/durable/approvalStore.ts) — Postgres
+    // for any deployed environment, in-memory only for tests/local dev.
+    // `audit` above is unrelated and unchanged: a separate, lightweight,
+    // in-process event trail this class has always kept for its own
+    // listeners, not the durable audit_log row PostgresDurableApprovalStore
+    // writes internally.
+    private readonly store: DurableApprovalStore = new InMemoryDurableApprovalStore(),
   ) {
     // Forward autonomy events through the same single subscription surface
     // — callers don't need to know the autonomy engine exists separately.
@@ -79,23 +81,19 @@ export class ApprovalQueue {
       return { queued: false, effectResult };
     }
 
-    if (autonomyActive) {
-      // Autonomy is active but the sampler picked this one for review.
-      this.spotCheckActionIds.add(action.id);
-    }
-
-    this.pending.set(action.id, action);
+    // Spot-check-ness travels with the stored item now (store.resolve
+    // returns it back in ResolveOutcome) rather than a parallel local Set
+    // that could drift from `pending` under a crash between the two writes.
+    const isSpotCheck = autonomyActive;
+    await this.store.submitProposedAction(action, isSpotCheck);
     const at = new Date().toISOString();
     this.audit.append({ at, actionId: action.id, tenantId: action.tenantId, taskType: action.taskType, kind: "queued" });
     this.emit({ type: "action.queued", actionId: action.id, tenantId: action.tenantId, taskType: action.taskType, at });
     return { queued: true };
   }
 
-  async resolve(actionId: string, verdict: Verdict): Promise<ResolveResult> {
-    const action = this.pending.get(actionId);
-    if (!action) throw new UnknownActionError(`No pending action "${actionId}".`);
-    this.pending.delete(actionId);
-    const isSpotCheck = this.spotCheckActionIds.delete(actionId);
+  async resolve(tenantId: string, actionId: string, verdict: Verdict): Promise<ResolveResult> {
+    const { action, wasSpotCheck: isSpotCheck } = await this.store.resolve(tenantId, actionId, verdict);
 
     const at = () => new Date().toISOString();
 
@@ -146,7 +144,7 @@ export class ApprovalQueue {
 
   // ---- CEO pathway (T10 / ADR-004) --------------------------------------
 
-  submitRecommendation(item: RecommendationItem): void {
+  async submitRecommendation(item: RecommendationItem): Promise<void> {
     // Defense in depth: the type has no `effect` field, but nothing stops
     // a caller from smuggling one in via `as any`. Reject it at runtime too.
     if ("effect" in (item as unknown as Record<string, unknown>)) {
@@ -154,7 +152,7 @@ export class ApprovalQueue {
         "A RecommendationItem can never carry an effect descriptor (T10) — the CEO's only output pathway is guidance.",
       );
     }
-    this.pendingRecommendations.set(item.id, item);
+    await this.store.submitRecommendation(item);
     this.audit.append({
       at: new Date().toISOString(),
       actionId: item.id,
@@ -167,10 +165,8 @@ export class ApprovalQueue {
    *  effect to dispatch. This only emits a guidance event for whatever
    *  downstream system (e.g. "fold this into next week's digest context")
    *  wants to react to it. */
-  resolveRecommendation(id: string, verdict: Verdict): void {
-    const item = this.pendingRecommendations.get(id);
-    if (!item) throw new UnknownRecommendationError(`No pending recommendation "${id}".`);
-    this.pendingRecommendations.delete(id);
+  async resolveRecommendation(tenantId: string, id: string, verdict: Verdict): Promise<void> {
+    const item = await this.store.resolveRecommendation(tenantId, id);
 
     const at = new Date().toISOString();
     this.emit({ type: "recommendation.guidance", actionId: id, tenantId: item.tenantId, verdictKind: verdict.kind, at });
@@ -185,12 +181,12 @@ export class ApprovalQueue {
 
   // ---- reads --------------------------------------------------------------
 
-  pendingActions(): readonly ProposedAction[] {
-    return [...this.pending.values()];
+  async pendingActions(tenantId: string): Promise<readonly ProposedAction[]> {
+    return this.store.pendingActions(tenantId);
   }
 
-  pendingRecommendationItems(): readonly RecommendationItem[] {
-    return [...this.pendingRecommendations.values()];
+  async pendingRecommendationItems(tenantId: string): Promise<readonly RecommendationItem[]> {
+    return this.store.pendingRecommendations(tenantId);
   }
 
   auditEvents(): readonly QueueAuditEvent[] {

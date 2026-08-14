@@ -29,7 +29,7 @@ test("executor success routes through the approval queue: pending review, not im
 
   assert.equal(task.status, "awaiting_review");
   assert.equal(task.result, "drafted output for Draft an invoice");
-  assert.equal(queue.pendingActions().length, 1);
+  assert.equal((await queue.pendingActions("default")).length, 1);
 });
 
 test("resolving the queued action with APPROVE does not change RouterTask status retroactively (async decoupling), but dispatches the effect", async () => {
@@ -50,7 +50,7 @@ test("resolving the queued action with APPROVE does not change RouterTask status
   assert.equal(task.status, "awaiting_review");
   assert.equal(dispatched, false, "effect must not dispatch before a human approves");
 
-  const result = await queue.resolve(task.id, { kind: "APPROVE" });
+  const result = await queue.resolve("default", task.id, { kind: "APPROVE" });
   assert.equal(result.dispatched, true);
   assert.equal(dispatched, true);
 });
@@ -70,7 +70,7 @@ test("earned autonomy bypass: task completes immediately, no queue entry, effect
     payload: "...",
     dedupKey: "task-3",
   });
-  await queue.resolve(first.id, { kind: "APPROVE" });
+  await queue.resolve("default", first.id, { kind: "APPROVE" });
   autonomy.acceptOffer("default", "invoicing");
 
   const second = await router.submitTask({
@@ -83,7 +83,7 @@ test("earned autonomy bypass: task completes immediately, no queue entry, effect
   });
 
   assert.equal(second.status, "completed");
-  assert.equal(queue.pendingActions().length, 0);
+  assert.equal((await queue.pendingActions("default")).length, 0);
   assert.equal(dispatched, true);
 });
 
@@ -100,7 +100,7 @@ test("tenantId defaults to 'default' and flows through to the queue's autonomy t
   });
 
   assert.equal(task.tenantId, "default");
-  const [action] = queue.pendingActions();
+  const [action] = await queue.pendingActions("default");
   assert.equal(action.tenantId, "default");
 });
 
@@ -118,10 +118,15 @@ test("a failed execution never reaches the approval queue", async () => {
   });
 
   assert.equal(task.status, "failed");
-  assert.equal(queue.pendingActions().length, 0);
+  assert.equal((await queue.pendingActions("default")).length, 0);
 });
 
 test("ADR-008: production refuses to construct a Router missing either CostGate or ApprovalQueue", () => {
+  // Constructed BEFORE NODE_ENV flips to production — ADR-026's own guard
+  // on ApprovalQueue's default in-memory store would otherwise throw here
+  // too, for an unrelated reason, before Router's own guard is even
+  // reached. This test is about Router's guard specifically.
+  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
   const original = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = "production";
@@ -130,19 +135,17 @@ test("ADR-008: production refuses to construct a Router missing either CostGate 
       ProductionRouterGuardError,
     );
     assert.throws(
-      () =>
-        new Router(
-          new InMemoryTaskLedger(),
-          new InMemoryDedupStore(),
-          alwaysCompletesExecutor(),
-          undefined,
-          new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor()),
-        ),
+      () => new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue),
       ProductionRouterGuardError,
       "missing CostGate alone must still fail",
     );
   } finally {
-    process.env.NODE_ENV = original;
+    // process.env.NODE_ENV = undefined would coerce to the STRING
+    // "undefined" (process.env values are always coerced to strings) —
+    // silently NOT the same as unset, and indistinguishable from a real
+    // deploy target by ADR-026's isDevOrTestEnvironment allowlist.
+    if (original === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = original;
   }
 });
 
@@ -245,8 +248,8 @@ test("T10/ADR-004: a promptTier 'ceo' task routes through submitRecommendation, 
   });
 
   assert.equal(proposedActionCalled, false);
-  assert.equal(queue.pendingActions().length, 0);
-  assert.equal(queue.pendingRecommendationItems().length, 1);
+  assert.equal((await queue.pendingActions("default")).length, 0);
+  assert.equal((await queue.pendingRecommendationItems("default")).length, 1);
   assert.equal(task.status, "awaiting_review");
 });
 
@@ -270,7 +273,7 @@ test("T10/ADR-004: a promptTier 'ceo' task NEVER dispatches an effect, even when
   });
 
   assert.equal(dispatched, false);
-  const [item] = queue.pendingRecommendationItems();
+  const [item] = await queue.pendingRecommendationItems("default");
   assert.ok(item);
   assert.equal("effect" in (item as unknown as Record<string, unknown>), false);
 });
@@ -289,8 +292,8 @@ test("a promptTier 'role-lead'/'sub-agent' task (or the default) is unaffected �
     // default, pre-R2 callers unaffected).
   });
 
-  assert.equal(queue.pendingActions().length, 1);
-  assert.equal(queue.pendingRecommendationItems().length, 0);
+  assert.equal((await queue.pendingActions("default")).length, 1);
+  assert.equal((await queue.pendingRecommendationItems("default")).length, 0);
 });
 
 test("ADR-008: dev/test environments are unaffected — a Router with neither dependency still constructs fine outside production", () => {
@@ -299,6 +302,7 @@ test("ADR-008: dev/test environments are unaffected — a Router with neither de
     process.env.NODE_ENV = "test";
     assert.doesNotThrow(() => new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor()));
   } finally {
-    process.env.NODE_ENV = original;
+    if (original === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = original;
   }
 });
