@@ -10,6 +10,7 @@
     "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "@byok/contracts": "*",
     "bullmq": "6.0.5",
     "ioredis": "6.0.0"
   },

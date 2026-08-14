@@ -7,6 +7,7 @@ import { assembleOrgChart, HandsScopeViolationError } from "./assemble.js";
 import { generateOnboardingBatch } from "./onboardingBatch.js";
 import type { ApiCallUsage, CustomizationLog, InterviewAnswers, OrgChart, Task } from "./types.js";
 import { CostGuardError, DEFAULT_MAX_COST_USD } from "./costGuard.js";
+import { deriveScheduleMetadata } from "./scheduleMetadata.js";
 
 export interface ExtractOptions {
   apiKey: string;
@@ -75,6 +76,7 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
     handsScope: a.handsScope,
     requiresProfessionalVerification: a.requiresProfessionalVerification,
     origin: "customize-added",
+    ...deriveScheduleMetadata(a.frequency, a.agentType),
   }));
 
   const calls: ApiCallUsage[] = [

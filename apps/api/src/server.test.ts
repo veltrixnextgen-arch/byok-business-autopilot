@@ -45,12 +45,28 @@ test("throws when INTERNAL_METRICS_TOKEN is missing", () => {
   );
 });
 
+// R3/ADR-025: REDIS_URL backs the scheduler's BullMQ queue — required,
+// same discipline as every other credential in this file.
+test("throws when REDIS_URL is missing", () => {
+  assert.throws(
+    () =>
+      readServerConfigFromEnv({
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        ANTHROPIC_API_KEY: "k",
+        INTERNAL_METRICS_TOKEN: "t",
+      } as NodeJS.ProcessEnv),
+    /REDIS_URL/,
+  );
+});
+
 test("defaults port to 3000, derives authBaseUrl from it, and defaults webOrigin to the web dev port", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
   } as NodeJS.ProcessEnv);
   assert.equal(config.port, 3000);
   assert.equal(config.authBaseUrl, "http://localhost:3000");
@@ -63,6 +79,7 @@ test("respects an explicit PORT, BETTER_AUTH_URL, and WEB_ORIGIN", () => {
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
     PORT: "4000",
     BETTER_AUTH_URL: "https://api.example.com",
     WEB_ORIGIN: "https://app.example.com",
@@ -78,6 +95,7 @@ test("crossSiteCookies defaults to false (SameSite=None needs HTTPS, which local
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
   } as NodeJS.ProcessEnv);
   assert.equal(config.crossSiteCookies, false);
 });
@@ -88,6 +106,7 @@ test("crossSiteCookies is true only when CROSS_SITE_COOKIES=true exactly", () =>
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
     CROSS_SITE_COOKIES: "true",
   } as NodeJS.ProcessEnv);
   assert.equal(config.crossSiteCookies, true);
@@ -102,6 +121,7 @@ test("google is null when GOOGLE_OAUTH_CLIENT_ID/SECRET are both unset — serve
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
   } as NodeJS.ProcessEnv);
   assert.equal(config.google, null);
 });
@@ -112,6 +132,7 @@ test("google is null when only one of GOOGLE_OAUTH_CLIENT_ID/SECRET is set — n
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
     GOOGLE_OAUTH_CLIENT_ID: "client-1",
   } as NodeJS.ProcessEnv);
   assert.equal(config.google, null);
@@ -123,6 +144,7 @@ test("google is populated with a redirectUri derived from authBaseUrl once both 
     BETTER_AUTH_SECRET: "s",
     ANTHROPIC_API_KEY: "k",
     INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
     GOOGLE_OAUTH_CLIENT_ID: "client-1",
     GOOGLE_OAUTH_CLIENT_SECRET: "secret-1",
     BETTER_AUTH_URL: "https://api.example.com",

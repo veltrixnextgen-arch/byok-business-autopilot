@@ -1,4 +1,4 @@
-import type { AutonomyDefault, BusinessTemplateId, Frequency, HandsScope, Stakes, TeamHint, Tier } from "./primitives.js";
+import type { AutonomyDefault, BusinessTemplateId, Cadence, Frequency, HandsScope, Stakes, TeamHint, Tier, TriggerType } from "./primitives.js";
 import type { OnboardingBatch } from "./charter.js";
 
 // ADR-013: this file is the single source of truth for what extraction
@@ -96,6 +96,17 @@ export interface Task {
    *  full rationale. */
   requiresProfessionalVerification?: boolean;
   origin: "template" | "customize-added";
+  /** R1/R3 scheduling metadata (docs/architecture/automation-runtime-plan.md
+   *  §3, ADR-026). For "template"-origin tasks this flows straight through
+   *  from the template's own TemplateTask fields. For "customize-added"
+   *  tasks (the customize LLM's own invention, with no template to inherit
+   *  from) it's derived deterministically from `frequency`/`agentType` —
+   *  see pipeline.ts's `deriveScheduleMetadata` — never a second LLM call.
+   *  R3's scheduler is the first real consumer: it only ever schedules a
+   *  repeatable job for a task whose `triggerType` is `"cadence"`. */
+  cadence: Cadence | null;
+  batchable: boolean;
+  triggerType: TriggerType;
 }
 
 export interface TemplateSelection {

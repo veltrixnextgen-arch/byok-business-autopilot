@@ -98,5 +98,5 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
   }
   const vault = new Vault(createDevKms(), undefined, undefined, handsCredentialRefreshers);
 
-  return { router, costGate, approvalQueue, ledger, vault };
+  return { router, costGate, approvalQueue, ledger, vault, tierModelMap: DEV_TIER_MODEL_MAP };
 }

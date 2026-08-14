@@ -74,6 +74,11 @@ const stakesSchema = z.enum(["low", "medium", "high"]);
 const tierSchema = z.enum(["T1", "T2", "T3"]);
 const autonomyDefaultSchema = z.enum(["locked", "earnable", "eligible-early"]);
 const handsScopeSchema = z.enum(["own-backoffice", "client-facing"]);
+// R3 (ADR-025): scheduling metadata, round-tripped through edit ops
+// unchanged (reassemble never recomputes it — see assembleOrgChart, which
+// only re-derives Agent/Team clustering from whatever Task[] it's given).
+const cadenceSchema = z.enum(["15min", "hourly", "nightly", "daily", "weekly", "monthly"]).nullable();
+const triggerTypeSchema = z.enum(["cadence", "event", "threshold"]);
 
 const taskSchema = z.object({
   id: z.string().min(1),
@@ -90,6 +95,9 @@ const taskSchema = z.object({
   handsScope: handsScopeSchema.optional(),
   requiresProfessionalVerification: z.boolean().optional(),
   origin: z.enum(["template", "customize-added"]),
+  cadence: cadenceSchema,
+  batchable: z.boolean(),
+  triggerType: triggerTypeSchema,
 });
 
 const reassembleSchema = z.object({ tasks: z.array(taskSchema).min(1) });

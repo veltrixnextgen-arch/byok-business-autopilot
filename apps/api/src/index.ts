@@ -1,11 +1,16 @@
 import type { Auth } from "@byok/auth";
+import { PostgresDurableBatchStore } from "@byok/cost-gate";
 import {
   CompanyCharterStore,
+  SchedulerInstrumentationStore,
   TenantCeilingStore,
+  TenantScheduleStateStore,
+  getTenantTier,
   type PoolLike,
   type SignupExtractionBatchStore,
   type SignupMetricsStore,
 } from "@byok/db";
+import { syncTenantSchedule, type RepeatableQueueLike } from "@byok/jobs";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -23,8 +28,10 @@ import { handsOAuthRoute, type HandsOAuthRouteDeps } from "./routes/handsOAuth.j
 import { healthRoute } from "./routes/health.js";
 import { internalMetricsRoute } from "./routes/internalMetrics.js";
 import { meRoute } from "./routes/me.js";
+import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
+import { computeDesiredSchedule } from "./scheduler/computeDesiredSchedule.js";
 
 export interface CreateAppOptions {
   pool: PoolLike;
@@ -54,6 +61,16 @@ export interface CreateAppOptions {
    *  (which handsOAuthRoute also needs) because stateSecret/google are
    *  route-composition config, not trust-core custody. */
   handsOAuth: Pick<HandsOAuthRouteDeps, "stateSecret" | "google">;
+  /** R3/ADR-025: the scheduler's own repeatable-job registry (BullMQ,
+   *  packages/jobs) — a real Redis-backed resource constructed once at
+   *  server bootstrap (start.ts/dev.ts), not something safe to build
+   *  inline here the way a thin Postgres-pool wrapper is. `jobName` is the
+   *  BullMQ job/queue name the scheduled-dispatch worker (also constructed
+   *  at bootstrap) listens on — both sides must agree on it. */
+  scheduler: {
+    queue: RepeatableQueueLike;
+    jobName: string;
+  };
 }
 
 /**
@@ -74,6 +91,11 @@ export function createApp(options: CreateAppOptions) {
   // Same reasoning again (R2/ADR-024) — CompanyCharterStore is a thin
   // withTenantScope wrapper with no state of its own.
   const charters = new CompanyCharterStore(options.pool);
+  // Same reasoning again (R3/ADR-025) — thin withTenantScope wrappers,
+  // no state of their own beyond the pool.
+  const scheduleState = new TenantScheduleStateStore(options.pool);
+  const instrumentation = new SchedulerInstrumentationStore(options.pool);
+  const durableBatchStore = new PostgresDurableBatchStore(options.pool);
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
@@ -91,7 +113,35 @@ export function createApp(options: CreateAppOptions) {
       brainKeyRoute({ vault: options.trustCore.vault, batchStore: options.extraction.batchStore }),
     )
     .route("/me/ceiling", ceilingRoute({ ceilings }))
-    .route("/me/charter", charterRoute({ charters, batchStore: options.extraction.batchStore }))
+    .route(
+      "/me/charter",
+      charterRoute({
+        charters,
+        batchStore: options.extraction.batchStore,
+        onAccepted: async (tenantId) => {
+          const [batch, tier] = await Promise.all([
+            options.extraction.batchStore.latestForTenant(tenantId),
+            getTenantTier(options.pool, tenantId),
+          ]);
+          if (!batch?.orgChart) return; // shouldn't happen post-accept; nothing to schedule if it did
+          const { desired } = computeDesiredSchedule(tenantId, tier, batch.orgChart);
+          await syncTenantSchedule(options.scheduler.queue, options.scheduler.jobName, tenantId, desired);
+        },
+      }),
+    )
+    .route(
+      "/me/scheduler",
+      schedulerRoute({
+        charters,
+        batchStore: options.extraction.batchStore,
+        scheduleState,
+        instrumentation,
+        durableBatchStore,
+        getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
+        queue: options.scheduler.queue,
+        jobName: options.scheduler.jobName,
+      }),
+    )
     .route("/me/hands-keys", handsKeyRoute({ vault: options.trustCore.vault }))
     // Deliberately NOT under tenantMiddleware — see handsOAuth.ts's own
     // comment for why (holding a pooled DB connection open across an

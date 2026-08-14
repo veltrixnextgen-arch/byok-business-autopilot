@@ -1,7 +1,7 @@
 import type { ApprovalQueue } from "@byok/approval-queue";
 import type { Auth } from "@byok/auth";
 import type { PoolClientLike } from "@byok/db";
-import type { CostGate } from "@byok/cost-gate";
+import type { CostGate, TierModelMap } from "@byok/cost-gate";
 import type { Router, TaskLedger } from "@byok/router";
 import type { Vault } from "@byok/vault";
 
@@ -45,4 +45,10 @@ export interface TrustCoreDeps {
    *  devTrustCore.ts's own comment on why LocalKms/StagingKms there is
    *  real, not a stub, but resets on restart. */
   vault: Vault;
+  /** R3/ADR-025: the same tier -> model mapping CostGate was constructed
+   *  with (devTrustCore.ts's DEV_TIER_MODEL_MAP) — the scheduled-dispatch
+   *  worker needs it to resolve a task's model the exact same way any
+   *  other Router.submitTask caller would, not a second, possibly
+   *  drifted mapping of its own. */
+  tierModelMap: TierModelMap;
 }
