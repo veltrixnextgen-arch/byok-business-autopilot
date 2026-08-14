@@ -116,23 +116,36 @@ try {
   // *actual onboarding form* too, rather than pre-creating the org over
   // the API at all. OnboardingScreen.tsx's own create + setActive calls
   // are guaranteed to run against whatever session the browser is
-  // currently holding, and its own post-success navigate({ to:
-  // "/dashboard" }) is a client-side router transition — the same path,
-  // start to finish, a real signed-up user takes.
+  // currently holding.
   await page.goto(`${webUrl}/login`, { waitUntil: "networkidle", timeout: 30000 });
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: /^sign in$/i }).click();
 
-  // Registered *before* the click that triggers navigation to /dashboard
-  // (which is what triggers Dashboard mounting, which is what triggers
-  // its useEffect's GET /me) — a forward-looking listener has to be
-  // armed before the request fires, not checked for after the fact.
-  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 15000 });
-
   await page.getByPlaceholder(/acme studio/i).waitFor({ state: "visible", timeout: 15000 });
   await page.getByPlaceholder(/acme studio/i).fill(`Verify styled ${stamp}`);
   await page.getByRole("button", { name: /^create company$/i }).click();
+
+  // R2 (ADR-024): OnboardingScreen's post-success navigate no longer goes
+  // straight to /dashboard — it goes to /charter (loadIdea() is null for
+  // this disposable account, which never visits /interview), and a fresh
+  // account with no claimed org chart lands on CharterScreen's "empty"
+  // state, which never navigates onward on its own. Waiting for the URL
+  // to leave /onboarding confirms org creation itself succeeded (that's
+  // what OnboardingScreen's own submit handler awaits before navigating
+  // anywhere); this check's actual concern is /dashboard's styling, not
+  // the Charter ceremony, so it navigates there directly once a session
+  // with an active org exists — dashboard.tsx's beforeLoad only requires
+  // that (an active organization), never a Charter.
+  await page.waitForURL((url) => !url.pathname.includes("/onboarding"), { timeout: 15000 });
+
+  // Registered *before* the navigation that triggers Dashboard mounting,
+  // which is what triggers its useEffect's GET /me — a forward-looking
+  // listener has to be armed before the request fires, not checked for
+  // after the fact.
+  const meResponsePromise = page.waitForResponse((res) => new URL(res.url()).pathname === "/me", { timeout: 15000 });
+
+  await page.goto(`${webUrl}/dashboard`, { waitUntil: "networkidle", timeout: 30000 });
 
   const dashboardHeading = page.getByRole("heading", { name: /^dashboard$/i });
   await dashboardHeading.waitFor({ state: "visible", timeout: 15000 });
