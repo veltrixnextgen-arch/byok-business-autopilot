@@ -1,0 +1,8 @@
+# Force LF in the repo/index regardless of the checkout platform's line
+# endings. Without this, a Windows editor touching an existing file (even
+# for a tiny content change) can silently flip the whole file to CRLF,
+# turning a several-line diff into a several-hundred-line one — on a repo
+# with a trust-core CODEOWNERS gate, an unreviewable diff is a safety
+# issue, not a formatting preference. See docs/TRACKING.md's PR #109
+# incident.
+* text=auto eol=lf

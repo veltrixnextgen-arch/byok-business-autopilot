@@ -68,6 +68,8 @@ interface RouterTaskRow {
   source_org_chart_task_id: string | null;
   created_at: string;
   updated_at: string;
+  system_prompt: string | null;
+  prompt_tier: string;
 }
 
 function rowToTask(row: RouterTaskRow): RouterTask {
@@ -88,6 +90,8 @@ function rowToTask(row: RouterTaskRow): RouterTask {
     sourceOrgChartTaskId: row.source_org_chart_task_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    systemPrompt: row.system_prompt ?? undefined,
+    promptTier: row.prompt_tier as RouterTask["promptTier"],
   };
 }
 
@@ -100,9 +104,10 @@ export class PostgresDurableDedupStore implements DurableDedupStore {
       const inserted = (await client.query(
         `INSERT INTO router_tasks (
            id, tenant_id, dedup_key, sub_agent_id, team_id, title, payload, model, tags, status,
-           result, error, approval_action_id, source_org_chart_task_id, created_at, updated_at
+           result, error, approval_action_id, source_org_chart_task_id, created_at, updated_at,
+           system_prompt, prompt_tier
          )
-         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16)
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          ON CONFLICT (tenant_id, dedup_key) DO NOTHING
          RETURNING *`,
         [
@@ -122,6 +127,8 @@ export class PostgresDurableDedupStore implements DurableDedupStore {
           task.sourceOrgChartTaskId ?? null,
           task.createdAt,
           task.updatedAt,
+          task.systemPrompt ?? null,
+          task.promptTier,
         ],
       )) as unknown as { rows: RouterTaskRow[] };
 

@@ -6,6 +6,7 @@ import type { AgentExecutor } from "./executor.js";
 import type { DedupStore } from "./dedup.js";
 import type { TaskLedger } from "./ledger.js";
 import { deriveTags, type TaggingHints } from "./tagging.js";
+import type { RecommendationItem } from "@byok/approval-queue";
 import type { RouterTask, RouterTaskInput } from "./types.js";
 
 export class ProductionRouterGuardError extends Error {}
@@ -57,6 +58,8 @@ export class Router {
       createdAt: now(),
       updatedAt: now(),
       status: "pending",
+      systemPrompt: input.systemPrompt,
+      promptTier: input.promptTier ?? "sub-agent",
     };
 
     this.dedupStore.set(input.dedupKey, task);
@@ -127,9 +130,44 @@ export class Router {
     if (outcome.missingHands && outcome.missingHands.length > 0) {
       task.missingHands = outcome.missingHands;
     }
-    const effectiveEffect = task.missingHands ? undefined : input.effect;
+    // T10/ADR-004: the CEO agent has no dispatch pathway at all — this is
+    // enforced HERE, structurally, before the approval queue is ever
+    // reached, not merely by routing to submitRecommendation below (whose
+    // RecommendationItem type already can't hold an effect — see
+    // approval-queue's types.ts). Two independent layers refusing the same
+    // thing is deliberate: "no matter what its prompt becomes" means the
+    // guarantee can't depend on a caller remembering not to pass effect for
+    // a CEO-tier task.
+    const effectiveEffect = task.missingHands || task.promptTier === "ceo" ? undefined : input.effect;
 
     if (this.approvalQueue) {
+      if (task.promptTier === "ceo") {
+        const item: RecommendationItem = {
+          id: task.id,
+          tenantId,
+          agentName: input.agentName ?? task.subAgentId,
+          roleTitle: task.teamId,
+          summary: task.title,
+          draft: outcome.result,
+          stakesTags: tags,
+          createdAt: task.updatedAt,
+        };
+        this.approvalQueue.submitRecommendation(item);
+
+        task.status = "awaiting_review";
+        task.approvalActionId = task.id;
+        task.updatedAt = now();
+        this.dedupStore.set(input.dedupKey, task);
+        this.ledger.append({
+          taskId: task.id,
+          subAgentId: task.subAgentId,
+          status: task.status,
+          at: task.updatedAt,
+          note: "CEO recommendation — guidance only, no dispatch pathway (T10)",
+        });
+        return task;
+      }
+
       const { queued } = await this.approvalQueue.submitProposedAction({
         id: task.id,
         tenantId,

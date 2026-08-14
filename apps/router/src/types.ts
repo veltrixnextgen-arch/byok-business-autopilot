@@ -13,6 +13,16 @@ import type { EffectKind } from "@byok/approval-queue";
 // inside submitTask().
 export type RouterTaskStatus = "pending" | "queued" | "in_progress" | "awaiting_review" | "completed" | "failed" | "skipped";
 
+// R2 (ADR-024): which tier of the prompt cascade this task's agent belongs
+// to. Drives two things in router.ts: which approval-queue pathway a
+// successful run's output goes through (submitProposedAction for
+// "role-lead"/"sub-agent", submitRecommendation for "ceo" — T10/ADR-004),
+// and — for "ceo" specifically — a hard, structural refusal to ever attach
+// an effect, independent of what the caller requested. Defaults to
+// "sub-agent" when omitted, matching every task submitted before this field
+// existed.
+export type PromptTier = "ceo" | "role-lead" | "sub-agent";
+
 export interface RouterTask {
   id: string;
   tenantId: string;
@@ -21,6 +31,14 @@ export interface RouterTask {
   title: string;
   payload: string;
   tags: string[];
+  /** The immutable system prompt this dispatch composes from the tenant's
+   *  active Charter cascade (security-architecture.md §5.1's "immutable
+   *  role prompts... composed by the router per dispatch") — undefined for
+   *  callers that don't participate in the cascade yet (extraction's
+   *  platform-paid batch never goes through submitTask at all, per
+   *  ADR-014, so this is exclusively a BYOK/cascade-driven-task concern). */
+  systemPrompt?: string;
+  promptTier: PromptTier;
   /** The model to execute with. Set from RouterTaskInput.model, and
    *  possibly REWRITTEN by the cost gate on a DOWNGRADE verdict before
    *  the executor ever sees the task. */
@@ -70,8 +88,18 @@ export interface RouterTaskInput {
   /** Present ONLY when this task type, if approved, would actually DO
    *  something in the world (send/post/pay/deploy) — omit for pure
    *  drafting/reasoning tasks. Drives whether the approval queue's verdict
-   *  actually dispatches anything (approval-queue's own core model). */
+   *  actually dispatches anything (approval-queue's own core model).
+   *  IGNORED entirely when promptTier is "ceo" — router.ts drops it before
+   *  the executor ever runs, never merely at the approval-queue boundary
+   *  (T10/ADR-004: no dispatch pathway exists for the CEO agent, full stop). */
   effect?: { kind: EffectKind; description: string; detail?: Record<string, unknown> };
+  /** The composed system prompt for this dispatch (R2/ADR-024) — see
+   *  RouterTask.systemPrompt. */
+  systemPrompt?: string;
+  /** Defaults to "sub-agent" — every caller before R2 is implicitly this
+   *  tier. See RouterTask.promptTier / PromptTier for what each tier does
+   *  differently in router.ts. */
+  promptTier?: PromptTier;
 }
 
 export interface LedgerEntry {

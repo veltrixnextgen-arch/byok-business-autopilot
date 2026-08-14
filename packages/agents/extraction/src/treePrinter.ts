@@ -49,7 +49,10 @@ export function printTree(chart: OrgChart): string {
     lines.push(`Charter draft: "${chart.onboardingBatch.charterDraft.sharpenedIdea}"`);
     lines.push(`  MVP: ${chart.onboardingBatch.charterDraft.mvpDefinition}`);
     lines.push(`  Month-one goals: ${chart.onboardingBatch.charterDraft.monthOneGoals.join(" · ")}`);
-    lines.push(`  Budget: ${chart.onboardingBatch.charterDraft.budgetCeilingPlaceholder}`);
+    lines.push(`  Budget ceiling: $${chart.onboardingBatch.charterDraft.budgetCeilingUsd}/month`);
+    for (const rm of chart.onboardingBatch.charterDraft.roleMandates) {
+      lines.push(`  ${rm.roleTitle} mandate: ${rm.mandate}`);
+    }
   } else {
     lines.push("Onboarding batch: skipped (see stderr log for why).");
   }
