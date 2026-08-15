@@ -236,10 +236,24 @@ jobs:
       # the first deploy above — set it now and redeploy once more so it's
       # in place before this URL sees any real traffic.
       - name: Set BETTER_AUTH_URL and redeploy apps/api
+        id: redeploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
+
+          # Recorded now, before triggering the deploy below — the
+          # verification step after the health check identifies ITS
+          # deployment by creation time, not commit hash. Confirmed live
+          # 2026-08-15: `railway up` (this CLI-upload deploy path) does
+          # NOT reliably populate meta.commitHash the way a native
+          # git-webhook-triggered deploy does — the deployment that
+          # actually became active/serving had no commitHash at all,
+          # while an earlier, git-triggered, REMOVED entry for the same
+          # commit did. Matching by commit is unreliable for the deploy
+          # mechanism this workflow actually uses; matching by "created at
+          # or after this exact moment" identifies the right one instead.
+          echo "deploy_start=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >> "$GITHUB_OUTPUT"
 
           # Same railwayapp/cli#696 log-streaming bug as the first railway
           # up above, same --detach fix, same reasoning.
@@ -281,62 +295,80 @@ jobs:
       # check above passed because Railway, which never promotes a failed
       # deployment, kept quietly serving a stale pre-incident build. A 200
       # from /health proves SOMETHING answers; it never proves it's THIS
-      # commit. Two checks close that gap, and the second one is the
+      # run's deploy. Two checks close that gap, and the second one is the
       # general fix that would have caught this on day one: not just "did
-      # the deploy attempt for this commit reach Railway's own SUCCESS
-      # status" (the first check), but "is the thing actually serving
-      # traffic right now the thing this run just built" (the second) —
-      # a successful-but-never-promoted deploy, or a stale build a failed
+      # the deploy this run triggered reach Railway's own SUCCESS status"
+      # (the first check), but "is the thing actually serving traffic
+      # right now the thing this run just built" (the second) — a
+      # successful-but-never-promoted deploy, or a stale build a failed
       # deploy left in place, fails this even when the first check alone
       # would not.
+      #
+      # 2026-08-15: the first version of this step identified "its"
+      # deployment by matching meta.commitHash against $GITHUB_SHA — which
+      # broke on the very next real run. Confirmed live: `railway up`
+      # (this workflow's CLI-upload deploy path) does not reliably
+      # populate meta.commitHash the way a native git-webhook-triggered
+      # deploy does; the deployment that actually became active/serving
+      # had no commitHash recorded at all, while an EARLIER, separately
+      # git-triggered, REMOVED entry for the same commit did. Fixed to
+      # identify the deployment by creation time (redeploy step's
+      # deploy_start output) and by deployment id, never by commit hash —
+      # see that step's own comment for the full story. Also: REMOVED and
+      # SKIPPED are deliberately NOT treated as terminal below — Railway
+      # routinely marks an earlier attempt for the same trigger REMOVED
+      # the moment a later one takes over (confirmed live, same incident),
+      # so stopping on the first REMOVED seen would fail a deploy that
+      # actually succeeds moments later under a new deployment id.
       - name: Verify the deployment actually succeeded and is what's serving traffic
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          DEPLOY_START: ${{ steps.redeploy.outputs.deploy_start }}
         run: |
-          echo "Waiting for a deployment matching commit $GITHUB_SHA to reach a terminal status..."
+          echo "Waiting for the deploy triggered at $DEPLOY_START to reach SUCCESS..."
           DEPLOY_STATUS=""
           DEPLOY_ID=""
           for i in $(seq 1 30); do
             MATCH=$(railway deployment list --service "$RAILWAY_SERVICE" --json 2>/dev/null | \
-              jq -c --arg sha "$GITHUB_SHA" '[.[] | select(.meta.commitHash == $sha)] | sort_by(.createdAt) | last // empty')
+              jq -c --arg start "$DEPLOY_START" '[.[] | select(.createdAt >= $start)] | sort_by(.createdAt) | last // empty')
             if [ -n "$MATCH" ] && [ "$MATCH" != "null" ]; then
               DEPLOY_STATUS=$(echo "$MATCH" | jq -r '.status')
               DEPLOY_ID=$(echo "$MATCH" | jq -r '.id')
               case "$DEPLOY_STATUS" in
-                SUCCESS|FAILED|CRASHED|REMOVED|SKIPPED)
+                SUCCESS|FAILED|CRASHED)
                   break
                   ;;
               esac
             fi
-            echo "No terminal deployment yet for commit $GITHUB_SHA (attempt $i/30, last seen status: ${DEPLOY_STATUS:-none})..."
+            echo "Not yet resolved (attempt $i/30, latest deployment since $DEPLOY_START: id=${DEPLOY_ID:-none} status=${DEPLOY_STATUS:-none})..."
             sleep 10
           done
 
-          echo "Deployment ${DEPLOY_ID:-<not found>} for commit $GITHUB_SHA resolved to status: ${DEPLOY_STATUS:-<none found within timeout>}"
+          echo "Deployment ${DEPLOY_ID:-<not found>} (triggered at $DEPLOY_START) resolved to status: ${DEPLOY_STATUS:-<none found within timeout>}"
           if [ "$DEPLOY_STATUS" != "SUCCESS" ]; then
-            echo "::error::Railway's own deployment record for commit $GITHUB_SHA never reached SUCCESS (status: ${DEPLOY_STATUS:-none found}). Dumping logs for diagnosis."
+            echo "::error::No deployment triggered by this run ever reached SUCCESS (last seen: ${DEPLOY_STATUS:-none found}). Dumping logs for diagnosis."
             railway logs --deployment --latest -n 200 2>&1 || true
             exit 1
           fi
 
-          echo "Confirming the currently-active deployment actually matches this commit (not a stale build left over from a failed/superseded deploy)..."
+          echo "Confirming deployment $DEPLOY_ID is actually what's serving traffic right now (not a stale build left over from something else)..."
           LIVE_JSON=$(railway status --json 2>/dev/null)
-          LIVE_SHA=$(echo "$LIVE_JSON" | jq -r --arg svc "$RAILWAY_SERVICE" \
-            '.environments.edges[].node.serviceInstances.edges[] | select(.node.serviceName == $svc) | .node.activeDeployments[0].meta.commitHash // empty')
+          LIVE_ID=$(echo "$LIVE_JSON" | jq -r --arg svc "$RAILWAY_SERVICE" \
+            '.environments.edges[].node.serviceInstances.edges[] | select(.node.serviceName == $svc) | .node.activeDeployments[0].id // empty')
           LIVE_INSTANCE_STATUS=$(echo "$LIVE_JSON" | jq -r --arg svc "$RAILWAY_SERVICE" \
             '.environments.edges[].node.serviceInstances.edges[] | select(.node.serviceName == $svc) | .node.activeDeployments[0].instances[0].status // empty')
 
-          echo "Currently serving commit: ${LIVE_SHA:-<none>}, instance status: ${LIVE_INSTANCE_STATUS:-<none>}"
-          if [ "$LIVE_SHA" != "$GITHUB_SHA" ]; then
-            echo "::error::apps/api is serving commit ${LIVE_SHA:-<none>}, not this run's $GITHUB_SHA — the deployment above reached SUCCESS but was never actually promoted to serve traffic, or something else has since superseded it."
+          echo "Currently active deployment: ${LIVE_ID:-<none>}, instance status: ${LIVE_INSTANCE_STATUS:-<none>}"
+          if [ "$LIVE_ID" != "$DEPLOY_ID" ]; then
+            echo "::error::apps/api's active deployment is ${LIVE_ID:-<none>}, not the $DEPLOY_ID this run just verified as SUCCESS — it was never actually promoted to serve traffic, or something else has since superseded it."
             exit 1
           fi
           if [ "$LIVE_INSTANCE_STATUS" != "RUNNING" ]; then
-            echo "::error::apps/api's active instance for commit $GITHUB_SHA has status '$LIVE_INSTANCE_STATUS', not RUNNING."
+            echo "::error::apps/api's active instance ($LIVE_ID) has status '$LIVE_INSTANCE_STATUS', not RUNNING."
             exit 1
           fi
 
-          echo "Confirmed: commit $GITHUB_SHA both deployed successfully (Railway status: SUCCESS) and is what's actually serving traffic (instance status: RUNNING)."
+          echo "Confirmed: deployment $DEPLOY_ID (triggered by this run) both reached SUCCESS and is what's actually serving traffic right now (instance status: RUNNING)."
 
       # A real signup, not just a health check — /health proves the
       # process is up, not that auth actually works end to end. On
