@@ -24,6 +24,29 @@ export async function getTenantTier(pool: PoolLike, tenantId: string): Promise<T
   });
 }
 
+/**
+ * Same withTenantScope-for-its-UUID-handling reasoning as getTenantTier
+ * above. The DB's own CHECK constraint (migration 0010) is the actual
+ * backstop against an invalid value reaching the column; TenantTier's
+ * three-literal union is what keeps an invalid value from being
+ * constructed in the first place at every call site.
+ *
+ * Deliberately does NOT re-sync the BullMQ schedule itself — that needs
+ * the tenant's active Charter + claimed org chart, neither of which this
+ * package (packages/db) has any business reaching into apps/api's
+ * scheduler wiring for. The caller (apps/api's tier route) re-syncs
+ * after calling this, reusing the exact computeDesiredSchedule +
+ * syncTenantSchedule pair Charter acceptance already triggers — see
+ * scheduler.ts's own comment, which already anticipated this call site
+ * ("a caller only needs this route directly for a manual re-sync, e.g.
+ * after a tier change moves the cadence floor").
+ */
+export async function setTenantTier(pool: PoolLike, tenantId: string, tier: TenantTier): Promise<void> {
+  await withTenantScope(pool, tenantId, async (client) => {
+    await client.query(`UPDATE tenants SET tier = $2 WHERE id = $1::uuid`, [tenantId, tier]);
+  });
+}
+
 export interface TenantScheduleState {
   tenantId: string;
   pausedAt: string | null;
