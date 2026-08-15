@@ -304,71 +304,69 @@ jobs:
       # deploy left in place, fails this even when the first check alone
       # would not.
       #
-      # 2026-08-15: the first version of this step identified "its"
-      # deployment by matching meta.commitHash against $GITHUB_SHA — which
-      # broke on the very next real run. Confirmed live: `railway up`
-      # (this workflow's CLI-upload deploy path) does not reliably
-      # populate meta.commitHash the way a native git-webhook-triggered
-      # deploy does; the deployment that actually became active/serving
-      # had no commitHash recorded at all, while an EARLIER, separately
-      # git-triggered, REMOVED entry for the same commit did. Fixed to
-      # identify the deployment by creation time (redeploy step's
-      # deploy_start output) and by deployment id, never by commit hash —
-      # see that step's own comment for the full story. Also: REMOVED and
-      # SKIPPED are deliberately NOT treated as terminal below — Railway
-      # routinely marks an earlier attempt for the same trigger REMOVED
-      # the moment a later one takes over (confirmed live, same incident),
-      # so stopping on the first REMOVED seen would fail a deploy that
-      # actually succeeds moments later under a new deployment id.
+      # 2026-08-15, second attempt: the first version identified "its"
+      # deployment by matching meta.commitHash against $GITHUB_SHA — broke
+      # on the very next real run (railway up's CLI-upload path doesn't
+      # reliably populate that field). Fixed to match by creation time
+      # instead — which broke on the run AFTER THAT: `railway deployment
+      # list` sorted by createdAt can have a real SUCCESS entry followed
+      # CHRONOLOGICALLY LATER by an unrelated SKIPPED one (confirmed live
+      # — Railway's own native auto-deploy-on-push noticing nothing left
+      # to build and skipping), and "take the latest entry" picked the
+      # harmless SKIP instead of the real SUCCESS that was already
+      # serving traffic. Both previous versions made the same mistake:
+      # searching a LIST for "the right entry" using some proxy (commit
+      # hash, then recency) instead of just asking Railway directly what
+      # IS serving traffic right now (`railway status`'s own
+      # activeDeployments) and confirming that ANSWER, not a list scan,
+      # is fresh (created at/after deploy_start) and healthy (instance
+      # RUNNING). `railway deployment list` is now used only as a
+      # secondary confirmation of THAT SPECIFIC id's own lifecycle
+      # status, never to independently search for "the right" entry.
       - name: Verify the deployment actually succeeded and is what's serving traffic
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           DEPLOY_START: ${{ steps.redeploy.outputs.deploy_start }}
         run: |
-          echo "Waiting for the deploy triggered at $DEPLOY_START to reach SUCCESS..."
-          DEPLOY_STATUS=""
-          DEPLOY_ID=""
+          echo "Waiting for apps/api's actively-serving deployment to be a fresh one (created at/after $DEPLOY_START) with a running instance..."
+          LIVE_ID=""
+          LIVE_INSTANCE_STATUS=""
           for i in $(seq 1 30); do
-            MATCH=$(railway deployment list --service "$RAILWAY_SERVICE" --json 2>/dev/null | \
-              jq -c --arg start "$DEPLOY_START" '[.[] | select(.createdAt >= $start)] | sort_by(.createdAt) | last // empty')
-            if [ -n "$MATCH" ] && [ "$MATCH" != "null" ]; then
-              DEPLOY_STATUS=$(echo "$MATCH" | jq -r '.status')
-              DEPLOY_ID=$(echo "$MATCH" | jq -r '.id')
-              case "$DEPLOY_STATUS" in
-                SUCCESS|FAILED|CRASHED)
-                  break
-                  ;;
-              esac
+            MATCH=$(railway status --json 2>/dev/null | jq -r --arg svc "$RAILWAY_SERVICE" --arg start "$DEPLOY_START" '
+              .environments.edges[].node.serviceInstances.edges[]
+              | select(.node.serviceName == $svc)
+              | .node.activeDeployments[0]
+              | select(. != null and .createdAt >= $start)
+              | [.id, (.instances[0].status // "")]
+              | @tsv
+            ')
+            if [ -n "$MATCH" ]; then
+              LIVE_ID=$(echo "$MATCH" | cut -f1)
+              LIVE_INSTANCE_STATUS=$(echo "$MATCH" | cut -f2)
+              if [ "$LIVE_INSTANCE_STATUS" = "RUNNING" ]; then
+                break
+              fi
             fi
-            echo "Not yet resolved (attempt $i/30, latest deployment since $DEPLOY_START: id=${DEPLOY_ID:-none} status=${DEPLOY_STATUS:-none})..."
+            echo "Not yet resolved (attempt $i/30, active deployment: id=${LIVE_ID:-none} instance_status=${LIVE_INSTANCE_STATUS:-none})..."
             sleep 10
           done
 
-          echo "Deployment ${DEPLOY_ID:-<not found>} (triggered at $DEPLOY_START) resolved to status: ${DEPLOY_STATUS:-<none found within timeout>}"
-          if [ "$DEPLOY_STATUS" != "SUCCESS" ]; then
-            echo "::error::No deployment triggered by this run ever reached SUCCESS (last seen: ${DEPLOY_STATUS:-none found}). Dumping logs for diagnosis."
+          echo "Active deployment: ${LIVE_ID:-<not found>}, instance status: ${LIVE_INSTANCE_STATUS:-<none found within timeout>}"
+          if [ "$LIVE_INSTANCE_STATUS" != "RUNNING" ]; then
+            echo "::error::apps/api's active deployment never became a fresh, running instance (last seen: id=${LIVE_ID:-none} status=${LIVE_INSTANCE_STATUS:-none found}). Dumping logs for diagnosis."
             railway logs --deployment --latest -n 200 2>&1 || true
             exit 1
           fi
 
-          echo "Confirming deployment $DEPLOY_ID is actually what's serving traffic right now (not a stale build left over from something else)..."
-          LIVE_JSON=$(railway status --json 2>/dev/null)
-          LIVE_ID=$(echo "$LIVE_JSON" | jq -r --arg svc "$RAILWAY_SERVICE" \
-            '.environments.edges[].node.serviceInstances.edges[] | select(.node.serviceName == $svc) | .node.activeDeployments[0].id // empty')
-          LIVE_INSTANCE_STATUS=$(echo "$LIVE_JSON" | jq -r --arg svc "$RAILWAY_SERVICE" \
-            '.environments.edges[].node.serviceInstances.edges[] | select(.node.serviceName == $svc) | .node.activeDeployments[0].instances[0].status // empty')
-
-          echo "Currently active deployment: ${LIVE_ID:-<none>}, instance status: ${LIVE_INSTANCE_STATUS:-<none>}"
-          if [ "$LIVE_ID" != "$DEPLOY_ID" ]; then
-            echo "::error::apps/api's active deployment is ${LIVE_ID:-<none>}, not the $DEPLOY_ID this run just verified as SUCCESS — it was never actually promoted to serve traffic, or something else has since superseded it."
-            exit 1
-          fi
-          if [ "$LIVE_INSTANCE_STATUS" != "RUNNING" ]; then
-            echo "::error::apps/api's active instance ($LIVE_ID) has status '$LIVE_INSTANCE_STATUS', not RUNNING."
+          echo "Confirming Railway's own deployment record for $LIVE_ID reached SUCCESS..."
+          DEPLOY_LIST_STATUS=$(railway deployment list --service "$RAILWAY_SERVICE" --json 2>/dev/null | jq -r --arg id "$LIVE_ID" '[.[] | select(.id == $id)] | first | .status // empty')
+          echo "Deployment $LIVE_ID's own recorded status: ${DEPLOY_LIST_STATUS:-<not found>}"
+          if [ "$DEPLOY_LIST_STATUS" != "SUCCESS" ]; then
+            echo "::error::apps/api is actively serving deployment $LIVE_ID, but its own recorded status is '${DEPLOY_LIST_STATUS:-not found}', not SUCCESS."
             exit 1
           fi
 
-          echo "Confirmed: deployment $DEPLOY_ID (triggered by this run) both reached SUCCESS and is what's actually serving traffic right now (instance status: RUNNING)."
+          echo "Confirmed: deployment $LIVE_ID (created at/after $DEPLOY_START) is both actively serving traffic (instance RUNNING) and Railway's own record shows SUCCESS."
 
       # A real signup, not just a health check — /health proves the
       # process is up, not that auth actually works end to end. On
