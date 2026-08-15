@@ -44,6 +44,21 @@ const MAX_OUTPUT_TOKENS = 8000;
 // actually gates spend.
 export const DEFAULT_CHARTER_BUDGET_CEILING_USD = 50;
 
+// Issue #124: this used to be swallowed by pipeline.ts's graceful
+// degradation, same as a budget shortfall — but a truncated/malformed
+// response here isn't a cost-safety tradeoff, it's a real failure, and
+// this output is load-bearing downstream (charter.ts seeds the Charter
+// draft from it). A dedicated, plain-language error, not a bare
+// `new Error(...)`, so whoever eventually reads batch.error — today
+// that's the raw message the extraction-batch UI shows verbatim — sees
+// something they can act on, not an internal tool-call description.
+export class OnboardingBatchIncompleteError extends Error {
+  constructor(reason: string) {
+    super(`We couldn't finish setting up your company — ${reason} Please try again.`);
+    this.name = "OnboardingBatchIncompleteError";
+  }
+}
+
 const ONBOARDING_BATCH_TOOL = {
   name: "generate_onboarding_batch",
   description:
@@ -192,7 +207,11 @@ export async function generateOnboardingBatch(
   };
   if (!input.simulatedDay || !input.charterDraft) {
     console.error(`[onboarding-batch] stop_reason=${response.stop_reason}, outputTokens=${outputTokens}/${MAX_OUTPUT_TOKENS}`);
-    throw new Error("generate_onboarding_batch tool call was missing simulatedDay or charterDraft.");
+    const reason =
+      response.stop_reason === "max_tokens"
+        ? "the response was too long to finish."
+        : "the response came back incomplete.";
+    throw new OnboardingBatchIncompleteError(reason);
   }
 
   // Defensive: drop any card that references an agent id not actually in

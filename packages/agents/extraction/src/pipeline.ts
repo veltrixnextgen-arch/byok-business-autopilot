@@ -152,9 +152,24 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
 
   // Step 5: onboarding batch (simulated-day script + Charter draft), from
   // the same per-signup batch (master-plan-v2.md §4). Needs the FINAL chart,
-  // so it runs after assembly. Same graceful-degradation pattern as category
-  // validation: a budget shortfall or transient failure here leaves
-  // onboardingBatch null rather than discarding an otherwise-valid chart.
+  // so it runs after assembly.
+  //
+  // Issue #124: only a genuine, pre-flight BUDGET decision degrades
+  // gracefully here (CostGuardError, or no budget left at all) — that's a
+  // deliberate cost-safety tradeoff (ADR-003), not a malfunction, and an
+  // otherwise-valid, fully-extracted org chart shouldn't be thrown away
+  // over it. Everything else — a truncated tool call
+  // (stop_reason=max_tokens), a malformed response, a network failure —
+  // used to degrade the exact same way, which was the actual bug: this
+  // output is load-bearing (charter.ts's POST /me/charter/draft seeds the
+  // Charter draft from exactly this field), so a silently-null
+  // onboardingBatch didn't mean "no bonus preview," it meant "this
+  // tenant can never draft or accept a Charter, with no visible error."
+  // Re-throwing here routes into runExtractionBatch.ts's existing
+  // catch block, which already turns any extractOrgChart failure into a
+  // real batch.status="failed" + a plain-language error the user sees and
+  // can retry from — no new failure-surfacing mechanism needed, just not
+  // swallowing the ones that don't belong here.
   const batchRemainingBudget = maxCostUsd - chart.meta.costUsd;
   if (batchRemainingBudget > 0) {
     try {
@@ -166,7 +181,7 @@ export async function extractOrgChart(idea: string, answers: InterviewAnswers, o
       if (err instanceof CostGuardError) {
         console.error(`[onboarding-batch] skipped: ${err.message}`);
       } else {
-        console.error(`[onboarding-batch] skipped after error: ${(err as Error).message}`);
+        throw err;
       }
     }
   } else {
