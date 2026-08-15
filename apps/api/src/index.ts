@@ -6,6 +6,7 @@ import {
   TenantCeilingStore,
   TenantScheduleStateStore,
   getTenantTier,
+  setTenantTier,
   type PoolLike,
   type SignupExtractionBatchStore,
   type SignupMetricsStore,
@@ -31,6 +32,7 @@ import { meRoute } from "./routes/me.js";
 import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
+import { tierRoute } from "./routes/tier.js";
 import { computeDesiredSchedule } from "./scheduler/computeDesiredSchedule.js";
 
 export interface CreateAppOptions {
@@ -138,6 +140,17 @@ export function createApp(options: CreateAppOptions) {
         instrumentation,
         durableBatchStore,
         getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
+        queue: options.scheduler.queue,
+        jobName: options.scheduler.jobName,
+      }),
+    )
+    .route(
+      "/me/tier",
+      tierRoute({
+        getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
+        setTenantTier: (tenantId, tier) => setTenantTier(options.pool, tenantId, tier),
+        charters,
+        batchStore: options.extraction.batchStore,
         queue: options.scheduler.queue,
         jobName: options.scheduler.jobName,
       }),
