@@ -140,7 +140,20 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
   // just because it's the "more correct" shape, given this repo's own
   // burned lesson about auto-provisioned services.
   const redisConnection = { url: config.redisUrl };
-  const queue = createRepeatableQueue(SCHEDULED_DISPATCH_JOB_NAME, { connection: redisConnection });
+  // Queue-side commands (upsertJobScheduler/getJobSchedulers/etc., issued
+  // from HTTP routes like /me/scheduler/sync) are all non-blocking — unlike
+  // ioredis's default of retrying/queuing indefinitely against a connection
+  // that keeps getting reset (observed live: Upstash resets the idle TCP
+  // connection roughly every 30s, and ioredis's default reconnect behavior
+  // left a getJobSchedulers() call hanging with no response and no error
+  // for 30+ seconds, well past what any HTTP caller would wait), a bounded
+  // commandTimeout makes a broken connection fail loud and fast instead.
+  // Deliberately NOT applied to the Worker's own connection below: BullMQ's
+  // Worker relies on long-lived blocking commands (BRPOPLPUSH-style) to
+  // wait for new jobs, which a command timeout would interrupt and treat
+  // as a hang that isn't one.
+  const queueRedisConnection = { url: config.redisUrl, commandTimeout: 10_000 };
+  const queue = createRepeatableQueue(SCHEDULED_DISPATCH_JOB_NAME, { connection: queueRedisConnection });
   const scheduledDispatchProcessor = createScheduledDispatchProcessor({
     router: trustCore.router,
     charters: new CompanyCharterStore(pool),
