@@ -102,3 +102,61 @@ test("releases the client even when COMMIT itself fails", async () => {
   assert.ok(calls.includes("__release__"));
   assert.ok(queryCount >= 4);
 });
+
+// A real pg.PoolClient discards the underlying connection instead of
+// returning it to the pool when release() is passed a truthy error — skip
+// this and a connection that's still mid-transaction (because ROLLBACK
+// itself couldn't run, e.g. the connection is already broken) goes back
+// into the pool for a later, unrelated caller to inherit, which is exactly
+// the shape of bug that leaves a session idling inside an open transaction
+// until Neon's idle_in_transaction_session_timeout kills it and crashes
+// the whole process.
+test("releases the client WITH the original error, so pg.Pool discards it rather than reusing it", async () => {
+  const { client, calls } = recordingClient();
+  const pool = fakePool(client);
+  const boom = new Error("boom");
+  let releasedWith: unknown;
+  client.release = (err?: unknown) => {
+    releasedWith = err;
+    calls.push({ text: "__release__" });
+  };
+
+  await assert.rejects(
+    () =>
+      withTenantScope(pool, VALID_TENANT_ID, async () => {
+        throw boom;
+      }),
+    /boom/,
+  );
+
+  assert.equal(releasedWith, boom);
+});
+
+test("still discards the connection (release with the original error) even when ROLLBACK itself fails", async () => {
+  const calls: string[] = [];
+  let releasedWith: unknown;
+  const boom = new Error("boom");
+  const client: PoolClientLike = {
+    async query(text) {
+      calls.push(text);
+      if (text === "ROLLBACK") throw new Error("connection already broken");
+      return undefined;
+    },
+    release(err?: unknown) {
+      releasedWith = err;
+      calls.push("__release__");
+    },
+  };
+  const pool = fakePool(client);
+
+  await assert.rejects(
+    () =>
+      withTenantScope(pool, VALID_TENANT_ID, async () => {
+        throw boom;
+      }),
+    /boom/,
+  );
+
+  assert.ok(calls.includes("__release__"));
+  assert.equal(releasedWith, boom);
+});

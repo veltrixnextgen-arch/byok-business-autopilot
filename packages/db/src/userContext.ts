@@ -36,6 +36,7 @@ export async function withUserScope<T>(
   }
 
   const client = await pool.connect();
+  let releaseErr: unknown;
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
@@ -45,10 +46,16 @@ export async function withUserScope<T>(
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    releaseErr = err;
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Connection is likely already broken — release(releaseErr) below
+      // discards it either way, so there's nothing more to do here.
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(releaseErr);
   }
 }
 
@@ -78,6 +85,7 @@ export async function withUserAndTenantScope<T>(
   }
 
   const client = await pool.connect();
+  let releaseErr: unknown;
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
@@ -87,9 +95,15 @@ export async function withUserAndTenantScope<T>(
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    releaseErr = err;
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Connection is likely already broken — release(releaseErr) below
+      // discards it either way, so there's nothing more to do here.
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(releaseErr);
   }
 }

@@ -3,7 +3,16 @@
 // or exercise; `pg.Pool`/`pg.PoolClient` satisfy these shapes structurally.
 export interface PoolClientLike {
   query(text: string, values?: unknown[]): Promise<unknown>;
-  release(): void;
+  // `release(err)` — a real pg.PoolClient discards the underlying
+  // connection instead of returning it to the pool when passed a truthy
+  // error. Every scope function below relies on this: if COMMIT/ROLLBACK
+  // itself fails (e.g. the connection is already unstable), releasing
+  // "clean" would hand a connection that's still mid-transaction to
+  // whichever unrelated caller does the next pool.connect() — which is
+  // exactly the shape of bug that leaves a session idling inside an open
+  // transaction until Neon's idle_in_transaction_session_timeout kills it,
+  // taking down the whole process on the resulting uncaught error event.
+  release(err?: unknown): void;
 }
 
 export interface PoolLike {
@@ -63,6 +72,7 @@ export async function withTenantScope<T>(
   }
 
   const client = await pool.connect();
+  let releaseErr: unknown;
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
@@ -72,9 +82,15 @@ export async function withTenantScope<T>(
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    releaseErr = err;
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Connection is likely already broken — release(releaseErr) below
+      // discards it either way, so there's nothing more to do here.
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(releaseErr);
   }
 }
