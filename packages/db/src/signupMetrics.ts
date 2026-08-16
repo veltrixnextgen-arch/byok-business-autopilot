@@ -34,6 +34,7 @@ export interface FeedbackRow {
  */
 export async function withInternalMetricsScope<T>(pool: PoolLike, fn: (client: PoolClientLike) => Promise<T>): Promise<T> {
   const client = await pool.connect();
+  let releaseErr: unknown;
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.internal_metrics', 'true', true)");
@@ -43,10 +44,16 @@ export async function withInternalMetricsScope<T>(pool: PoolLike, fn: (client: P
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    releaseErr = err;
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Connection is likely already broken — release(releaseErr) below
+      // discards it either way, so there's nothing more to do here.
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(releaseErr);
   }
 }
 
