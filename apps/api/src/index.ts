@@ -28,6 +28,7 @@ import { handsKeyRoute } from "./routes/handsKeys.js";
 import { handsOAuthRoute, type HandsOAuthRouteDeps } from "./routes/handsOAuth.js";
 import { healthRoute } from "./routes/health.js";
 import { internalMetricsRoute } from "./routes/internalMetrics.js";
+import { internalSchedulerDebugRoute } from "./routes/internalSchedulerDebug.js";
 import { meRoute } from "./routes/me.js";
 import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
@@ -195,6 +196,13 @@ export function createApp(options: CreateAppOptions) {
         pool: options.pool,
         metricsStore: options.metrics.metricsStore,
         batchStore: options.extraction.batchStore,
+        token: options.metrics.internalMetricsToken,
+      }),
+    )
+    .route(
+      "/internal/scheduler-debug",
+      internalSchedulerDebugRoute({
+        queue: options.scheduler.queue,
         token: options.metrics.internalMetricsToken,
       }),
     );
