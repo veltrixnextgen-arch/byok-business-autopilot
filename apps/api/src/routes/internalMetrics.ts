@@ -36,13 +36,22 @@ export function internalMetricsRoute(deps: InternalMetricsDeps) {
 
     const client = await deps.pool.connect();
     let users: { id: string; email: string; created_at: string }[];
+    let releaseErr: unknown;
     try {
       const result = (await client.query("SELECT id, email, created_at FROM users ORDER BY created_at ASC")) as unknown as {
         rows: { id: string; email: string; created_at: string }[];
       };
       users = result.rows;
+    } catch (err) {
+      // Same reasoning as withTenantScope's own release(err) fix (PR #131):
+      // a connection that errored mid-query may be broken, not just the
+      // query — releasing it "clean" here would hand that broken
+      // connection to whichever unrelated request does the next
+      // pool.connect(), risking the same idle-in-transaction crash class.
+      releaseErr = err;
+      throw err;
     } finally {
-      client.release();
+      client.release(releaseErr);
     }
 
     const [events, feedback, batches] = await Promise.all([
