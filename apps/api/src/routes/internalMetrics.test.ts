@@ -91,6 +91,35 @@ test("200s with the correct token and renders per-signup completion, drop-off, c
   assert.match(html, /Yes: yes!/); // feedback answer + free text
 });
 
+// Same reasoning as tenantContext.test.ts's release(err) coverage (PR
+// #131): a connection that errors mid-query may be broken, not just the
+// query -- releasing it "clean" would hand a broken connection to
+// whichever unrelated request does the next pool.connect().
+test("releases the client WITH the original error when the query fails, so pg.Pool discards it", async () => {
+  const boom = new Error("connection reset mid-query");
+  let releasedWith: unknown;
+  const deps = fakeDeps({
+    pool: {
+      async connect() {
+        return {
+          async query() {
+            throw boom;
+          },
+          release(err?: unknown) {
+            releasedWith = err;
+          },
+        };
+      },
+    } as never,
+  });
+
+  const app = internalMetricsRoute(deps);
+  const res = await app.request("/", { headers: { "x-internal-metrics-token": "correct-token" } });
+
+  assert.equal(res.status, 500);
+  assert.equal(releasedWith, boom);
+});
+
 test("a user with no events at all shows idea_input as the drop-off point, not a crash", async () => {
   const app = internalMetricsRoute(
     fakeDeps({
