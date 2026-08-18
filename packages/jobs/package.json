@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@byok/contracts": "*",
-    "bullmq": "6.0.5",
-    "ioredis": "6.0.0"
+    "bullmq": "5.81.3",
+    "ioredis": "5.11.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

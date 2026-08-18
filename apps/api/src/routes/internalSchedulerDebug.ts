@@ -1,4 +1,4 @@
-import type { RepeatableQueueLike } from "@byok/jobs";
+import type { ConnectionHealth, RepeatableQueueLike } from "@byok/jobs";
 import { Hono } from "hono";
 
 export interface InternalSchedulerDebugDeps {
@@ -9,14 +9,14 @@ export interface InternalSchedulerDebugDeps {
     // BullMQ 6.x Queue satisfies this structurally, no cast needed at the
     // call site).
     getJobCounts?: (...types: string[]) => Promise<Record<string, number>>;
-    // Reaches into BullMQ 6.x's internals (Queue#client was removed in 6.x
-    // per its own changelog, so this is the only way left to see connection
-    // state without a cast to `any` at the call site). Read synchronously —
-    // `.status` is a plain string field on RedisConnection, never a
-    // promise, so this can never itself hang the way an awaited queue
-    // method can.
-    getBackend?: () => { connection?: { status?: string; opts?: { commandTimeout?: unknown } } };
   };
+  /** packages/jobs's trackConnectionHealth output for both the Queue's and
+   *  the Worker's own Redis connections — the permanent, version-
+   *  independent replacement for reaching into BullMQ internals
+   *  (Queue#getBackend().connection.status) the way this route's first
+   *  version did during the original investigation. Unlike that hack,
+   *  this survives whichever BullMQ/ioredis version is installed. */
+  connectionHealth: { queue: ConnectionHealth; worker: ConnectionHealth };
   /** Reuses internalMetrics.ts's own platform credential (ADR-003-style,
    *  not a user credential) rather than minting a second token for one
    *  more operator-only, no-tenant-scope debug view. */
@@ -24,32 +24,22 @@ export interface InternalSchedulerDebugDeps {
 }
 
 /**
- * Diagnostic-only: lists every BullMQ Job Scheduler currently registered
- * in Redis, across all tenants. Exists because R3 staging verification
- * spent real, avoidable time unable to tell "the /sync call never
- * registered anything" apart from "something's registered but BullMQ
- * isn't dispatching it" — the two failure modes look identical from
- * outside (both show scheduler_instrumentation_daily staying empty), but
- * point at completely different bugs (an app-side registration problem
- * vs. a BullMQ/Redis dispatch problem). This route answers that directly,
- * from inside Railway's own network, without needing a tenant session.
- * Token-gated like internalMetrics.ts, same reasoning.
+ * Diagnostic-only: reports Redis connection health plus every BullMQ Job
+ * Scheduler currently registered, across all tenants. Exists because R3
+ * staging verification spent real, avoidable time unable to tell "the
+ * /sync call never registered anything" apart from "something's
+ * registered but BullMQ isn't dispatching it" apart from "the connection
+ * itself never became ready" — three failure modes that look identical
+ * from outside (scheduler_instrumentation_daily just stays empty either
+ * way) but point at completely different bugs. This route answers that
+ * directly, from inside Railway's own network, without needing a tenant
+ * session. Token-gated like internalMetrics.ts, same reasoning.
  */
 export function internalSchedulerDebugRoute(deps: InternalSchedulerDebugDeps) {
   return new Hono().get("/", async (c) => {
     const provided = c.req.header("x-internal-metrics-token") ?? "";
     if (!timingSafeEqual(provided, deps.token)) {
       return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // Synchronous, cannot itself hang — read BEFORE the two awaited probes
-    // below so the response still reports it even if both probes time out.
-    let connectionStatus: { status?: string; commandTimeout?: unknown } | { error: string };
-    try {
-      const backend = deps.queue.getBackend?.();
-      connectionStatus = { status: backend?.connection?.status, commandTimeout: backend?.connection?.opts?.commandTimeout };
-    } catch (err) {
-      connectionStatus = { error: err instanceof Error ? err.message : String(err) };
     }
 
     // Racing each probe against its own short client-side timeout (rather
@@ -61,7 +51,7 @@ export function internalSchedulerDebugRoute(deps: InternalSchedulerDebugDeps) {
       withTimeout(deps.queue.getJobSchedulers(), 8000, "getJobSchedulers"),
     ]);
 
-    return c.json({ connectionStatus, jobCounts, schedulers });
+    return c.json({ connectionHealth: deps.connectionHealth, jobCounts, schedulers });
   });
 }
 
