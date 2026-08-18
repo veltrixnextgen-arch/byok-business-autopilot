@@ -11,7 +11,7 @@ import {
   type SignupExtractionBatchStore,
   type SignupMetricsStore,
 } from "@byok/db";
-import { syncTenantSchedule, type RepeatableQueueLike } from "@byok/jobs";
+import { syncTenantSchedule, type ConnectionHealth, type RepeatableQueueLike } from "@byok/jobs";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -73,6 +73,12 @@ export interface CreateAppOptions {
   scheduler: {
     queue: RepeatableQueueLike;
     jobName: string;
+    /** Live status of the Queue's and Worker's own Redis connections
+     *  (packages/jobs's trackConnectionHealth) — surfaced via /health and
+     *  /internal/scheduler-debug so a stuck-forever connection (BullMQ's
+     *  own bootstrap has no timeout of its own) is visible immediately
+     *  instead of silently reported as "ok". */
+    health: { queue: ConnectionHealth; worker: ConnectionHealth };
   };
 }
 
@@ -102,7 +108,7 @@ export function createApp(options: CreateAppOptions) {
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
-    .route("/health", healthRoute)
+    .route("/health", healthRoute({ redis: options.scheduler.health }))
     // Better Auth's default basePath is /api/auth on both server and
     // client (createBrowserAuthClient doesn't override it) — this mount
     // must match, or the client's requests never reach a route Better
@@ -203,6 +209,7 @@ export function createApp(options: CreateAppOptions) {
       "/internal/scheduler-debug",
       internalSchedulerDebugRoute({
         queue: options.scheduler.queue,
+        connectionHealth: options.scheduler.health,
         token: options.metrics.internalMetricsToken,
       }),
     );

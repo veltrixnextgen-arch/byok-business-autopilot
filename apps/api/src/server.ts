@@ -10,7 +10,7 @@ import {
   SignupMetricsStore,
   TenantScheduleStateStore,
 } from "@byok/db";
-import { createRepeatableQueue, createTenantWorker } from "@byok/jobs";
+import { createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
 import type { TrustCoreDeps } from "./context.js";
 import { createApp } from "./index.js";
 import type { ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
@@ -154,6 +154,18 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
   // as a hang that isn't one.
   const queueRedisConnection = { url: config.redisUrl, commandTimeout: 10_000 };
   const queue = createRepeatableQueue(SCHEDULED_DISPATCH_JOB_NAME, { connection: queueRedisConnection });
+  // BullMQ's own connection bootstrap (RedisConnection.waitUntilReady) has
+  // no timeout of its own -- a connection that never reaches "ready" and
+  // never errors just hangs forever, silently, with nothing to observe
+  // except every downstream command also hanging. Confirmed directly in
+  // staging: stuck at RedisConnection.status "initializing" indefinitely,
+  // with zero server-side errors, turning a two-minute check into two days
+  // of investigation. trackConnectionHealth races each connection's own
+  // waitUntilReady() against a hard timeout so that failure mode surfaces
+  // immediately and loudly (console.error) instead. Threaded through to
+  // /health and /internal/scheduler-debug below as a first-class signal --
+  // the API must never report "ok" while its queue backend is dead.
+  const queueHealth = trackConnectionHealth(queue, 15_000);
   const scheduledDispatchProcessor = createScheduledDispatchProcessor({
     router: trustCore.router,
     charters: new CompanyCharterStore(pool),
@@ -163,9 +175,12 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     durableBatchStore: new PostgresDurableBatchStore(pool),
     tierModelMap: trustCore.tierModelMap,
   });
-  createTenantWorker<ScheduledDispatchPayload>(SCHEDULED_DISPATCH_JOB_NAME, (job) => scheduledDispatchProcessor(job.data), {
-    connection: redisConnection,
-  });
+  const worker = createTenantWorker<ScheduledDispatchPayload>(
+    SCHEDULED_DISPATCH_JOB_NAME,
+    (job) => scheduledDispatchProcessor(job.data),
+    { connection: redisConnection },
+  );
+  const workerHealth = trackConnectionHealth(worker, 15_000);
 
   const app = createApp({
     pool,
@@ -178,7 +193,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     // oauth/state.ts's own comment on why a second required secret isn't
     // needed for this.
     handsOAuth: { stateSecret: config.authSecret, google: config.google },
-    scheduler: { queue, jobName: SCHEDULED_DISPATCH_JOB_NAME },
+    scheduler: { queue, jobName: SCHEDULED_DISPATCH_JOB_NAME, health: { queue: queueHealth, worker: workerHealth } },
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
