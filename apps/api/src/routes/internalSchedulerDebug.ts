@@ -9,6 +9,13 @@ export interface InternalSchedulerDebugDeps {
     // BullMQ 6.x Queue satisfies this structurally, no cast needed at the
     // call site).
     getJobCounts?: (...types: string[]) => Promise<Record<string, number>>;
+    // Reaches into BullMQ 6.x's internals (Queue#client was removed in 6.x
+    // per its own changelog, so this is the only way left to see connection
+    // state without a cast to `any` at the call site). Read synchronously —
+    // `.status` is a plain string field on RedisConnection, never a
+    // promise, so this can never itself hang the way an awaited queue
+    // method can.
+    getBackend?: () => { connection?: { status?: string; opts?: { commandTimeout?: unknown } } };
   };
   /** Reuses internalMetrics.ts's own platform credential (ADR-003-style,
    *  not a user credential) rather than minting a second token for one
@@ -35,6 +42,16 @@ export function internalSchedulerDebugRoute(deps: InternalSchedulerDebugDeps) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
+    // Synchronous, cannot itself hang — read BEFORE the two awaited probes
+    // below so the response still reports it even if both probes time out.
+    let connectionStatus: { status?: string; commandTimeout?: unknown } | { error: string };
+    try {
+      const backend = deps.queue.getBackend?.();
+      connectionStatus = { status: backend?.connection?.status, commandTimeout: backend?.connection?.opts?.commandTimeout };
+    } catch (err) {
+      connectionStatus = { error: err instanceof Error ? err.message : String(err) };
+    }
+
     // Racing each probe against its own short client-side timeout (rather
     // than trusting the queue connection's own commandTimeout, which is
     // exactly the thing under investigation here) so one hung call can't
@@ -44,7 +61,7 @@ export function internalSchedulerDebugRoute(deps: InternalSchedulerDebugDeps) {
       withTimeout(deps.queue.getJobSchedulers(), 8000, "getJobSchedulers"),
     ]);
 
-    return c.json({ jobCounts, schedulers });
+    return c.json({ connectionStatus, jobCounts, schedulers });
   });
 }
 
