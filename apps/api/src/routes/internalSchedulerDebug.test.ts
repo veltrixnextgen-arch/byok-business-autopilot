@@ -14,6 +14,9 @@ function fakeDeps(overrides: Partial<InternalSchedulerDebugDeps> = {}): Internal
       async getJobCounts() {
         return { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 1 };
       },
+      getBackend() {
+        return { connection: { status: "ready", opts: { commandTimeout: 10000 } } };
+      },
     },
     token: "correct-token",
     ...overrides,
@@ -81,6 +84,28 @@ test(
     assert.deepEqual(body.jobCounts.value, { waiting: 0, active: 0, completed: 3, failed: 0, delayed: 1 });
     assert.equal(body.schedulers.ok, false);
     assert.match(body.schedulers.error ?? "", /exceeded/);
+  },
+);
+
+test(
+  "surfaces the underlying RedisConnection's status synchronously, even independent of whether the probes below succeed",
+  { timeout: 15000 },
+  async () => {
+    const app = internalSchedulerDebugRoute(
+      fakeDeps({
+        queue: {
+          getBackend() {
+            return { connection: { status: "initializing", opts: { commandTimeout: 10000 } } };
+          },
+          getJobSchedulers: () => new Promise(() => {}), // never resolves -- status must still be reported
+        },
+      }),
+    );
+    const res = await app.request("/", { headers: { "x-internal-metrics-token": "correct-token" } });
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { connectionStatus: { status?: string } };
+    assert.equal(body.connectionStatus.status, "initializing");
   },
 );
 
