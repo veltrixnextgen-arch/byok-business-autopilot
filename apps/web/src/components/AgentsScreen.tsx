@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { AppShell } from "./AppShell";
+import { SchedulePauseBanner } from "./SchedulePauseBanner";
 import { Badge, Card, cx } from "./ui";
 
 type LoadState = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; batch: LatestBatch | null };
@@ -28,6 +29,8 @@ export function AgentsScreen() {
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Agents</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Agents</h1>
         </header>
+
+        <SchedulePauseBanner />
 
         {state.kind === "loading" && <p className="text-text-muted">Loading…</p>}
         {state.kind === "error" && (

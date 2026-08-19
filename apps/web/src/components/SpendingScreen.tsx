@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCeiling, InvalidCeilingError, setCeiling } from "../lib/brainKeyClient";
 import { AppShell } from "./AppShell";
+import { SchedulePauseBanner } from "./SchedulePauseBanner";
 import { Button, Card, Field, FormError, TextInput } from "./ui";
 
 type LoadState = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; companyMonthlyUsd: number; isOverride: boolean };
@@ -53,6 +54,8 @@ export function SpendingScreen() {
             than going over it.
           </p>
         </header>
+
+        <SchedulePauseBanner />
 
         {state.kind === "loading" && <p className="text-text-muted">Loading…</p>}
         {state.kind === "error" && (

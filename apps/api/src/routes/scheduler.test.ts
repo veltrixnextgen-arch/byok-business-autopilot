@@ -93,6 +93,17 @@ function fakeQueue() {
   };
 }
 
+function fakeNotifications(overrides: Partial<import("./scheduler.js").SchedulerRouteDeps["notifications"]> = {}) {
+  return {
+    getOwnerEmails: async () => [],
+    emailSender: { send: async () => {} },
+    ceilings: { get: async () => null },
+    reservationTotals: { totals: async () => ({ totalUsd: 0, ceilingUsd: null }) },
+    dashboardUrl: "https://example.com/dashboard",
+    ...overrides,
+  };
+}
+
 test("POST /sync clamps a Scale-only 15min task down to Solo's daily floor and syncs BullMQ", async () => {
   const queue = fakeQueue();
   const app = appWithSession("tenant-1", SESSION, {
@@ -100,10 +111,11 @@ test("POST /sync clamps a Scale-only 15min task down to Solo's daily floor and s
     batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
     instrumentation: { getDaily: async () => null },
-    durableBatchStore: { complete: async () => {} },
+    durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
     getTenantTier: async () => "solo",
     queue,
     jobName: "scheduled-dispatch",
+    notifications: fakeNotifications(),
   });
 
   const res = await app.request("/sync", { method: "POST" });
@@ -121,10 +133,11 @@ test("POST /sync 409s when there's no active Charter+cascade to schedule from", 
     batchStore: { latestForTenant: async () => null },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
     instrumentation: { getDaily: async () => null },
-    durableBatchStore: { complete: async () => {} },
+    durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
     getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
+    notifications: fakeNotifications(),
   });
 
   const res = await app.request("/sync", { method: "POST" });
@@ -140,18 +153,60 @@ test("GET /status reports paused state and today's instrumentation, zeroed when 
       resume: async () => {},
     },
     instrumentation: { getDaily: async () => null },
-    durableBatchStore: { complete: async () => {} },
+    durableBatchStore: { complete: async () => {}, get: async () => ({ id: "p-1", remainingTasks: [{ id: "task-1" }, { id: "task-2" }] }) as never },
     getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
+    notifications: fakeNotifications({ ceilings: { get: async () => 25 }, reservationTotals: { totals: async () => ({ totalUsd: 26.5, ceilingUsd: 25 }) } }),
   });
 
   const res = await app.request("/status");
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { paused: boolean; pausedReason: string; today: { scheduledRunsExecuted: number } };
+  const body = (await res.json()) as {
+    paused: boolean;
+    pausedReason: string;
+    remainingTaskCount: number | null;
+    ceilingUsd: number | null;
+    spentUsd: number | null;
+    today: { scheduledRunsExecuted: number };
+  };
   assert.equal(body.paused, true);
   assert.equal(body.pausedReason, "ceiling-exhausted");
+  // Issue #140: "what it costs to resume" surfaced directly in /status,
+  // not a second round-trip.
+  assert.equal(body.remainingTaskCount, 2);
+  assert.equal(body.ceilingUsd, 25);
+  assert.equal(body.spentUsd, 26.5);
   assert.equal(body.today.scheduledRunsExecuted, 0);
+});
+
+test("GET /status reports null cost fields when not paused — never fetches the paused batch or spend totals for a healthy tenant", async () => {
+  let batchStoreCalled = false;
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: { getActive: async () => makeCharter() },
+    batchStore: { latestForTenant: async () => null },
+    scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
+    instrumentation: { getDaily: async () => null },
+    durableBatchStore: {
+      complete: async () => {},
+      get: async () => {
+        batchStoreCalled = true;
+        throw new Error("must not be called when not paused");
+      },
+    },
+    getTenantTier: async () => "solo",
+    queue: fakeQueue(),
+    jobName: "scheduled-dispatch",
+    notifications: fakeNotifications(),
+  });
+
+  const res = await app.request("/status");
+  const body = (await res.json()) as { paused: boolean; remainingTaskCount: number | null; ceilingUsd: number | null; spentUsd: number | null };
+  assert.equal(body.paused, false);
+  assert.equal(body.remainingTaskCount, null);
+  assert.equal(body.ceilingUsd, null);
+  assert.equal(body.spentUsd, null);
+  assert.equal(batchStoreCalled, false);
 });
 
 test("POST /resume completes the paused batch record and clears the pause flag", async () => {
@@ -171,16 +226,47 @@ test("POST /resume completes the paused batch record and clears the pause flag",
       complete: async (tenantId, id) => {
         completedArgs = [tenantId, id];
       },
+      get: async () => ({ id: "p-1", remainingTasks: [] }) as never,
     },
     getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
+    notifications: fakeNotifications(),
   });
 
   const res = await app.request("/resume", { method: "POST" });
   assert.equal(res.status, 200);
   assert.deepEqual(completedArgs, ["tenant-1", "p-1"]);
   assert.equal(resumeCalled, true);
+});
+
+// Issue #140: closes the loop the pause email opened.
+test("POST /resume fires the resume notification", async () => {
+  const sent: string[] = [];
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: { getActive: async () => makeCharter() },
+    batchStore: { latestForTenant: async () => null },
+    scheduleState: {
+      get: async () => ({ tenantId: "tenant-1", pausedAt: "2026-01-02T00:00:00.000Z", pausedReason: "ceiling-exhausted", pausedBatchId: "p-1" }),
+      resume: async () => {},
+    },
+    instrumentation: { getDaily: async () => null },
+    durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
+    getTenantTier: async () => "solo",
+    queue: fakeQueue(),
+    jobName: "scheduled-dispatch",
+    notifications: fakeNotifications({
+      getOwnerEmails: async () => ["owner@example.com"],
+      emailSender: {
+        send: async (input) => {
+          sent.push(input.subject);
+        },
+      },
+    }),
+  });
+
+  await app.request("/resume", { method: "POST" });
+  assert.deepEqual(sent, ["Your automation has resumed"]);
 });
 
 test("POST /resume never calls durableBatchStore.complete when there was no paused batch id", async () => {
@@ -197,10 +283,12 @@ test("POST /resume never calls durableBatchStore.complete when there was no paus
       complete: async () => {
         completeCalled = true;
       },
+      get: async () => ({ id: "unused", remainingTasks: [] }) as never,
     },
     getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
+    notifications: fakeNotifications(),
   });
 
   await app.request("/resume", { method: "POST" });
