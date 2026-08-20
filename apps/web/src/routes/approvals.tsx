@@ -1,8 +1,9 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { NotBuiltYetScreen } from "../components/NotBuiltYetScreen";
+import { SessionCheckingScreen } from "../components/SessionCheckingScreen";
 import { authClient } from "../lib/authClient";
 import { resolveActiveOrganizationId } from "../lib/organizationClient";
-import { serverAuthHeaders } from "../lib/serverAuthHeaders";
+import { type GuardRedirectTarget, useAuthGuard } from "../lib/useAuthGuard";
 
 function ApprovalsPlaceholder() {
   return (
@@ -14,17 +15,20 @@ function ApprovalsPlaceholder() {
   );
 }
 
+export async function checkAuth(): Promise<GuardRedirectTarget | null> {
+  const { data } = await authClient.getSession();
+  if (!data) return "/login";
+  const activeOrganizationId = data.session.activeOrganizationId ?? (await resolveActiveOrganizationId());
+  if (!activeOrganizationId) return "/onboarding";
+  return null;
+}
+
+function ApprovalsRoute() {
+  const status = useAuthGuard(checkAuth);
+  if (status !== "ready") return <SessionCheckingScreen />;
+  return <ApprovalsPlaceholder />;
+}
+
 export const Route = createFileRoute("/approvals")({
-  beforeLoad: async () => {
-    const headers = serverAuthHeaders();
-    const { data } = await authClient.getSession({ fetchOptions: { headers } });
-    if (!data) {
-      throw redirect({ to: "/login" });
-    }
-    const activeOrganizationId = data.session.activeOrganizationId ?? (await resolveActiveOrganizationId(headers));
-    if (!activeOrganizationId) {
-      throw redirect({ to: "/onboarding" });
-    }
-  },
-  component: ApprovalsPlaceholder,
+  component: ApprovalsRoute,
 });

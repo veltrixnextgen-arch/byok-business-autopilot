@@ -1,14 +1,21 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { SessionCheckingScreen } from "../components/SessionCheckingScreen";
 import { TaskListScreen } from "../components/TaskListScreen";
 import { authClient } from "../lib/authClient";
-import { serverAuthHeaders } from "../lib/serverAuthHeaders";
+import { type GuardRedirectTarget, useAuthGuard } from "../lib/useAuthGuard";
+
+export async function checkAuth(): Promise<GuardRedirectTarget | null> {
+  const { data } = await authClient.getSession();
+  if (!data) return "/login";
+  return null;
+}
+
+function TasksRoute() {
+  const status = useAuthGuard(checkAuth);
+  if (status !== "ready") return <SessionCheckingScreen />;
+  return <TaskListScreen />;
+}
 
 export const Route = createFileRoute("/tasks")({
-  beforeLoad: async () => {
-    const { data } = await authClient.getSession({ fetchOptions: { headers: serverAuthHeaders() } });
-    if (!data) {
-      throw redirect({ to: "/login" });
-    }
-  },
-  component: TaskListScreen,
+  component: TasksRoute,
 });
