@@ -51,19 +51,52 @@ test("spendByRole and spendByTaskType aggregate cost_reservations correctly, sco
   );
 });
 
-test("autonomyStatus reads back per-task-type autonomy state for the tenant", async () => {
+test("autonomyStatus reads back per-task-type autonomy state for the tenant, including a pending offer", async () => {
   const tenantId = randomUUID();
   const queries = new PostgresCostActivityQueries(pool);
 
   await withTenantScope(pool, tenantId, async (client) => {
     await client.query(
-      `INSERT INTO autonomy_counters (tenant_id, task_type, consecutive_approvals, active) VALUES ($1::uuid, 'invoicing', 7, true)`,
+      `INSERT INTO autonomy_counters (tenant_id, task_type, consecutive_approvals, active, offered_at)
+       VALUES ($1::uuid, 'invoicing', 7, true, NULL), ($1::uuid, 'outreach', 10, false, now())`,
       [tenantId],
     );
   });
 
   const status = await queries.autonomyStatus(tenantId);
-  assert.deepEqual(status, [{ taskType: "invoicing", active: true, consecutiveApprovals: 7 }]);
+  const invoicing = status.find((s) => s.taskType === "invoicing");
+  assert.deepEqual(invoicing, { taskType: "invoicing", active: true, consecutiveApprovals: 7, offeredAt: null });
+  const outreach = status.find((s) => s.taskType === "outreach");
+  assert.equal(outreach?.active, false);
+  assert.ok(outreach?.offeredAt, "a real offered_at timestamp must come back, not null");
+});
+
+// This is the test that would have caught the real bug the ad hoc
+// verification against production found: audit_log.ref_id is TEXT, and
+// an earlier version of costByRefIds cast the parameter array to
+// ::uuid[], which fails against real Postgres ("operator does not exist:
+// text = uuid") despite every mocked-pool unit test passing, since mocks
+// never execute real SQL. Real ids here (random UUID strings passed as
+// plain TEXT, matching the column) exercise the actual cast.
+test("costByRefIds joins real cost-gate audit rows by ref_id, scoped to the tenant", async () => {
+  const tenantId = randomUUID();
+  const otherTenantId = randomUUID();
+  const taskId1 = randomUUID();
+  const taskId2 = randomUUID();
+  const queries = new PostgresCostActivityQueries(pool);
+
+  await withTenantScope(pool, tenantId, async (client) => {
+    await insertAuditEvent(client, { tenantId, source: "cost-gate", kind: "reserved", refId: taskId1, detail: { amountUsd: 0.0495 } });
+    await insertAuditEvent(client, { tenantId, source: "cost-gate", kind: "reserved", refId: taskId2, detail: { amountUsd: 1.2 } });
+    // A non-"reserved" cost-gate event for the same ref id must not leak in.
+    await insertAuditEvent(client, { tenantId, source: "approval-queue", kind: "queued", refId: taskId1 });
+  });
+  await withTenantScope(pool, otherTenantId, async (client) => {
+    await insertAuditEvent(client, { tenantId: otherTenantId, source: "cost-gate", kind: "reserved", refId: taskId1, detail: { amountUsd: 999 } });
+  });
+
+  const costs = await queries.costByRefIds(tenantId, [taskId1, taskId2, randomUUID()]);
+  assert.deepEqual(costs, { [taskId1]: 0.0495, [taskId2]: 1.2 });
 });
 
 test("recentActivity reads the unified audit log, newest first, scoped to the tenant", async () => {
