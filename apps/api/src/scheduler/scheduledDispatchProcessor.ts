@@ -3,6 +3,7 @@ import type { DurableBatchStore } from "@byok/cost-gate";
 import { selectModel, type TierModelMap } from "@byok/cost-gate";
 import type { CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
 import type { ScheduledDispatchPayload } from "./computeDesiredSchedule.js";
+import { notifySchedulePaused, type ScheduleNotificationDeps } from "./scheduleNotifications.js";
 
 export interface ScheduledDispatchDeps {
   router: Pick<Router, "submitTask">;
@@ -12,6 +13,11 @@ export interface ScheduledDispatchDeps {
   instrumentation: Pick<SchedulerInstrumentationStore, "recordScheduledRun">;
   durableBatchStore: Pick<DurableBatchStore, "pause">;
   tierModelMap: TierModelMap;
+  /** Issue #140: a schedule pausing must be visible, not silently
+   *  discovered later (or never). notifySchedulePaused itself never
+   *  throws, so wiring it in here can't turn a notification hiccup into a
+   *  dispatch failure. */
+  notifications: ScheduleNotificationDeps;
 }
 
 /** Router.submitTask's own ledger.append call count for each terminal
@@ -104,6 +110,10 @@ export function createScheduledDispatchProcessor(deps: ScheduledDispatchDeps) {
         context: { triggeredBy: "scheduled-dispatch", agentId: agent.id, taskId: task.id },
       });
       await deps.scheduleState.pause(payload.tenantId, "ceiling-exhausted", paused.id);
+      await notifySchedulePaused(deps.notifications, payload.tenantId, {
+        reason: "ceiling-exhausted",
+        remainingTaskCount: paused.remainingTasks.length,
+      });
     }
   };
 }

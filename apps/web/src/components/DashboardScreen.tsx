@@ -6,6 +6,7 @@ import { getBrainKeyStatus, type BrainKeyStatus } from "../lib/brainKeyClient";
 import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
 import { AppShell } from "./AppShell";
+import { SchedulePauseBanner } from "./SchedulePauseBanner";
 import { Button, Card, cx } from "./ui";
 
 interface Me {
@@ -150,6 +151,8 @@ export function DashboardScreen() {
 
       {me ? (
         <div className="space-y-6">
+          <SchedulePauseBanner />
+
           {brainKeyStatus === null && (
             <Card className="flex flex-col items-start justify-between gap-4 border-accent/30 bg-accent/5 sm:flex-row sm:items-center">
               <div>
