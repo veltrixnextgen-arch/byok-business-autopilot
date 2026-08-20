@@ -30,6 +30,11 @@ export interface AutonomyStatus {
   taskType: string;
   active: boolean;
   consecutiveApprovals: number;
+  /** Set once a task type crosses the offer threshold, cleared on any
+   *  reset (rejection, spot-check revoke, manual revoke) — null means no
+   *  pending offer. See autonomyEngine.ts's own state machine; this
+   *  column mirrors it 1:1 in autonomy_counters. */
+  offeredAt: string | null;
 }
 
 export interface CostActivityQueries {
@@ -46,6 +51,17 @@ export interface CostActivityQueries {
    *  module note above) since a given time — the digest's "what each
    *  agent did" panel needs a count, not just a dollar total. */
   activityByTaskType(tenantId: string, since: Date): Promise<ActivityByDimension[]>;
+  /** The real cost already reserved for each of the given ref ids (router
+   *  task ids, i.e. approval_queue_items.id) — cost-gate's audit_log rows
+   *  carry ref_id = the same task id an approval item is keyed by (see
+   *  router.ts's evaluateAndReserve({taskId: task.id, ...}) and the
+   *  approval item's own id: task.id). By the time a task reaches the
+   *  approval queue its cost has already been reserved (and usually
+   *  settled) — approving/rejecting doesn't change what it cost, so this
+   *  is real incurred spend, not a forward-looking estimate. Ids with no
+   *  matching row (e.g. a task submitted with no CostGate configured,
+   *  local dev) are simply absent from the returned map, not zeroed. */
+  costByRefIds(tenantId: string, refIds: readonly string[]): Promise<Record<string, number>>;
 }
 
 interface SpendRow {
@@ -81,10 +97,15 @@ export class PostgresCostActivityQueries implements CostActivityQueries {
   async autonomyStatus(tenantId: string): Promise<AutonomyStatus[]> {
     return withTenantScope(this.pool, tenantId, async (client) => {
       const result = (await client.query(
-        `SELECT task_type, active, consecutive_approvals FROM autonomy_counters WHERE tenant_id = $1::uuid ORDER BY task_type`,
+        `SELECT task_type, active, consecutive_approvals, offered_at FROM autonomy_counters WHERE tenant_id = $1::uuid ORDER BY task_type`,
         [tenantId],
-      )) as unknown as { rows: Array<{ task_type: string; active: boolean; consecutive_approvals: number }> };
-      return result.rows.map((r) => ({ taskType: r.task_type, active: r.active, consecutiveApprovals: r.consecutive_approvals }));
+      )) as unknown as { rows: Array<{ task_type: string; active: boolean; consecutive_approvals: number; offered_at: string | null }> };
+      return result.rows.map((r) => ({
+        taskType: r.task_type,
+        active: r.active,
+        consecutiveApprovals: r.consecutive_approvals,
+        offeredAt: r.offered_at,
+      }));
     });
   }
 
@@ -99,6 +120,21 @@ export class PostgresCostActivityQueries implements CostActivityQueries {
         [tenantId, since],
       )) as unknown as { rows: Array<{ key: string; task_count: string; total_usd: string }> };
       return result.rows.map((r) => ({ key: r.key, taskCount: Number(r.task_count), totalUsd: Number(r.total_usd) }));
+    });
+  }
+
+  async costByRefIds(tenantId: string, refIds: readonly string[]): Promise<Record<string, number>> {
+    if (refIds.length === 0) return {};
+    return withTenantScope(this.pool, tenantId, async (client) => {
+      const result = (await client.query(
+        `SELECT ref_id, (detail->>'amountUsd')::numeric AS amount_usd
+         FROM audit_log
+         WHERE tenant_id = $1::uuid AND source = 'cost-gate' AND kind = 'reserved' AND ref_id = ANY($2::text[])`,
+        [tenantId, refIds],
+      )) as unknown as { rows: Array<{ ref_id: string; amount_usd: string }> };
+      const out: Record<string, number> = {};
+      for (const row of result.rows) out[row.ref_id] = Number(row.amount_usd);
+      return out;
     });
   }
 

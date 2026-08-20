@@ -34,3 +34,38 @@ test("activityByTaskType returns an empty array, not an error, with no activity 
   const rows = await queries.activityByTaskType(TENANT_ID, new Date());
   assert.deepEqual(rows, []);
 });
+
+test("autonomyStatus surfaces offeredAt, and null when no offer is pending", async () => {
+  const pool = fakePool([
+    { task_type: "agent-1", active: false, consecutive_approvals: 10, offered_at: "2026-08-20T00:00:00.000Z" },
+    { task_type: "agent-2", active: true, consecutive_approvals: 3, offered_at: null },
+  ]);
+  const queries = new PostgresCostActivityQueries(pool);
+  const rows = await queries.autonomyStatus(TENANT_ID);
+  assert.deepEqual(rows, [
+    { taskType: "agent-1", active: false, consecutiveApprovals: 10, offeredAt: "2026-08-20T00:00:00.000Z" },
+    { taskType: "agent-2", active: true, consecutiveApprovals: 3, offeredAt: null },
+  ]);
+});
+
+test("costByRefIds maps each ref id to its real reserved amount", async () => {
+  const pool = fakePool([
+    { ref_id: "task-1", amount_usd: "0.049500" },
+    { ref_id: "task-2", amount_usd: "1.200000" },
+  ]);
+  const queries = new PostgresCostActivityQueries(pool);
+  const costs = await queries.costByRefIds(TENANT_ID, ["task-1", "task-2", "task-3"]);
+  assert.deepEqual(costs, { "task-1": 0.0495, "task-2": 1.2 });
+  assert.equal("task-3" in costs, false); // no matching row — absent, not zeroed
+});
+
+test("costByRefIds returns an empty object without touching the pool when given no ids", async () => {
+  const pool: PoolLike = {
+    connect() {
+      throw new Error("pool.connect must not be called for an empty refIds list");
+    },
+  };
+  const queries = new PostgresCostActivityQueries(pool);
+  const costs = await queries.costByRefIds(TENANT_ID, []);
+  assert.deepEqual(costs, {});
+});

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { getApprovalsCount } from "../lib/approvalsClient";
 import { listOrganizations, switchOrganization, type OrganizationSummary } from "../lib/organizationClient";
 import { useSession } from "../lib/authClient";
 import { cx } from "./ui";
@@ -73,6 +74,16 @@ function Sidebar({
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }) {
+  // Live count badge on Approvals (docs/design/emergent-app-screens/approvals.md)
+  // — fire-and-forget, same spirit as CompanySwitcher's own org fetch
+  // below: a failed count check must never block or error the shell.
+  const [approvalsCount, setApprovalsCount] = useState<number | null>(null);
+  useEffect(() => {
+    getApprovalsCount()
+      .then(setApprovalsCount)
+      .catch(() => setApprovalsCount(null));
+  }, []);
+
   return (
     <>
       {mobileOpen && (
@@ -103,11 +114,14 @@ function Sidebar({
               to={item.to}
               onClick={onCloseMobile}
               className={cx(
-                "block rounded-lg px-3 py-2 font-body text-sm transition-colors duration-calm-fast ease-calm",
+                "flex items-center justify-between rounded-lg px-3 py-2 font-body text-sm transition-colors duration-calm-fast ease-calm",
                 item.to === active ? "bg-accent/10 font-medium text-accent" : "text-text-secondary hover:bg-bg-glass hover:text-text",
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.to === "/approvals" && !!approvalsCount && (
+                <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[10px] font-semibold text-bg">{approvalsCount}</span>
+              )}
             </Link>
           ))}
         </nav>

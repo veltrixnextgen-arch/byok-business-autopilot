@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, className, onClick }: { to: string; children: React.ReactNode; className?: string; onClick?: () => void }) => (
@@ -21,13 +21,23 @@ vi.mock("../lib/organizationClient", () => ({
   switchOrganization: (id: string) => switchOrganization(id),
 }));
 
+const getApprovalsCount = vi.fn();
+vi.mock("../lib/approvalsClient", () => ({
+  getApprovalsCount: () => getApprovalsCount(),
+}));
+
 import { AppShell } from "./AppShell";
+
+beforeEach(() => {
+  getApprovalsCount.mockResolvedValue(0);
+});
 
 afterEach(() => {
   cleanup();
   useSession.mockReset();
   listOrganizations.mockReset();
   switchOrganization.mockReset();
+  getApprovalsCount.mockReset();
 });
 
 describe("AppShell", () => {
@@ -44,9 +54,8 @@ describe("AppShell", () => {
     for (const label of ["Dashboard", "Company", "Agents", "Approvals", "Digest", "Spending", "Settings"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    const dashboardLinks = screen.getAllByText("Dashboard");
-    const sidebarLink = dashboardLinks.find((el) => el.getAttribute("href") === "/dashboard");
-    expect(sidebarLink?.className).toContain("text-accent");
+    const sidebarLink = screen.getByRole("link", { name: "Dashboard" });
+    expect(sidebarLink.className).toContain("text-accent");
   });
 
   it("shows the active company's name once organizations load", async () => {
@@ -105,5 +114,34 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByText("Select a company")).toBeTruthy());
     fireEvent.click(screen.getByText("Select a company"));
     expect(await screen.findByText("No companies yet.")).toBeTruthy();
+  });
+
+  it("shows a live count badge on Approvals when there are real pending items", async () => {
+    useSession.mockReturnValue({ data: { session: { activeOrganizationId: "org-1" } } });
+    listOrganizations.mockResolvedValue([{ id: "org-1", name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }]);
+    getApprovalsCount.mockResolvedValue(15);
+
+    render(
+      <AppShell active="/dashboard">
+        <p>content</p>
+      </AppShell>,
+    );
+
+    expect(await screen.findByText("15")).toBeTruthy();
+  });
+
+  it("shows no badge when the count is zero", async () => {
+    useSession.mockReturnValue({ data: { session: { activeOrganizationId: "org-1" } } });
+    listOrganizations.mockResolvedValue([{ id: "org-1", name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }]);
+    getApprovalsCount.mockResolvedValue(0);
+
+    render(
+      <AppShell active="/dashboard">
+        <p>content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(getApprovalsCount).toHaveBeenCalled());
+    expect(screen.queryByText("0")).toBeNull();
   });
 });
