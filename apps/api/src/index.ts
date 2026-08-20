@@ -16,6 +16,7 @@ import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppEnv, TrustCoreDeps } from "./context.js";
+import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications.js";
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
@@ -79,6 +80,11 @@ export interface CreateAppOptions {
      *  own bootstrap has no timeout of its own) is visible immediately
      *  instead of silently reported as "ok". */
     health: { queue: ConnectionHealth; worker: ConnectionHealth };
+    /** Issue #140: /me/scheduler's own status/resume routes need the same
+     *  notification deps the dispatch processor uses (constructed once in
+     *  server.ts, threaded through both places) so "what it costs to
+     *  resume" and the resume email use one consistent source of truth. */
+    notifications: ScheduleNotificationDeps;
   };
 }
 
@@ -149,6 +155,7 @@ export function createApp(options: CreateAppOptions) {
         getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
         queue: options.scheduler.queue,
         jobName: options.scheduler.jobName,
+        notifications: options.scheduler.notifications,
       }),
     )
     .route(

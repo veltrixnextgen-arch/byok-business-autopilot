@@ -1,20 +1,24 @@
 import { serve } from "@hono/node-server";
 import { createAuth } from "@byok/auth";
-import { PostgresDurableBatchStore } from "@byok/cost-gate";
+import { PostgresDurableBatchStore, PostgresReservationStore } from "@byok/cost-gate";
 import {
   CompanyCharterStore,
   createDb,
   createPool,
+  getTenantOwnerEmails,
   SchedulerInstrumentationStore,
   SignupExtractionBatchStore,
   SignupMetricsStore,
+  TenantCeilingStore,
   TenantScheduleStateStore,
 } from "@byok/db";
 import { createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
+import { createEmailSender } from "@byok/notifications";
 import type { TrustCoreDeps } from "./context.js";
 import { createApp } from "./index.js";
 import type { ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
 import { createScheduledDispatchProcessor } from "./scheduler/scheduledDispatchProcessor.js";
+import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications.js";
 
 // One BullMQ queue/job name for every tenant's scheduled-dispatch jobs —
 // tenantScheduler.ts's own jobId-prefix scoping (`${tenantId}:...`) is what
@@ -63,6 +67,17 @@ export interface ServerConfig {
    *  .env.example (redis://localhost:6379 locally, an Upstash rediss://
    *  URL in staging) — this is the first real consumer. */
   redisUrl: string;
+  /** Issue #140: backs the schedule-pause/resume email. NOT required like
+   *  anthropicApiKey/redisUrl above — this codebase had zero email
+   *  infrastructure before this, and a deploy missing this key should
+   *  still boot (notifications just log loudly instead of sending, via
+   *  @byok/notifications' LoggingEmailSender — see createEmailSender).
+   *  Get one at resend.com; `fromAddress` defaults to their pre-verified
+   *  sandbox sender (onboarding@resend.dev) so this works with zero setup
+   *  beyond an API key — a real deployment should set NOTIFICATIONS_FROM_EMAIL
+   *  to an address on a verified domain instead. */
+  resendApiKey?: string;
+  notificationsFromEmail: string;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -89,6 +104,9 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
       ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/hands-oauth/google-calendar/callback` }
       : null;
 
+  const resendApiKey = env.RESEND_API_KEY;
+  const notificationsFromEmail = env.NOTIFICATIONS_FROM_EMAIL ?? "Runwisely <onboarding@resend.dev>";
+
   return {
     port,
     databaseUrl,
@@ -100,6 +118,8 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
     internalMetricsToken,
     google,
     redisUrl,
+    resendApiKey,
+    notificationsFromEmail,
   };
 }
 
@@ -166,6 +186,27 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
   // /health and /internal/scheduler-debug below as a first-class signal --
   // the API must never report "ok" while its queue backend is dead.
   const queueHealth = trackConnectionHealth(queue, 15_000);
+
+  // Issue #140: a schedule pausing must be visible, not silently
+  // discovered later. Read-only reuse of the same store classes
+  // trust-core's own bootstrap constructs internally (thin pool wrappers,
+  // cheap to build a second time — same reasoning as index.ts's
+  // costActivity/ceilings/charters) rather than threading trust-core's
+  // own internal instances out through TrustCoreDeps.
+  const notificationEmailSender = createEmailSender({
+    resendApiKey: config.resendApiKey,
+    fromAddress: config.notificationsFromEmail,
+  });
+  const notificationReservationStore = new PostgresReservationStore(pool);
+  const notificationCeilings = new TenantCeilingStore(pool);
+  const scheduleNotifications: ScheduleNotificationDeps = {
+    getOwnerEmails: (tenantId) => getTenantOwnerEmails(pool, tenantId),
+    emailSender: notificationEmailSender,
+    ceilings: notificationCeilings,
+    reservationTotals: notificationReservationStore,
+    dashboardUrl: `${config.webOrigin}/dashboard`,
+  };
+
   const scheduledDispatchProcessor = createScheduledDispatchProcessor({
     router: trustCore.router,
     charters: new CompanyCharterStore(pool),
@@ -174,6 +215,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     instrumentation: new SchedulerInstrumentationStore(pool),
     durableBatchStore: new PostgresDurableBatchStore(pool),
     tierModelMap: trustCore.tierModelMap,
+    notifications: scheduleNotifications,
   });
   const worker = createTenantWorker<ScheduledDispatchPayload>(
     SCHEDULED_DISPATCH_JOB_NAME,
@@ -193,7 +235,12 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     // oauth/state.ts's own comment on why a second required secret isn't
     // needed for this.
     handsOAuth: { stateSecret: config.authSecret, google: config.google },
-    scheduler: { queue, jobName: SCHEDULED_DISPATCH_JOB_NAME, health: { queue: queueHealth, worker: workerHealth } },
+    scheduler: {
+      queue,
+      jobName: SCHEDULED_DISPATCH_JOB_NAME,
+      health: { queue: queueHealth, worker: workerHealth },
+      notifications: scheduleNotifications,
+    },
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
