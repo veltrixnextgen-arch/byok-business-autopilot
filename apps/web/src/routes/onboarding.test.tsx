@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => options,
-  redirect: (opts: unknown) => opts,
 }));
 
 vi.mock("../lib/authClient", () => ({
@@ -10,7 +9,7 @@ vi.mock("../lib/authClient", () => ({
 }));
 
 import { authClient } from "../lib/authClient";
-import { Route } from "./onboarding";
+import { checkAuth } from "./onboarding";
 
 afterEach(() => {
   vi.mocked(authClient.getSession).mockReset();
@@ -18,31 +17,21 @@ afterEach(() => {
   vi.mocked(authClient.organization.setActive).mockReset();
 });
 
-async function getRedirectTarget(): Promise<string | undefined> {
-  try {
-    // biome-ignore lint: real beforeLoad ignores its argument entirely
-    await (Route as unknown as { beforeLoad: () => Promise<void> }).beforeLoad();
-    return undefined;
-  } catch (thrown) {
-    return (thrown as { to: string }).to;
-  }
-}
-
-describe("onboarding beforeLoad — existing-org guard", () => {
+describe("onboarding checkAuth — existing-org guard", () => {
   it("redirects to /login when signed out", async () => {
     vi.mocked(authClient.getSession).mockResolvedValueOnce({ data: null } as never);
-    expect(await getRedirectTarget()).toBe("/login");
+    expect(await checkAuth()).toBe("/login");
   });
 
   it("renders the form (no redirect) when signed in with genuinely no organization", async () => {
     vi.mocked(authClient.getSession).mockResolvedValueOnce({ data: { session: { activeOrganizationId: null } } } as never);
     vi.mocked(authClient.$fetch).mockResolvedValueOnce({ data: [], error: null } as never);
-    expect(await getRedirectTarget()).toBeUndefined();
+    expect(await checkAuth()).toBeNull();
   });
 
   it("redirects to /dashboard when the session already has an active organization", async () => {
     vi.mocked(authClient.getSession).mockResolvedValueOnce({ data: { session: { activeOrganizationId: "org_1" } } } as never);
-    expect(await getRedirectTarget()).toBe("/dashboard");
+    expect(await checkAuth()).toBe("/dashboard");
   });
 
   // The reported bug: a returning user's fresh session has no active
@@ -57,6 +46,6 @@ describe("onboarding beforeLoad — existing-org guard", () => {
       error: null,
     } as never);
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({ error: null } as never);
-    expect(await getRedirectTarget()).toBe("/dashboard");
+    expect(await checkAuth()).toBe("/dashboard");
   });
 });
