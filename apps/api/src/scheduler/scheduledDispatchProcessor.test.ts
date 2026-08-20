@@ -71,8 +71,15 @@ function baseDeps(overrides: Partial<ScheduledDispatchDeps> = {}): ScheduledDisp
     batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), pause: async () => {} },
     instrumentation: { recordScheduledRun: async () => {} },
-    durableBatchStore: { pause: async () => ({ id: "paused-1" }) as never },
+    durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [] }) as never },
     tierModelMap: { T1: "model-t1", T2: "model-t2", T3: "model-t3" },
+    notifications: {
+      getOwnerEmails: async () => [],
+      emailSender: { send: async () => {} },
+      ceilings: { get: async () => null },
+      reservationTotals: { totals: async () => ({ totalUsd: 0, ceilingUsd: null }) },
+      dashboardUrl: "https://example.com/dashboard",
+    },
     ...overrides,
   };
 }
@@ -161,7 +168,7 @@ test("records instrumentation with 2 ledger rows for a queued/skipped result (ne
   const deps = baseDeps({
     router: { submitTask: async () => ({ status: "queued" }) as RouterTask },
     instrumentation: { recordScheduledRun: async (_tenantId, input) => { recorded = input; } },
-    durableBatchStore: { pause: async () => ({ id: "paused-1" }) as never },
+    durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [] }) as never },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), pause: async () => {} },
   });
   await createScheduledDispatchProcessor(deps)(PAYLOAD);
@@ -176,7 +183,7 @@ test("a 'queued' verdict (cost-gate ceiling) pauses the tenant's schedule with a
     durableBatchStore: {
       pause: async () => {
         durablePauseCalled = true;
-        return { id: "paused-xyz" } as never;
+        return { id: "paused-xyz", remainingTasks: [] } as never;
       },
     },
     scheduleState: {
@@ -205,6 +212,33 @@ test("a 'skipped' verdict also pauses the schedule — SKIP is the same cost-gat
   });
   await createScheduledDispatchProcessor(deps)(PAYLOAD);
   assert.equal(paused, true);
+});
+
+// Issue #140: a pause must be visible, not silently discovered later.
+test("a 'queued' verdict also fires the pause notification with the real remaining-task count", async () => {
+  let notified: { tenantId: string; input: unknown } | undefined;
+  const deps = baseDeps({
+    router: { submitTask: async () => ({ status: "queued" }) as RouterTask },
+    durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [{ id: "task-1" }, { id: "task-2" }] }) as never },
+    notifications: {
+      getOwnerEmails: async (tenantId) => {
+        notified = { tenantId, input: undefined };
+        return ["owner@example.com"];
+      },
+      emailSender: {
+        send: async (input) => {
+          if (notified) notified.input = input;
+        },
+      },
+      ceilings: { get: async () => 50 },
+      reservationTotals: { totals: async () => ({ totalUsd: 50, ceilingUsd: 50 }) },
+      dashboardUrl: "https://example.com/dashboard",
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(PAYLOAD);
+
+  assert.equal(notified?.tenantId, "tenant-1");
+  assert.match((notified?.input as { text: string }).text, /2 tasks waiting/);
 });
 
 test("a normal 'completed'/'awaiting_review' result never pauses the schedule", async () => {
