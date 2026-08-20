@@ -1,4 +1,5 @@
 import type { Auth } from "@byok/auth";
+import { PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { PostgresDurableBatchStore } from "@byok/cost-gate";
 import {
   CompanyCharterStore,
@@ -21,6 +22,7 @@ import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
+import { approvalsRoute } from "./routes/approvals.js";
 import { brainKeyRoute } from "./routes/brainKeys.js";
 import { ceilingRoute } from "./routes/ceiling.js";
 import { charterRoute } from "./routes/charter.js";
@@ -117,6 +119,12 @@ export function createApp(options: CreateAppOptions) {
   const scheduleState = new TenantScheduleStateStore(options.pool);
   const instrumentation = new SchedulerInstrumentationStore(options.pool);
   const durableBatchStore = new PostgresDurableBatchStore(options.pool);
+  // Same reasoning again — a thin withTenantScope wrapper. See
+  // approvals.ts's ApprovalsRouteDeps.autonomyStore doc comment for the
+  // real, known gap this does NOT paper over: this store is durable, but
+  // ApprovalQueue's live dispatch gating still reads the separate,
+  // in-memory AutonomyEngine, not this table.
+  const autonomyStore = new PostgresDurableAutonomyStore(options.pool);
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
@@ -165,6 +173,14 @@ export function createApp(options: CreateAppOptions) {
       }),
     )
     .route("/me/digest", digestRoute(options.digest))
+    .route(
+      "/me/approvals",
+      approvalsRoute({
+        approvalQueue: options.trustCore.approvalQueue,
+        costActivity,
+        autonomyStore,
+      }),
+    )
     .route(
       "/me/tier",
       tierRoute({
