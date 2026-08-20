@@ -11,3 +11,4 @@ export * from "./companyCharters.js";
 export * from "./tenantSchedule.js";
 export * from "./schedulerInstrumentation.js";
 export * from "./tenantContacts.js";
+export * from "./tenants.js";
