@@ -20,6 +20,12 @@ export interface SpendByDimension {
   totalUsd: number;
 }
 
+export interface ActivityByDimension {
+  key: string;
+  taskCount: number;
+  totalUsd: number;
+}
+
 export interface AutonomyStatus {
   taskType: string;
   active: boolean;
@@ -36,6 +42,10 @@ export interface CostActivityQueries {
   autonomyStatus(tenantId: string): Promise<AutonomyStatus[]>;
   /** Recent queue/gate activity — the unified audit_log, newest first. */
   recentActivity(tenantId: string, limit?: number): Promise<StoredAuditEvent[]>;
+  /** Task count AND spend grouped by task type (= sub-agent, see the
+   *  module note above) since a given time — the digest's "what each
+   *  agent did" panel needs a count, not just a dollar total. */
+  activityByTaskType(tenantId: string, since: Date): Promise<ActivityByDimension[]>;
 }
 
 interface SpendRow {
@@ -75,6 +85,20 @@ export class PostgresCostActivityQueries implements CostActivityQueries {
         [tenantId],
       )) as unknown as { rows: Array<{ task_type: string; active: boolean; consecutive_approvals: number }> };
       return result.rows.map((r) => ({ taskType: r.task_type, active: r.active, consecutiveApprovals: r.consecutive_approvals }));
+    });
+  }
+
+  async activityByTaskType(tenantId: string, since: Date): Promise<ActivityByDimension[]> {
+    return withTenantScope(this.pool, tenantId, async (client) => {
+      const result = (await client.query(
+        `SELECT task_type AS key, COUNT(*) AS task_count, COALESCE(SUM(amount_usd), 0) AS total_usd
+         FROM cost_reservations
+         WHERE tenant_id = $1::uuid AND status IN ('reserved', 'settled') AND created_at >= $2
+         GROUP BY task_type
+         ORDER BY total_usd DESC`,
+        [tenantId, since],
+      )) as unknown as { rows: Array<{ key: string; task_count: string; total_usd: string }> };
+      return result.rows.map((r) => ({ key: r.key, taskCount: Number(r.task_count), totalUsd: Number(r.total_usd) }));
     });
   }
 

@@ -16,6 +16,7 @@ import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppEnv, TrustCoreDeps } from "./context.js";
+import type { DigestDeps } from "./digest/buildDigestData.js";
 import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications.js";
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
@@ -24,6 +25,7 @@ import { brainKeyRoute } from "./routes/brainKeys.js";
 import { ceilingRoute } from "./routes/ceiling.js";
 import { charterRoute } from "./routes/charter.js";
 import { dashboardRoute } from "./routes/dashboard.js";
+import { digestRoute } from "./routes/digest.js";
 import { extractionRoute } from "./routes/extraction.js";
 import { handsKeyRoute } from "./routes/handsKeys.js";
 import { handsOAuthRoute, type HandsOAuthRouteDeps } from "./routes/handsOAuth.js";
@@ -86,6 +88,10 @@ export interface CreateAppOptions {
      *  resume" and the resume email use one consistent source of truth. */
     notifications: ScheduleNotificationDeps;
   };
+  /** R4: GET /me/digest reuses the exact same aggregation deps the
+   *  scheduled daily-digest email job uses (server.ts's digestDeps) —
+   *  one source of truth for "today's digest," not a second one. */
+  digest: DigestDeps;
 }
 
 /**
@@ -158,6 +164,7 @@ export function createApp(options: CreateAppOptions) {
         notifications: options.scheduler.notifications,
       }),
     )
+    .route("/me/digest", digestRoute(options.digest))
     .route(
       "/me/tier",
       tierRoute({

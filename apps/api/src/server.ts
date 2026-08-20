@@ -6,14 +6,18 @@ import {
   createDb,
   createPool,
   getTenantOwnerEmails,
+  listAllTenantIds,
   SchedulerInstrumentationStore,
   SignupExtractionBatchStore,
   SignupMetricsStore,
   TenantCeilingStore,
   TenantScheduleStateStore,
 } from "@byok/db";
-import { createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
+import { createPlatformWorker, createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
 import { createEmailSender } from "@byok/notifications";
+import { PostgresCostActivityQueries } from "@byok/router";
+import type { DigestDeps } from "./digest/buildDigestData.js";
+import { sendDailyDigests } from "./digest/sendDailyDigests.js";
 import type { TrustCoreDeps } from "./context.js";
 import { createApp } from "./index.js";
 import type { ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
@@ -25,6 +29,12 @@ import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications
 // keeps tenants isolated within it, the same way router_tasks/audit_log
 // share one table with RLS rather than a table per tenant.
 export const SCHEDULED_DISPATCH_JOB_NAME = "scheduled-dispatch";
+
+// R4: ONE repeatable job for the whole platform, not one per tenant — its
+// handler loops over every tenant in a single execution (sendDailyDigests.ts).
+// A daily email is cheap; scheduling N of them separately isn't free the
+// way scheduled-dispatch's per-tenant jobs already justify being.
+export const DIGEST_DAILY_JOB_NAME = "digest-daily";
 
 export interface ServerConfig {
   port: number;
@@ -207,6 +217,49 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     dashboardUrl: `${config.webOrigin}/dashboard`,
   };
 
+  // R4: the digest reuses #140's owner-email lookup and the same
+  // ceiling/reservation store instances above rather than building a
+  // second notification path — one never-throws discipline, not two.
+  const digestDeps: DigestDeps = {
+    charters: new CompanyCharterStore(pool),
+    batchStore,
+    costActivity: new PostgresCostActivityQueries(pool),
+    approvalQueue: trustCore.approvalQueue,
+    ceilings: notificationCeilings,
+    reservationTotals: notificationReservationStore,
+  };
+  const digestQueue = createRepeatableQueue(DIGEST_DAILY_JOB_NAME, { connection: queueRedisConnection });
+  // No per-tenant timezone exists yet (a real gap, not solved here) — a
+  // fixed UTC hour is the honest "smallest thing that works" default: 13:00
+  // UTC lands in the morning across US timezones, which is what most of
+  // this product's early tenants are in. upsertJobScheduler is idempotent,
+  // so re-registering on every boot is safe, not a duplicate-job risk.
+  void digestQueue
+    .upsertJobScheduler(DIGEST_DAILY_JOB_NAME, { pattern: "0 13 * * *" }, { data: {} })
+    .catch((err) => console.error("Failed to register the daily digest job scheduler:", err));
+  const digestWorker = createPlatformWorker(
+    DIGEST_DAILY_JOB_NAME,
+    async () => {
+      const summary = await sendDailyDigests({
+        listTenantIds: () => listAllTenantIds(pool),
+        digest: digestDeps,
+        getOwnerEmails: (tenantId) => getTenantOwnerEmails(pool, tenantId),
+        emailSender: notificationEmailSender,
+        dashboardUrl: `${config.webOrigin}/dashboard`,
+      });
+      console.log(`Daily digest batch: ${summary.sent} sent, ${summary.skipped} skipped, ${summary.failed} failed`);
+    },
+    { connection: redisConnection },
+  );
+  // Tracked for the same reason queueHealth/workerHealth are below — a
+  // connection stuck at "initializing" forever with no error is exactly
+  // this codebase's own burned lesson (see queueHealth's comment above).
+  // Not surfaced through /health (that route is specifically about the
+  // scheduled-dispatch pipeline's own criticality); logged loudly instead
+  // so a stuck digest connection is at least visible in server logs.
+  trackConnectionHealth(digestQueue, 15_000);
+  trackConnectionHealth(digestWorker, 15_000);
+
   const scheduledDispatchProcessor = createScheduledDispatchProcessor({
     router: trustCore.router,
     charters: new CompanyCharterStore(pool),
@@ -241,6 +294,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
       health: { queue: queueHealth, worker: workerHealth },
       notifications: scheduleNotifications,
     },
+    digest: digestDeps,
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
