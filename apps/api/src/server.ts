@@ -88,6 +88,14 @@ export interface ServerConfig {
    *  to an address on a verified domain instead. */
   resendApiKey?: string;
   notificationsFromEmail: string;
+  /** ADR-029: self-reported build identity, surfaced on GET /health as
+   *  `buildSha`. Not required (unlike DATABASE_URL etc.) — local dev has
+   *  no BUILD_SHA and must still boot; "unknown" there is honest, not a
+   *  bug. deploy-staging.yml sets BUILD_SHA=$GITHUB_SHA on Railway before
+   *  every deploy specifically so its own post-deploy check has something
+   *  real to compare against — see that workflow's "Verify the deployment
+   *  actually succeeded" step. */
+  buildSha: string;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -116,6 +124,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
 
   const resendApiKey = env.RESEND_API_KEY;
   const notificationsFromEmail = env.NOTIFICATIONS_FROM_EMAIL ?? "Runwisely <onboarding@resend.dev>";
+  const buildSha = env.BUILD_SHA ?? "unknown";
 
   return {
     port,
@@ -130,6 +139,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
     redisUrl,
     resendApiKey,
     notificationsFromEmail,
+    buildSha,
   };
 }
 
@@ -295,6 +305,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
       notifications: scheduleNotifications,
     },
     digest: digestDeps,
+    buildSha: config.buildSha,
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {

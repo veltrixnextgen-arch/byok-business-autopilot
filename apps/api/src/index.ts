@@ -94,6 +94,9 @@ export interface CreateAppOptions {
    *  scheduled daily-digest email job uses (server.ts's digestDeps) —
    *  one source of truth for "today's digest," not a second one. */
   digest: DigestDeps;
+  /** ADR-029: self-reported build identity, surfaced on /health. See
+   *  routes/health.ts's own doc comment. */
+  buildSha: string;
 }
 
 /**
@@ -128,7 +131,7 @@ export function createApp(options: CreateAppOptions) {
 
   const app = new Hono<AppEnv>()
     .use("*", cors({ origin: options.webOrigin, credentials: true }))
-    .route("/health", healthRoute({ redis: options.scheduler.health }))
+    .route("/health", healthRoute({ redis: options.scheduler.health, buildSha: options.buildSha }))
     // Better Auth's default basePath is /api/auth on both server and
     // client (createBrowserAuthClient doesn't override it) — this mount
     // must match, or the client's requests never reach a route Better

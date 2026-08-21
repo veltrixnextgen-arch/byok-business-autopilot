@@ -4,6 +4,18 @@ import type { AppEnv } from "../context.js";
 
 export interface HealthRouteDeps {
   redis: { queue: ConnectionHealth; worker: ConnectionHealth };
+  /** ADR-029: self-reported build identity — the running process's own
+   *  answer to "what commit am I." Set from BUILD_SHA (deploy-staging.yml
+   *  sets it to $GITHUB_SHA before every `railway up`), defaulting to
+   *  "unknown" wherever it isn't set (local dev, any environment that
+   *  hasn't opted in). This is what deploy-staging.yml's post-deploy
+   *  verification step polls and compares against the tag's own commit —
+   *  replacing a Railway-CLI-status-based check that failed three
+   *  consecutive staging deploys in three different ways, because asking
+   *  the platform's API to describe its own deployment record is a weaker
+   *  signal than asking the running process what it thinks it is.
+   */
+  buildSha: string;
 }
 
 /**
@@ -24,6 +36,7 @@ export function healthRoute(deps: HealthRouteDeps) {
     c.json({
       status: "ok",
       redis: { queue: deps.redis.queue.status, worker: deps.redis.worker.status },
+      buildSha: deps.buildSha,
     }),
   );
 }

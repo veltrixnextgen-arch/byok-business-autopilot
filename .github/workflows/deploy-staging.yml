@@ -170,6 +170,12 @@ jobs:
           # global Web Crypto API Node only exposes unflagged from v20) —
           # this is Nixpacks' own documented, guaranteed override.
           railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
+          # ADR-029: self-reported build identity. The "Verify the
+          # deployment actually succeeded" step below polls /health and
+          # compares its buildSha field against this exact value — set
+          # from $GITHUB_SHA (the commit this run checked out and built),
+          # not anything Railway's own API reports about itself.
+          railway variable set "BUILD_SHA=${{ github.sha }}" --service "$RAILWAY_SERVICE"
 
           # railwayapp/cli#696: `railway up`'s build succeeds on Railway's
           # platform, but the CLI's build-log GraphQL subscription fails
@@ -242,19 +248,6 @@ jobs:
         run: |
           railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
 
-          # Recorded now, before triggering the deploy below — the
-          # verification step after the health check identifies ITS
-          # deployment by creation time, not commit hash. Confirmed live
-          # 2026-08-15: `railway up` (this CLI-upload deploy path) does
-          # NOT reliably populate meta.commitHash the way a native
-          # git-webhook-triggered deploy does — the deployment that
-          # actually became active/serving had no commitHash at all,
-          # while an earlier, git-triggered, REMOVED entry for the same
-          # commit did. Matching by commit is unreliable for the deploy
-          # mechanism this workflow actually uses; matching by "created at
-          # or after this exact moment" identifies the right one instead.
-          echo "deploy_start=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >> "$GITHUB_OUTPUT"
-
           # Same railwayapp/cli#696 log-streaming bug as the first railway
           # up above, same --detach fix, same reasoning.
           for attempt in 1 2; do
@@ -295,78 +288,46 @@ jobs:
       # check above passed because Railway, which never promotes a failed
       # deployment, kept quietly serving a stale pre-incident build. A 200
       # from /health proves SOMETHING answers; it never proves it's THIS
-      # run's deploy. Two checks close that gap, and the second one is the
-      # general fix that would have caught this on day one: not just "did
-      # the deploy this run triggered reach Railway's own SUCCESS status"
-      # (the first check), but "is the thing actually serving traffic
-      # right now the thing this run just built" (the second) — a
-      # successful-but-never-promoted deploy, or a stale build a failed
-      # deploy left in place, fails this even when the first check alone
-      # would not.
+      # run's deploy.
       #
-      # 2026-08-15, second attempt: the first version identified "its"
-      # deployment by matching meta.commitHash against $GITHUB_SHA — broke
-      # on the very next real run (railway up's CLI-upload path doesn't
-      # reliably populate that field). Fixed to match by creation time
-      # instead — which broke on the run AFTER THAT: `railway deployment
-      # list` sorted by createdAt can have a real SUCCESS entry followed
-      # CHRONOLOGICALLY LATER by an unrelated SKIPPED one (confirmed live
-      # — Railway's own native auto-deploy-on-push noticing nothing left
-      # to build and skipping), and "take the latest entry" picked the
-      # harmless SKIP instead of the real SUCCESS that was already
-      # serving traffic. Both previous versions made the same mistake:
-      # searching a LIST for "the right entry" using some proxy (commit
-      # hash, then recency) instead of just asking Railway directly what
-      # IS serving traffic right now (`railway status`'s own
-      # activeDeployments) and confirming that ANSWER, not a list scan,
-      # is fresh (created at/after deploy_start) and healthy (instance
-      # RUNNING). `railway deployment list` is now used only as a
-      # secondary confirmation of THAT SPECIFIC id's own lifecycle
-      # status, never to independently search for "the right" entry.
+      # ADR-029, 2026-08-21: this step went through THREE rewrites trying
+      # to answer "is the running build the build I just deployed" by
+      # asking Railway's own API to describe its deployment record:
+      #   1. matched meta.commitHash against $GITHUB_SHA — broke
+      #      immediately (PR #133): railway up's CLI-upload path doesn't
+      #      reliably populate that field at all.
+      #   2. matched by creation time instead — broke on the very next
+      #      run: `railway deployment list` sorted by createdAt can have a
+      #      real SUCCESS entry followed CHRONOLOGICALLY LATER by an
+      #      unrelated SKIPPED one (Railway's own native auto-deploy-on-
+      #      push noticing nothing left to build), and "take the latest
+      #      entry" picked the harmless SKIP.
+      #   3. asked `railway status --json` directly for the active
+      #      deployment instead of scanning a list — failed differently
+      #      again on the very next three releases (v0.6.21, v0.6.22,
+      #      v0.6.23), never finding activeDeployments[0] at all within
+      #      the timeout.
+      # Three different failure modes from the same root cause: every
+      # version asked the PLATFORM to describe itself, and that
+      # description is unreliable specifically for the deploy mechanism
+      # this workflow uses. The fix is a different mechanism entirely —
+      # ask the RUNNING PROCESS what it thinks it is. `BUILD_SHA` is set
+      # on Railway (above, before `railway up`) to this exact run's
+      # $GITHUB_SHA; GET /health now echoes it back verbatim as
+      # `buildSha` (apps/api/src/routes/health.ts, ADR-029). This works
+      # regardless of deploy mechanism, Railway CLI version, or Railway's
+      # own API/JSON shape, because it never asks Railway anything — only
+      # the app itself, which is the actual thing we want to know about.
       - name: Verify the deployment actually succeeded and is what's serving traffic
         env:
+          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          DEPLOY_START: ${{ steps.redeploy.outputs.deploy_start }}
         run: |
-          echo "Waiting for apps/api's actively-serving deployment to be a fresh one (created at/after $DEPLOY_START) with a running instance..."
-          LIVE_ID=""
-          LIVE_INSTANCE_STATUS=""
-          for i in $(seq 1 30); do
-            MATCH=$(railway status --json 2>/dev/null | jq -r --arg svc "$RAILWAY_SERVICE" --arg start "$DEPLOY_START" '
-              .environments.edges[].node.serviceInstances.edges[]
-              | select(.node.serviceName == $svc)
-              | .node.activeDeployments[0]
-              | select(. != null and .createdAt >= $start)
-              | [.id, (.instances[0].status // "")]
-              | @tsv
-            ')
-            if [ -n "$MATCH" ]; then
-              LIVE_ID=$(echo "$MATCH" | cut -f1)
-              LIVE_INSTANCE_STATUS=$(echo "$MATCH" | cut -f2)
-              if [ "$LIVE_INSTANCE_STATUS" = "RUNNING" ]; then
-                break
-              fi
-            fi
-            echo "Not yet resolved (attempt $i/30, active deployment: id=${LIVE_ID:-none} instance_status=${LIVE_INSTANCE_STATUS:-none})..."
-            sleep 10
-          done
-
-          echo "Active deployment: ${LIVE_ID:-<not found>}, instance status: ${LIVE_INSTANCE_STATUS:-<none found within timeout>}"
-          if [ "$LIVE_INSTANCE_STATUS" != "RUNNING" ]; then
-            echo "::error::apps/api's active deployment never became a fresh, running instance (last seen: id=${LIVE_ID:-none} status=${LIVE_INSTANCE_STATUS:-none found}). Dumping logs for diagnosis."
+          node apps/api/scripts/verify-build-sha.mjs "$RAILWAY_URL/health" "${{ github.sha }}" 30 10000 || {
+            echo "::error::Dumping Railway logs for diagnosis."
             railway logs --deployment --latest -n 200 2>&1 || true
             exit 1
-          fi
-
-          echo "Confirming Railway's own deployment record for $LIVE_ID reached SUCCESS..."
-          DEPLOY_LIST_STATUS=$(railway deployment list --service "$RAILWAY_SERVICE" --json 2>/dev/null | jq -r --arg id "$LIVE_ID" '[.[] | select(.id == $id)] | first | .status // empty')
-          echo "Deployment $LIVE_ID's own recorded status: ${DEPLOY_LIST_STATUS:-<not found>}"
-          if [ "$DEPLOY_LIST_STATUS" != "SUCCESS" ]; then
-            echo "::error::apps/api is actively serving deployment $LIVE_ID, but its own recorded status is '${DEPLOY_LIST_STATUS:-not found}', not SUCCESS."
-            exit 1
-          fi
-
-          echo "Confirmed: deployment $LIVE_ID (created at/after $DEPLOY_START) is both actively serving traffic (instance RUNNING) and Railway's own record shows SUCCESS."
+          }
 
       # A real signup, not just a health check — /health proves the
       # process is up, not that auth actually works end to end. On
