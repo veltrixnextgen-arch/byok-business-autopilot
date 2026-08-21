@@ -73,6 +73,32 @@ test("defaults port to 3000, derives authBaseUrl from it, and defaults webOrigin
   assert.equal(config.webOrigin, "http://localhost:3002");
 });
 
+// ADR-029: BUILD_SHA is deliberately not required — local dev (and any
+// environment that hasn't opted in) has none, and the server must still
+// boot; "unknown" is the honest default, not a bug.
+test("buildSha defaults to 'unknown' when BUILD_SHA is unset", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.buildSha, "unknown");
+});
+
+test("buildSha is read verbatim from BUILD_SHA when set (deploy-staging.yml sets it to $GITHUB_SHA)", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    BUILD_SHA: "a1b2c3d4",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.buildSha, "a1b2c3d4");
+});
+
 test("respects an explicit PORT, BETTER_AUTH_URL, and WEB_ORIGIN", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
