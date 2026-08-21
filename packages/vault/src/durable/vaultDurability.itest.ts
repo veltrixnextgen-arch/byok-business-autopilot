@@ -12,7 +12,7 @@
 // properties hold against a REAL Postgres, not just that the SQL is
 // syntactically valid (see TRACKING.md's costByRefIds incident for why
 // that distinction matters — a mocked pool never executes real SQL).
-import { createPool } from "@byok/db";
+import { createPool, withTenantScope } from "@byok/db";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -88,9 +88,18 @@ test("ciphertext only in Postgres: the raw brain_keys row never contains the pla
     const plaintext = "sk-ant-super-secret-value";
     await vault.storeBrainKey({ tenantId, roleId: "cfo", provider: "anthropic", plaintext: Buffer.from(plaintext) }, TENANT_USER);
 
-    const raw = (await pool.query(
-      "SELECT material_ciphertext, material_iv, material_auth_tag FROM brain_keys WHERE tenant_id = $1::uuid",
-      [tenantId],
+    // RLS-protected table — an unscoped pool.query here isn't just wrong
+    // isolation, it actively throws: the tenant_isolation policy's
+    // `current_setting('app.tenant_id', true)::uuid` fails to cast an
+    // unset setting's empty string to uuid (the same footgun documented in
+    // TRACKING.md's RLS-unscoped-query incident). withTenantScope is what
+    // every real caller uses; this raw SELECT is just peeking at the same
+    // scoped row to verify what's actually stored.
+    const raw = (await withTenantScope(pool, tenantId, (client) =>
+      client.query(
+        "SELECT material_ciphertext, material_iv, material_auth_tag FROM brain_keys WHERE tenant_id = $1::uuid",
+        [tenantId],
+      ),
     )) as unknown as { rows: { material_ciphertext: Buffer; material_iv: Buffer; material_auth_tag: Buffer }[] };
     const row = raw.rows[0];
     assert.ok(row, "the row must exist");
@@ -206,8 +215,13 @@ test("a process restart mid-write (DEK created, key record never written) leaves
     const inserted = await dekRecordStore.putIfAbsent(tenantId, encryptedDek);
     assert.ok(inserted, "the DEK insert itself must succeed and commit independently of anything downstream");
 
-    // "The process crashes" — no brain_keys row was ever written.
-    const keyRows = (await pool.query("SELECT 1 FROM brain_keys WHERE tenant_id = $1::uuid", [tenantId])) as unknown as { rows: unknown[] };
+    // "The process crashes" — no brain_keys row was ever written. Scoped
+    // via withTenantScope — brain_keys is RLS-protected, and an unscoped
+    // query against it throws rather than silently returning zero rows
+    // (see the "ciphertext only" test above for why).
+    const keyRows = (await withTenantScope(pool, tenantId, (client) =>
+      client.query("SELECT 1 FROM brain_keys WHERE tenant_id = $1::uuid", [tenantId]),
+    )) as unknown as { rows: unknown[] };
     assert.equal(keyRows.rows.length, 0, "no half-written key record can exist — Postgres statement-level atomicity means putBrainKey either fully ran or never ran");
 
     // "The process restarts" and a real store call comes in for the same
@@ -221,7 +235,10 @@ test("a process restart mid-write (DEK created, key record never written) leaves
       assert.equal(plaintext.toString("utf8"), "sk-ant-after-restart");
     });
 
-    const dekRows = (await pool.query("SELECT count(*)::int AS count FROM tenant_deks WHERE tenant_id = $1::uuid", [tenantId])) as unknown as {
+    // tenant_deks is RLS-protected too — same scoping requirement.
+    const dekRows = (await withTenantScope(pool, tenantId, (client) =>
+      client.query("SELECT count(*)::int AS count FROM tenant_deks WHERE tenant_id = $1::uuid", [tenantId]),
+    )) as unknown as {
       rows: { count: number }[];
     };
     assert.equal(dekRows.rows[0]?.count, 1, "exactly one DEK row must exist — the orphaned one from before the 'restart', reused, never duplicated");
