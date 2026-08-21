@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Pool } from "pg";
 import { test } from "node:test";
 import { createPool, logSlowConnectionWait } from "./connection.js";
 
@@ -56,6 +57,31 @@ test("createPool lets a caller override any of the three bounds", () => {
   }
 });
 
+// ADR-030 regression test: an earlier version of this fix instrumented
+// pool-wait timing by reassigning the constructed Pool instance's own
+// connect() method — which broke pg-pool's own query() implementation
+// (it calls `this.connect(callback)` internally in callback style; the
+// override only implemented the promise form and silently ignored the
+// callback, so every pool.query() call in the app hung forever waiting
+// for a callback that never fires). Found live in CI: an integration
+// test that normally takes seconds ran for 24+ minutes before being
+// cancelled. This asserts createPool's returned Pool never has its own
+// connect() -- it must always be exactly Pool.prototype's, i.e.
+// pg-pool's own, completely untouched implementation.
+test("createPool never overrides connect() on the returned Pool -- it's exactly pg's own, unmodified implementation", () => {
+  const pool = createPool({ connectionString: "postgres://user:pass@localhost:5432/db" });
+  try {
+    assert.equal(
+      pool.connect,
+      Pool.prototype.connect,
+      "pool.connect must be pg-pool's own prototype method, not an instance override -- " +
+        "pool.query() depends on calling it in callback style internally",
+    );
+  } finally {
+    void pool.end();
+  }
+});
+
 test("createPool defaults max to 10, same as before this change", () => {
   const pool = createPool({ connectionString: "postgres://user:pass@localhost:5432/db" });
   try {
@@ -67,18 +93,24 @@ test("createPool defaults max to 10, same as before this change", () => {
 
 // logSlowConnectionWait is the pure predicate behind the pool-saturation
 // warning -- tested directly (no real pool.connect() call, no live
-// Postgres needed) by capturing console.warn.
+// Postgres needed) by capturing console.warn. Deliberately NOT wired in
+// by wrapping pg.Pool's own connect() method -- see tenantContext.ts's
+// timedConnect (the actual instrumentation point) for why: pg-pool's
+// own query() calls this.connect(callback) internally in callback
+// style, and an override that only implements the promise form silently
+// breaks that, found live when it hung every pool.query() call in the
+// app.
 test("logSlowConnectionWait warns loudly when a connection wait exceeds the threshold", () => {
   const warnings: unknown[][] = [];
   const originalWarn = console.warn;
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    logSlowConnectionWait(2_500, 10, 2_000);
+    logSlowConnectionWait(2_500, 2_000);
   } finally {
     console.warn = originalWarn;
   }
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /waited 2500ms.*pool saturated.*max=10/);
+  assert.match(String(warnings[0][0]), /waited 2500ms.*pool saturated/);
 });
 
 test("logSlowConnectionWait says nothing for a wait at or under the threshold", () => {
@@ -86,8 +118,8 @@ test("logSlowConnectionWait says nothing for a wait at or under the threshold", 
   const originalWarn = console.warn;
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    logSlowConnectionWait(1_000, 10, 2_000);
-    logSlowConnectionWait(2_000, 10, 2_000);
+    logSlowConnectionWait(1_000, 2_000);
+    logSlowConnectionWait(2_000, 2_000);
   } finally {
     console.warn = originalWarn;
   }

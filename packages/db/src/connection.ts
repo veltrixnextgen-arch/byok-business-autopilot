@@ -51,20 +51,26 @@ export interface DbConnectionOptions {
   idleInTransactionSessionTimeoutMillis?: number;
 }
 
-/** Exported for connection.test.ts -- a pure predicate, not a real timer
- *  or real pool.connect() call, is what lets this be tested without a
- *  live Postgres. */
-export function logSlowConnectionWait(waitedMs: number, max: number, warnThresholdMs = CONNECTION_WAIT_WARN_THRESHOLD_MS): void {
+/** Exported for connection.test.ts, and for tenantContext.ts's
+ *  timedConnect (the actual instrumentation point -- see that module's
+ *  own comment for why this is NOT wired in by wrapping `pg.Pool`'s own
+ *  `connect()` method: `pg-pool`'s own `query()` implementation calls
+ *  `this.connect(callback)` internally in callback style, which an
+ *  override that only implements the promise form silently breaks --
+ *  found live when it hung every `pool.query()` call in the app, not
+ *  just the explicit `pool.connect()` sites this was meant to time). A
+ *  pure predicate, not a real timer or real connection, is what lets
+ *  this be tested without a live Postgres. */
+export function logSlowConnectionWait(waitedMs: number, warnThresholdMs = CONNECTION_WAIT_WARN_THRESHOLD_MS): void {
   if (waitedMs > warnThresholdMs) {
-    console.warn(`[pg.Pool] waited ${waitedMs}ms for a free connection (pool saturated? max=${max})`);
+    console.warn(`[pg.Pool] waited ${waitedMs}ms for a free connection (pool saturated?)`);
   }
 }
 
 export function createPool(options: DbConnectionOptions): Pool {
-  const max = options.max ?? 10;
   const pool = new Pool({
     connectionString: options.connectionString,
-    max,
+    max: options.max ?? 10,
     connectionTimeoutMillis: options.connectionTimeoutMillis ?? DEFAULT_CONNECTION_TIMEOUT_MS,
     statement_timeout: options.statementTimeoutMillis ?? DEFAULT_STATEMENT_TIMEOUT_MS,
     idle_in_transaction_session_timeout: options.idleInTransactionSessionTimeoutMillis ?? DEFAULT_IDLE_IN_TRANSACTION_TIMEOUT_MS,
@@ -87,26 +93,6 @@ export function createPool(options: DbConnectionOptions): Pool {
   pool.on("error", (err) => {
     console.error("[pg.Pool] idle client error (connection discarded, pool continues):", err.message);
   });
-
-  // ADR-030: surfaces pool saturation itself, not just the eventual
-  // timeout -- see logSlowConnectionWait's own comment. Wrapping the
-  // concrete instance's connect() here (rather than instrumenting every
-  // withTenantScope/withUserScope call site) means every caller against
-  // the real pool gets this for free, while test fakes (PoolLike, used
-  // throughout this codebase's unit tests) are untouched.
-  // Every real call site in this codebase uses the promise form (no
-  // callback) -- only that overload is instrumented; reassigning as
-  // `typeof pool.connect` keeps the callback overload's type available
-  // to any future caller even though this wrapper doesn't implement it.
-  const originalConnect: () => Promise<import("pg").PoolClient> = pool.connect.bind(pool);
-  pool.connect = (async () => {
-    const startedAt = Date.now();
-    try {
-      return await originalConnect();
-    } finally {
-      logSlowConnectionWait(Date.now() - startedAt, max);
-    }
-  }) as typeof pool.connect;
 
   return pool;
 }
