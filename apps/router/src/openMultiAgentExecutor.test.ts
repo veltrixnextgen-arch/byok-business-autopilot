@@ -91,6 +91,46 @@ test("omits systemPrompt entirely (not an empty string) when the task carries no
   assert.equal(sawSystemPromptKey, false);
 });
 
+test("uses task.model (the cost gate's own choice, possibly a DOWNGRADE) over the constructor's fixed model", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return new SecretHandle(Buffer.from("sk-ant-fake-model-1"), 60_000);
+    },
+  };
+
+  let seenModel: string | undefined;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-opus-4-6", () => ({
+    runAgent: async (config: { model?: string }) => {
+      seenModel = config.model;
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask({ model: "claude-haiku-4-5-20251001" }));
+
+  assert.equal(seenModel, "claude-haiku-4-5-20251001");
+});
+
+test("falls back to the constructor's fixed model when task.model is unset (no CostGate configured)", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return new SecretHandle(Buffer.from("sk-ant-fake-model-2"), 60_000);
+    },
+  };
+
+  let seenModel: string | undefined;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => ({
+    runAgent: async (config: { model?: string }) => {
+      seenModel = config.model;
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask({ model: undefined }));
+
+  assert.equal(seenModel, "claude-sonnet-4-6");
+});
+
 test("zeroes the secret handle after the call completes", async () => {
   const handle = new SecretHandle(Buffer.from("sk-ant-fake-key-0002"), 60_000);
   const fakeVault: BrainKeyProvider = { async decryptBrainKey() { return handle; } };
@@ -153,7 +193,7 @@ test("only registers Hands tools whose subAgentId matches the running task — a
   };
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0006"), 60_000); },
-    resolveHandsKeyId: () => "hands-key-1",
+    resolveHandsKeyId: async () => "hands-key-1",
   };
   const handsTools: HandsToolSpec[] = [
     makeHandsSpec({ name: "send_invoice", subAgentId: "invoicing" }),
@@ -191,7 +231,7 @@ test("Hands key never leaves its SecretHandle across repeated tool calls within 
       issuedHandles.push(handle);
       return handle;
     },
-    resolveHandsKeyId: () => "hands-key-1",
+    resolveHandsKeyId: async () => "hands-key-1",
   };
   const handsTools: HandsToolSpec[] = [makeHandsSpec({ subAgentId: "invoicing" })];
 
@@ -242,7 +282,7 @@ test("issue #22: a Hands tool whose key isn't connected for this tenant is exclu
   const connectedScopes = new Set(["invoicing::stripe:invoices:write"]);
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0009"), 60_000); },
-    resolveHandsKeyId: (_tenantId, subAgentId, capabilityScope) =>
+    resolveHandsKeyId: async (_tenantId, subAgentId, capabilityScope) =>
       connectedScopes.has(`${subAgentId}::${capabilityScope}`) ? "hands-key-1" : null,
   };
   const handsTools: HandsToolSpec[] = [
@@ -277,7 +317,7 @@ test("issue #22: when every needed Hands tool IS connected, missingHands is abse
   };
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0010"), 60_000); },
-    resolveHandsKeyId: () => "hands-key-1",
+    resolveHandsKeyId: async () => "hands-key-1",
   };
   const handsTools: HandsToolSpec[] = [makeHandsSpec({ subAgentId: "invoicing" })];
 
@@ -310,7 +350,7 @@ test("PR 2A: a Hands tool connected at pre-flight but failing on the actual call
   };
   const fakeHandsVault: HandsKeyProvider = {
     // Connected at pre-flight (a real key id comes back)...
-    resolveHandsKeyId: () => "hands-key-1",
+    resolveHandsKeyId: async () => "hands-key-1",
     // ...but the actual decrypt (where OAuth's refresh-on-expiry lives)
     // fails — simulating an expired credential whose refresh just failed.
     async decryptHandsKey() {

@@ -1,20 +1,29 @@
 import { ApprovalQueue, AutonomyEngine, MockEffectExecutor, PostgresDurableApprovalStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
 import { PostgresDurableAuditLog, TenantCeilingStore, type PoolLike } from "@byok/db";
-import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
-import { Vault, type HandsCredentialRefresher } from "@byok/vault";
+import { InMemoryDedupStore, InMemoryTaskLedger, OpenMultiAgentExecutor, Router } from "@byok/router";
+import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
 import { DEV_TIER_MODEL_MAP, createDevKms } from "./dev/devTrustCore.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "./oauth/googleCalendar.js";
 import { DEFAULT_MONTHLY_CEILING_USD } from "./routes/ceiling.js";
 
+// Every Router.submitTask caller in this trust core (scheduled dispatch,
+// and apps/api/src/routes/tasks.ts's manual submit route) shares this one
+// Router instance and therefore this one identity — vault.ts's
+// assertRouterServiceIdentity requires exactly `kind: "router-service"`
+// for any decryptBrainKey call, and there is currently only one such
+// caller class in the system, not one per route.
+const ROUTER_SERVICE_IDENTITY: RequesterIdentity = { kind: "router-service", serviceId: "router" };
+
 /**
  * ADR-026: the durable counterpart to dev/devTrustCore.ts — same
  * pricing/model-map/ceiling/KMS config (none of that was ever dev-only in
  * substance, see devTrustCore.ts's own comments), but CostGate's
- * reservation store and ApprovalQueue's pending-item store are the real
- * Postgres-backed implementations, not process-local Maps that vanish on
- * restart or can never be seen from outside the process. This is what
+ * reservation store, ApprovalQueue's pending-item store, and Vault's own
+ * key storage are all the real Postgres-backed implementations, not
+ * process-local Maps that vanish on restart or can never be seen from
+ * outside the process. This is what
  * `start.ts` (staging, and eventually production) constructs; `dev.ts`
  * (local dev) keeps using createDevTrustCore unchanged — this file is
  * new, not a replacement for that one.
@@ -43,13 +52,41 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), DEV_TIER_MODEL_MAP);
   const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor(), undefined, new PostgresDurableApprovalStore(pool, auditLog));
   const ledger = new InMemoryTaskLedger();
-  const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
 
   const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
   if (options.google) {
     handsCredentialRefreshers.set(GOOGLE_CALENDAR_SERVICE, createGoogleCalendarRefresher(options.google));
   }
-  const vault = new Vault(createDevKms(), undefined, undefined, handsCredentialRefreshers);
+  // Constructed before the Router below — the executor needs it. Vault
+  // durability (found during MVP-1 readiness audit): key records and the
+  // per-tenant DEK that encrypts them are both real Postgres now, not the
+  // plain in-memory Maps that silently lost every stored key on every
+  // restart/redeploy before this — see durable/vaultKeyStore.ts and
+  // durable/dekRecordStore.ts's own module comments.
+  const vault = new Vault(
+    createDevKms(),
+    undefined,
+    undefined,
+    handsCredentialRefreshers,
+    undefined,
+    new PostgresVaultKeyStore(pool),
+    new PostgresDekRecordStore(pool),
+  );
+
+  // Real execution: every task submitted through this Router now resolves
+  // the tenant's own stored Brain key and calls a real model, not
+  // MockExecutor's stub string. task.model (set by the cost gate before
+  // execute() is ever called — see openMultiAgentExecutor.ts's own
+  // comment) always wins over the fixed model here; DEV_TIER_MODEL_MAP.T1
+  // is only a fallback for the theoretical no-CostGate case, which never
+  // happens in this durable wiring (costGate is always passed to Router
+  // below). No handsVault/handsTools yet — MVP-1 is deliberately
+  // draft-only (see issue TBD, effect-dispatch posture): every scheduled
+  // task's RouterTaskInput already omits `effect` entirely regardless, so
+  // omitting Hands here doesn't change what can dispatch today, only
+  // keeps this executor's tool surface at zero until that's revisited.
+  const executor = new OpenMultiAgentExecutor(vault, ROUTER_SERVICE_IDENTITY, DEV_TIER_MODEL_MAP.T1);
+  const router = new Router(ledger, new InMemoryDedupStore(), executor, costGate, approvalQueue);
 
   return { router, costGate, approvalQueue, ledger, vault, tierModelMap: DEV_TIER_MODEL_MAP };
 }

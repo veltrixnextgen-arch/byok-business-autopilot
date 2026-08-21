@@ -74,19 +74,24 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
     // `effect: task.missingHands ? undefined : input.effect` treats them
     // identically — one required change, not two.
     const missingHands: string[] = [];
-    const customTools =
-      this.handsVault === undefined
-        ? []
-        : this.handsTools
-            .filter((spec) => spec.subAgentId === task.subAgentId)
-            .filter((spec) => {
-              const connected = this.handsVault!.resolveHandsKeyId(task.tenantId, spec.subAgentId, spec.capabilityScope) !== null;
-              if (!connected) missingHands.push(spec.service);
-              return connected;
-            })
-            .map((spec) =>
-              createHandsTool(spec, this.handsVault!, this.requester, task.tenantId, (service) => missingHands.push(service)),
-            );
+    let customTools: ReturnType<typeof createHandsTool>[] = [];
+    if (this.handsVault !== undefined) {
+      const candidates = this.handsTools.filter((spec) => spec.subAgentId === task.subAgentId);
+      // resolveHandsKeyId is a real Postgres read now (VaultKeyStore), not
+      // a synchronous Map lookup — resolve every candidate's connection
+      // status up front (one round of concurrent awaits) rather than
+      // Array.prototype.filter, which has no async form.
+      const connectedIds = await Promise.all(
+        candidates.map((spec) => this.handsVault!.resolveHandsKeyId(task.tenantId, spec.subAgentId, spec.capabilityScope)),
+      );
+      customTools = candidates
+        .filter((spec, i) => {
+          const connected = connectedIds[i] !== null;
+          if (!connected) missingHands.push(spec.service);
+          return connected;
+        })
+        .map((spec) => createHandsTool(spec, this.handsVault!, this.requester, task.tenantId, (service) => missingHands.push(service)));
+    }
 
     return handle.use(async (apiKeyBuffer) => {
       try {
@@ -100,7 +105,15 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
         const result = await orchestrator.runAgent(
           {
             name: task.subAgentId,
-            model: this.model,
+            // task.model is the cost gate's own choice — the original tier
+            // selection, or a DOWNGRADE rewrite (router.ts's
+            // `task.model = verdict.model`, set before execute() is ever
+            // called). Falling back to the constructor's fixed `this.model`
+            // only covers callers with no CostGate configured (task.model
+            // never gets set in that case) — a real gated caller's model
+            // choice must never be silently overridden by one fixed
+            // boot-time string.
+            model: task.model ?? this.model,
             ...(task.systemPrompt ? { systemPrompt: task.systemPrompt } : {}),
             ...(customTools.length > 0 ? { customTools } : {}),
           },

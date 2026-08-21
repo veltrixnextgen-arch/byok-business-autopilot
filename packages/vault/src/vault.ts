@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { brainAad, decrypt, encrypt, handsAad, zeroBuffer } from "./crypto.js";
 import type { Kms } from "./kms.js";
 import { DekStore } from "./dekStore.js";
+import type { DekRecordStore } from "./durable/dekRecordStore.js";
+import { InMemoryDekRecordStore } from "./durable/dekRecordStore.js";
+import type { VaultKeyStore } from "./durable/vaultKeyStore.js";
+import { InMemoryVaultKeyStore } from "./durable/vaultKeyStore.js";
 import { maskFingerprint } from "./fingerprint.js";
 import { SecretHandle } from "./secretHandle.js";
 import type { AuditLog } from "./auditLog.js";
@@ -121,7 +125,11 @@ export interface BrainKeyProvider {
  *  becomes the decrypt's AAD (see decryptHandsKey below), so a wrong claim
  *  fails cryptographically, not just an application-level check. */
 export interface HandsKeyProvider {
+  /** `tenantId` scopes the lookup itself now that key records are
+   *  RLS-protected Postgres rows, not a flat in-memory Map — every real
+   *  caller (handsTool.ts) already has it in scope at the call site. */
   decryptHandsKey(
+    tenantId: string,
     keyId: string,
     requestedBy: { subAgentId: string; capabilityScope: string },
     requester: RequesterIdentity,
@@ -135,7 +143,7 @@ export interface HandsKeyProvider {
    *  this hot pre-flight path. No requester identity check here (unlike
    *  decryptHandsKey) — knowing whether a key merely EXISTS carries none
    *  of the risk that decrypting it does. */
-  resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): string | null;
+  resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): Promise<string | null>;
 }
 
 function assertRouterServiceIdentity(requester: RequesterIdentity): void {
@@ -152,26 +160,6 @@ function now(): string {
 
 export class Vault implements BrainKeyProvider, HandsKeyProvider {
   private readonly dekStore: DekStore;
-  // Nested by tenantId THEN roleId — never a single Map<roleId, record>.
-  // Role ids ("cfo", "cmo") are small, human-chosen slugs the same across
-  // every tenant's org chart, not globally unique identifiers; a flat map
-  // would let tenant B's storeBrainKey({roleId: "cfo"}) silently overwrite
-  // tenant A's "cfo" entry, and tenant A's next decryptBrainKey("cfo")
-  // would then hand back tenant B's key material — a real cross-tenant
-  // key leak, not a hypothetical one (found while wiring issue #15, the
-  // first real caller of this path outside single-tenant tests).
-  private readonly brainKeysByTenant = new Map<string, Map<string, BrainKeyRecord>>();
-  private readonly handsKeysById = new Map<string, HandsKeyRecord>();
-  // (tenantId, subAgentId, capabilityScope) -> the CURRENT record's id.
-  // handsKeysById itself is only ever looked up by an id someone already
-  // has (from decryptHandsKey's caller, or a rotate/revoke call) — nothing
-  // could ask "is subAgentId X already connected for capability Y" without
-  // this (issue #22's JIT gate needs exactly that, ahead of ever knowing a
-  // keyId). Re-storing for the same scope overwrites this index to point
-  // at the new record, same "latest wins" semantics as setBrainKey — the
-  // old record stays in handsKeysById (still revocable by its own id) but
-  // becomes unreachable via lookup, same as an orphaned prior BrainKeyRecord.
-  private readonly handsKeyIndex = new Map<string, string>();
   private readonly listeners: VaultEventListener[] = [];
   // In-flight OAuth refresh promises, keyed by Hands key id. A second
   // decryptHandsKey call for the SAME expired key while a refresh is
@@ -181,12 +169,11 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   // (Promise.all + a 4-way semaphore, dist/tool/executor.js), so an LLM
   // that calls the same Hands tool twice in one turn really can reach
   // decryptHandsKey twice before either finishes (docs/DECISIONS.md
-  // ADR-020).
+  // ADR-020). Deliberately still in-process/in-memory even now that key
+  // STORAGE is durable — this coalesces concurrent requests within one
+  // process's lifetime, not something that needs to survive a restart;
+  // losing it on restart just means duplicate refresh calls, not data loss.
   private readonly inFlightRefreshes = new Map<string, Promise<OAuthCredential>>();
-
-  private static handsIndexKey(tenantId: string, subAgentId: string, capabilityScope: string): string {
-    return `${tenantId}::${subAgentId}::${capabilityScope}`;
-  }
 
   constructor(
     kms: Kms,
@@ -194,8 +181,17 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     private readonly ttlMs: number = DEFAULT_TTL_MS,
     private readonly handsCredentialRefreshers: ReadonlyMap<string, HandsCredentialRefresher> = new Map(),
     private readonly refreshTimeoutMs: number = DEFAULT_REFRESH_TIMEOUT_MS,
+    // Both default to in-memory (dev/test only, see durable/*.ts's own
+    // guards) — durableTrustCore.ts/devTrustCore.ts pass real Postgres
+    // stores for any deployed environment. Key records and the DEK that
+    // encrypts them are two separate stores (dekRecordStore threads
+    // through to DekStore below) because losing one without the other is
+    // exactly the half-fixed state that leaves everything permanently
+    // undecryptable — see dekStore.ts's own comment.
+    private readonly store: VaultKeyStore = new InMemoryVaultKeyStore(),
+    dekRecordStore: DekRecordStore = new InMemoryDekRecordStore(),
   ) {
-    this.dekStore = new DekStore(kms);
+    this.dekStore = new DekStore(kms, dekRecordStore);
   }
 
   onEvent(listener: VaultEventListener): void {
@@ -212,19 +208,6 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   }
 
   // ---- Brain keys (per-tenant, per-role, ADR-002) -----------------------
-
-  private brainKeyFor(tenantId: string, roleId: string): BrainKeyRecord | undefined {
-    return this.brainKeysByTenant.get(tenantId)?.get(roleId);
-  }
-
-  private setBrainKey(tenantId: string, roleId: string, record: BrainKeyRecord): void {
-    let byRole = this.brainKeysByTenant.get(tenantId);
-    if (!byRole) {
-      byRole = new Map();
-      this.brainKeysByTenant.set(tenantId, byRole);
-    }
-    byRole.set(roleId, record);
-  }
 
   async storeBrainKey(input: StoreBrainKeyInput, requester: RequesterIdentity): Promise<PublicKeyRecord> {
     await this.runValidation(input.plaintext, input.validate, input.tenantId, requester);
@@ -245,7 +228,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       createdAt: now(),
       updatedAt: now(),
     };
-    this.setBrainKey(input.tenantId, input.roleId, record);
+    await this.store.putBrainKey(record);
     this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
     return toPublic(record);
   }
@@ -257,7 +240,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     requester: RequesterIdentity,
     validate?: (plaintext: Buffer) => Promise<boolean>,
   ): Promise<PublicKeyRecord> {
-    const record = this.brainKeyFor(tenantId, roleId);
+    const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record || record.revoked) throw new KeyNotFoundError(`No active Brain key for role "${roleId}".`);
 
     await this.runValidation(newPlaintext, validate, record.tenantId, requester);
@@ -266,19 +249,21 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.material = encrypt(newPlaintext, dek, brainAad(record.roleId, record.provider));
     record.maskedFingerprint = maskFingerprint(newPlaintext);
     record.updatedAt = now();
+    await this.store.updateBrainKey(record);
 
     this.audit.append({ operation: "rotate", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
     return toPublic(record);
   }
 
   async revokeBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<void> {
-    const record = this.brainKeyFor(tenantId, roleId);
+    const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record) throw new KeyNotFoundError(`No Brain key for role "${roleId}".`);
 
     record.material = null; // purge — Section 3: "vault entry purged"
     record.revoked = true;
     record.revokedAt = now();
     record.updatedAt = now();
+    await this.store.updateBrainKey(record);
 
     this.audit.append({ operation: "revoke", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
     this.emit({ type: "key.revoked", keyId: record.id, tenantId: record.tenantId, keyType: "brain", roleId });
@@ -286,14 +271,14 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
 
   /** Status only — never returns material, safe for a route to expose
    *  directly (issue #15's "is a key already connected" check). */
-  getBrainKeyStatus(tenantId: string, roleId: string): PublicKeyRecord | null {
-    const record = this.brainKeyFor(tenantId, roleId);
+  async getBrainKeyStatus(tenantId: string, roleId: string): Promise<PublicKeyRecord | null> {
+    const record = await this.store.getBrainKey(tenantId, roleId);
     return record && !record.revoked ? toPublic(record) : null;
   }
 
   async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle> {
     assertRouterServiceIdentity(requester);
-    const record = this.brainKeyFor(tenantId, roleId);
+    const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record || record.revoked || !record.material) {
       this.audit.append({
         operation: "decrypt-denied",
@@ -335,8 +320,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       createdAt: now(),
       updatedAt: now(),
     };
-    this.handsKeysById.set(record.id, record);
-    this.handsKeyIndex.set(Vault.handsIndexKey(input.tenantId, input.subAgentId, input.capabilityScope), record.id);
+    await this.store.putHandsKey(record);
     this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
     return toPublic(record);
   }
@@ -344,25 +328,24 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   /** Status only — never returns material, safe for a route to expose
    *  directly (mirrors getBrainKeyStatus, issue #22's "is this Hands tool
    *  already connected" check). */
-  getHandsKeyStatus(tenantId: string, subAgentId: string, capabilityScope: string): PublicKeyRecord | null {
-    const keyId = this.handsKeyIndex.get(Vault.handsIndexKey(tenantId, subAgentId, capabilityScope));
-    const record = keyId ? this.handsKeysById.get(keyId) : undefined;
+  async getHandsKeyStatus(tenantId: string, subAgentId: string, capabilityScope: string): Promise<PublicKeyRecord | null> {
+    const keyId = await this.store.resolveHandsKeyId(tenantId, subAgentId, capabilityScope);
+    const record = keyId ? await this.store.getHandsKeyById(tenantId, keyId) : null;
     return record && !record.revoked ? toPublic(record) : null;
   }
 
-  resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): string | null {
-    const keyId = this.handsKeyIndex.get(Vault.handsIndexKey(tenantId, subAgentId, capabilityScope));
-    const record = keyId ? this.handsKeysById.get(keyId) : undefined;
-    return record && !record.revoked ? record.id : null;
+  async resolveHandsKeyId(tenantId: string, subAgentId: string, capabilityScope: string): Promise<string | null> {
+    return this.store.resolveHandsKeyId(tenantId, subAgentId, capabilityScope);
   }
 
   async rotateHandsKey(
+    tenantId: string,
     keyId: string,
     newPlaintext: Buffer,
     requester: RequesterIdentity,
     validate?: (plaintext: Buffer) => Promise<boolean>,
   ): Promise<PublicKeyRecord> {
-    const record = this.handsKeysById.get(keyId);
+    const record = await this.store.getHandsKeyById(tenantId, keyId);
     if (!record || record.revoked) throw new KeyNotFoundError(`No active Hands key "${keyId}".`);
 
     await this.runValidation(newPlaintext, validate, record.tenantId, requester);
@@ -371,19 +354,21 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.material = encrypt(newPlaintext, dek, handsAad(record.subAgentId, record.capabilityScope));
     record.maskedFingerprint = maskFingerprint(newPlaintext);
     record.updatedAt = now();
+    await this.store.updateHandsKey(record);
 
     this.audit.append({ operation: "rotate", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
     return toPublic(record);
   }
 
-  async revokeHandsKey(keyId: string, requester: RequesterIdentity): Promise<void> {
-    const record = this.handsKeysById.get(keyId);
+  async revokeHandsKey(tenantId: string, keyId: string, requester: RequesterIdentity): Promise<void> {
+    const record = await this.store.getHandsKeyById(tenantId, keyId);
     if (!record) throw new KeyNotFoundError(`No Hands key "${keyId}".`);
 
     record.material = null;
     record.revoked = true;
     record.revokedAt = now();
     record.updatedAt = now();
+    await this.store.updateHandsKey(record);
 
     this.audit.append({ operation: "revoke", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
     this.emit({
@@ -404,12 +389,13 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
    * lookup-by-id step were somehow bypassed.
    */
   async decryptHandsKey(
+    tenantId: string,
     keyId: string,
     requestedBy: { subAgentId: string; capabilityScope: string },
     requester: RequesterIdentity,
   ): Promise<SecretHandle> {
     assertRouterServiceIdentity(requester);
-    const record = this.handsKeysById.get(keyId);
+    const record = await this.store.getHandsKeyById(tenantId, keyId);
     if (!record || record.revoked || !record.material) {
       this.audit.append({
         operation: "decrypt-denied",
@@ -547,7 +533,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
         // path a manual revoke uses (#22/#37's revoke-cancels-queued
         // listener fires identically) — rather than leaving a "connected"
         // key that fails the same way on every future call.
-        await this.revokeHandsKey(record.id, requester);
+        await this.revokeHandsKey(record.tenantId, record.id, requester);
         throw err;
       }
       if (err instanceof HandsRefreshFailedError) throw err;
@@ -567,6 +553,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     const dek = await this.dekStore.getOrCreateDek(record.tenantId);
     record.material = encrypt(Buffer.from(JSON.stringify(refreshed), "utf8"), dek, handsAad(record.subAgentId, record.capabilityScope));
     record.updatedAt = now();
+    await this.store.updateHandsKey(record);
     // maskedFingerprint deliberately untouched — it's the user-visible
     // "you connected this" identity from the initial store, not a live
     // reflection of the access token, which rotates silently and often;

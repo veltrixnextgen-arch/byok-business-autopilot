@@ -205,6 +205,24 @@ test("verifySchemaCurrent reports every missing canary at once, not just the fir
   );
 });
 
+test("0011_vault_durable_storage.sql RLS-policies every tenant-scoped table it creates", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0011_vault_durable_storage.sql"), "utf8");
+
+  const tenantScopedTables = ["tenant_deks", "brain_keys", "hands_keys"];
+  for (const table of tenantScopedTables) {
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;`), `${table}: missing ENABLE RLS`);
+    assert.match(sql, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;`), `${table}: missing FORCE RLS`);
+    assert.match(sql, new RegExp(`CREATE POLICY tenant_isolation ON ${table}`), `${table}: missing tenant_isolation policy`);
+  }
+
+  // Every material/DEK column must be BYTEA (raw ciphertext bytes), never
+  // a text type that could tempt a future caller into storing something
+  // human-readable there — the whole point of this migration.
+  for (const column of ["encrypted_dek_ciphertext", "encrypted_dek_iv", "encrypted_dek_auth_tag", "material_ciphertext", "material_iv", "material_auth_tag"]) {
+    assert.match(sql, new RegExp(`${column}\\s+BYTEA`), `${column}: must be declared BYTEA`);
+  }
+});
+
 test("schemaCanaries names exactly the four ALTER TABLE ADD COLUMN migrations that exist today", () => {
   const canaries = schemaCanaries();
   assert.deepEqual(

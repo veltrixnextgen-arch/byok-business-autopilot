@@ -39,10 +39,10 @@ const connectSchema = z.object({
  */
 export function handsKeyRoute(deps: HandsKeyRouteDeps) {
   return new Hono<AppEnv>()
-    .get("/", zValidator("query", statusQuerySchema), (c) => {
+    .get("/", zValidator("query", statusQuerySchema), async (c) => {
       const { subAgentId, capabilityScope } = c.req.valid("query");
       const tenantId = c.get("tenantId");
-      const status = deps.vault.getHandsKeyStatus(tenantId, subAgentId, capabilityScope);
+      const status = await deps.vault.getHandsKeyStatus(tenantId, subAgentId, capabilityScope);
       return c.json({ connected: status !== null, key: status });
     })
     .post("/", zValidator("json", connectSchema), async (c) => {
