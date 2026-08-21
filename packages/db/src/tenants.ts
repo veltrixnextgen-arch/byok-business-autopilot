@@ -1,4 +1,4 @@
-import type { PoolLike } from "./tenantContext.js";
+import { timedConnect, type PoolLike } from "./tenantContext.js";
 
 // The one deliberate cross-tenant read in this codebase outside the
 // internal-metrics carve-out (signupMetrics.ts's withInternalMetricsScope)
@@ -8,7 +8,7 @@ import type { PoolLike } from "./tenantContext.js";
 // every per-tenant read after this (charter, org chart, cost totals) still
 // goes through its own properly tenant-scoped store method.
 export async function listAllTenantIds(pool: PoolLike): Promise<string[]> {
-  const client = await pool.connect();
+  const client = await timedConnect(pool);
   try {
     const result = (await client.query("SELECT id FROM tenants ORDER BY created_at")) as unknown as { rows: Array<{ id: string }> };
     return result.rows.map((r) => r.id);

@@ -1,4 +1,4 @@
-import { InvalidTenantIdError, UNSET_SCOPE_UUID } from "./tenantContext.js";
+import { InvalidTenantIdError, timedConnect, UNSET_SCOPE_UUID } from "./tenantContext.js";
 import type { PoolClientLike, PoolLike } from "./tenantContext.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,7 +35,7 @@ export async function withUserScope<T>(
     throw new InvalidUserIdError(userId);
   }
 
-  const client = await pool.connect();
+  const client = await timedConnect(pool);
   let releaseErr: unknown;
   try {
     await client.query("BEGIN");
@@ -84,7 +84,7 @@ export async function withUserAndTenantScope<T>(
     throw new InvalidTenantIdError(tenantId);
   }
 
-  const client = await pool.connect();
+  const client = await timedConnect(pool);
   let releaseErr: unknown;
   try {
     await client.query("BEGIN");

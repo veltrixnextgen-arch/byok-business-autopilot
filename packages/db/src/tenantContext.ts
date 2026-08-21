@@ -1,3 +1,5 @@
+import { logSlowConnectionWait } from "./connection.js";
+
 // Structural interfaces (not `import type { Pool, PoolClient } from "pg"`) so
 // this module — and its tests — don't require a live pg connection to type-check
 // or exercise; `pg.Pool`/`pg.PoolClient` satisfy these shapes structurally.
@@ -45,6 +47,25 @@ export class InvalidTenantIdError extends Error {
   }
 }
 
+/** ADR-030: times `pool.connect()` and logs loudly if it took a while --
+ *  the shared instrumentation point every scope function below (and
+ *  userContext.ts's/signupMetrics.ts's siblings) uses. Deliberately NOT
+ *  done by wrapping `pg.Pool`'s own `connect()` method: `pg-pool`'s own
+ *  `query()` calls `this.connect(callback)` internally in callback
+ *  style, and an override that only implements the promise form silently
+ *  breaks that -- found live when it hung every `pool.query()` call in
+ *  the app, not just the explicit `pool.connect()` sites this was meant
+ *  to time. Timing each call site directly, as this does, never touches
+ *  `pg-pool`'s own internals. */
+export async function timedConnect(pool: PoolLike): Promise<PoolClientLike> {
+  const startedAt = Date.now();
+  try {
+    return await pool.connect();
+  } finally {
+    logSlowConnectionWait(Date.now() - startedAt);
+  }
+}
+
 /**
  * Runs `fn` inside a transaction with Postgres session setting
  * `app.tenant_id` bound to `tenantId` for the lifetime of that transaction.
@@ -71,7 +92,7 @@ export async function withTenantScope<T>(
     throw new InvalidTenantIdError(tenantId);
   }
 
-  const client = await pool.connect();
+  const client = await timedConnect(pool);
   let releaseErr: unknown;
   try {
     await client.query("BEGIN");

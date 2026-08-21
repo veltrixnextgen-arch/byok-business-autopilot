@@ -1,5 +1,5 @@
 import { withUserScope } from "./userContext.js";
-import { UNSET_SCOPE_UUID, type PoolClientLike, type PoolLike } from "./tenantContext.js";
+import { timedConnect, UNSET_SCOPE_UUID, type PoolClientLike, type PoolLike } from "./tenantContext.js";
 
 export type FunnelScreen = "signup" | "interview" | "tasks" | "org_chart";
 
@@ -33,7 +33,7 @@ export interface FeedbackRow {
  * the ones that happened to get caught by a test.
  */
 export async function withInternalMetricsScope<T>(pool: PoolLike, fn: (client: PoolClientLike) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+  const client = await timedConnect(pool);
   let releaseErr: unknown;
   try {
     await client.query("BEGIN");

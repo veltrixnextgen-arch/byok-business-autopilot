@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { InvalidTenantIdError, UNSET_SCOPE_UUID, withTenantScope, type PoolClientLike, type PoolLike } from "./tenantContext.js";
+import { InvalidTenantIdError, timedConnect, UNSET_SCOPE_UUID, withTenantScope, type PoolClientLike, type PoolLike } from "./tenantContext.js";
 
 const VALID_TENANT_ID = "8b6f3f2e-9a1e-4a5a-9d0f-6f6c1a2b3c4d";
 
@@ -159,4 +159,43 @@ test("still discards the connection (release with the original error) even when 
 
   assert.ok(calls.includes("__release__"));
   assert.equal(releasedWith, boom);
+});
+
+// ADR-030: timedConnect is the shared instrumentation point every scope
+// function (withTenantScope above, withUserScope/withUserAndTenantScope/
+// withInternalMetricsScope, listAllTenantIds) uses instead of calling
+// pool.connect() directly -- deliberately NOT done by overriding pg.Pool's
+// own connect() method (that broke pool.query()'s internal callback-style
+// use of connect(), found live). Timing the call site itself, as this
+// does, never touches pg-pool's own internals -- verified here with a
+// fake PoolLike, no real Postgres involved.
+test("timedConnect returns whatever pool.connect() resolves to, unchanged", async () => {
+  const fakeClient = {} as PoolClientLike;
+  const pool: PoolLike = { connect: async () => fakeClient };
+
+  const client = await timedConnect(pool);
+
+  assert.equal(client, fakeClient);
+});
+
+test("timedConnect logs loudly when pool.connect() itself takes a while, without swallowing or delaying the result", async () => {
+  const fakeClient = {} as PoolClientLike;
+  const pool: PoolLike = {
+    connect: () => new Promise((resolve) => setTimeout(() => resolve(fakeClient), 20)),
+  };
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+
+  let client: PoolClientLike;
+  try {
+    client = await timedConnect(pool);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(client, fakeClient);
+  // logSlowConnectionWait's own default threshold (2s) is far above this
+  // test's 20ms delay -- nothing should have been logged for a fast wait.
+  assert.equal(warnings.length, 0);
 });
