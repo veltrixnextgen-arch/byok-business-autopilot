@@ -39,7 +39,7 @@ function fakeDeps(overrides: Partial<BrainKeyRouteDeps> = {}): BrainKeyRouteDeps
       storeBrainKey: async () => {
         throw new Error("unused in this test");
       },
-      getBrainKeyStatus: () => {
+      getBrainKeyStatus: async () => {
         throw new Error("unused in this test");
       },
     },
@@ -62,7 +62,7 @@ test("GET checks status under DEFAULT_BRAIN_ROLE_ID when no org chart is claimed
         storeBrainKey: async () => {
           throw new Error("unused");
         },
-        getBrainKeyStatus: (tenantId, roleId) => {
+        getBrainKeyStatus: async (tenantId, roleId) => {
           seenArgs = [tenantId, roleId];
           return null;
         },
@@ -97,7 +97,7 @@ test("GET checks status under the org chart's first team id once a chart is clai
         storeBrainKey: async () => {
           throw new Error("unused");
         },
-        getBrainKeyStatus: (tenantId, roleId) => {
+        getBrainKeyStatus: async (tenantId, roleId) => {
           seenArgs = [tenantId, roleId];
           return status;
         },
@@ -160,7 +160,7 @@ test("POST stores the key under every team id in the claimed org chart, validati
             updatedAt: "",
           } satisfies PublicKeyRecord;
         },
-        getBrainKeyStatus: () => {
+        getBrainKeyStatus: async () => {
           throw new Error("unused");
         },
       },
@@ -207,7 +207,7 @@ test("POST returns 422 (not a 500) when live validation rejects the key, and sto
           storeCalls += 1;
           throw new ValidationFailedError("Live validation call failed — key was not stored.");
         },
-        getBrainKeyStatus: () => {
+        getBrainKeyStatus: async () => {
           throw new Error("unused");
         },
       },

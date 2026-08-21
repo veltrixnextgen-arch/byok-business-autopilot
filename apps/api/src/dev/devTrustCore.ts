@@ -3,7 +3,7 @@ import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approva
 import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
-import { LocalKms, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
+import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "../oauth/googleCalendar.js";
 import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
@@ -96,7 +96,21 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
   if (options.google) {
     handsCredentialRefreshers.set(GOOGLE_CALENDAR_SERVICE, createGoogleCalendarRefresher(options.google));
   }
-  const vault = new Vault(createDevKms(), undefined, undefined, handsCredentialRefreshers);
+  // Vault durability: `pool` is already required here (TenantCeilingStore
+  // above), so local dev gets the same real Postgres-backed key storage
+  // staging/production do — a key connected via `npm run dev` now
+  // survives a restart too, matching this file's own stated direction
+  // (ADR-026) of dev sharing real durable pieces wherever a pool is
+  // already on hand, not diverging further from staging/production.
+  const vault = new Vault(
+    createDevKms(),
+    undefined,
+    undefined,
+    handsCredentialRefreshers,
+    undefined,
+    new PostgresVaultKeyStore(pool),
+    new PostgresDekRecordStore(pool),
+  );
 
   return { router, costGate, approvalQueue, ledger, vault, tierModelMap: DEV_TIER_MODEL_MAP };
 }

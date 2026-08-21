@@ -76,8 +76,8 @@ async function storeOAuthHandsKey(
   return record.id;
 }
 
-function decryptOAuth(vault: Vault, keyId: string) {
-  return vault.decryptHandsKey(keyId, { subAgentId: "cmo.social", capabilityScope: "social-post" }, ROUTER);
+function decryptOAuth(vault: Vault, keyId: string, tenantId = "tenant-a") {
+  return vault.decryptHandsKey(tenantId, keyId, { subAgentId: "cmo.social", capabilityScope: "social-post" }, ROUTER);
 }
 
 test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a masked fingerprint never the real key", async () => {
@@ -127,6 +127,7 @@ test("scope binding: a HandsKey decrypted with the WRONG sub-agent claim fails, 
 
   // Correct claim succeeds.
   const handle = await vault.decryptHandsKey(
+    "tenant-a",
     record.id,
     { subAgentId: "invoicing", capabilityScope: "stripe:read-only" },
     ROUTER,
@@ -137,11 +138,11 @@ test("scope binding: a HandsKey decrypted with the WRONG sub-agent claim fails, 
   // capability) trying to decrypt the SAME key id must fail — the binding
   // is cryptographic (AAD), not just a lookup-table check.
   await assert.rejects(
-    () => vault.decryptHandsKey(record.id, { subAgentId: "expense-categorization", capabilityScope: "stripe:read-only" }, ROUTER),
+    () => vault.decryptHandsKey("tenant-a", record.id, { subAgentId: "expense-categorization", capabilityScope: "stripe:read-only" }, ROUTER),
     ScopeBindingError,
   );
   await assert.rejects(
-    () => vault.decryptHandsKey(record.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-write" }, ROUTER),
+    () => vault.decryptHandsKey("tenant-a", record.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-write" }, ROUTER),
     ScopeBindingError,
   );
 });
@@ -207,17 +208,17 @@ test("revoke purges key material: decrypt after revoke fails, not just 'flagged'
     ONBOARDING,
   );
 
-  await vault.revokeHandsKey(record.id, { kind: "admin", serviceId: "x" });
+  await vault.revokeHandsKey("tenant-a", record.id, { kind: "admin", serviceId: "x" });
 
   await assert.rejects(
-    () => vault.decryptHandsKey(record.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER),
+    () => vault.decryptHandsKey("tenant-a", record.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER),
     KeyNotFoundError,
   );
 });
 
 test("issue #22: resolveHandsKeyId is null before a Hands key is stored, and resolves the real id after", async () => {
   const vault = makeVault();
-  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
 
   const record = await vault.storeHandsKey(
     {
@@ -234,7 +235,7 @@ test("issue #22: resolveHandsKeyId is null before a Hands key is stored, and res
     ONBOARDING,
   );
 
-  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), record.id);
+  assert.equal(await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), record.id);
 });
 
 test("issue #22: resolveHandsKeyId and getHandsKeyStatus both go back to null once the key is revoked", async () => {
@@ -249,12 +250,12 @@ test("issue #22: resolveHandsKeyId and getHandsKeyStatus both go back to null on
     },
     ONBOARDING,
   );
-  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only")?.id, record.id);
+  assert.equal((await vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only"))?.id, record.id);
 
-  await vault.revokeHandsKey(record.id, { kind: "admin", serviceId: "x" });
+  await vault.revokeHandsKey("tenant-a", record.id, { kind: "admin", serviceId: "x" });
 
-  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
-  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(await vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only"), null);
 });
 
 test("issue #22: cross-tenant isolation — two tenants using the same subAgentId+capabilityScope get fully independent Hands keys", async () => {
@@ -268,18 +269,18 @@ test("issue #22: cross-tenant isolation — two tenants using the same subAgentI
     ONBOARDING,
   );
 
-  const idA = vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only");
-  const idB = vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only");
+  const idA = await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only");
+  const idB = await vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only");
   assert.ok(idA && idB && idA !== idB);
 
-  const handleA = await vault.decryptHandsKey(idA!, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER);
+  const handleA = await vault.decryptHandsKey("tenant-a", idA!, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER);
   assert.equal(await handleA.use((buf) => buf.toString("utf8")), "sk-tenant-a");
 
   // Revoking tenant-a's key must not touch tenant-b's, even though both
   // share the exact same subAgentId+capabilityScope.
-  await vault.revokeHandsKey(idA!, { kind: "admin", serviceId: "x" });
-  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
-  assert.equal(vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only"), idB);
+  await vault.revokeHandsKey("tenant-a", idA!, { kind: "admin", serviceId: "x" });
+  assert.equal(await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), null);
+  assert.equal(await vault.resolveHandsKeyId("tenant-b", "invoicing", "stripe:read-only"), idB);
 });
 
 test("issue #22: re-storing for the same scope overwrites which key resolves as current", async () => {
@@ -294,8 +295,8 @@ test("issue #22: re-storing for the same scope overwrites which key resolves as 
   );
 
   assert.notEqual(first.id, second.id);
-  assert.equal(vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), second.id);
-  assert.equal(vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only")?.maskedFingerprint, second.maskedFingerprint);
+  assert.equal(await vault.resolveHandsKeyId("tenant-a", "invoicing", "stripe:read-only"), second.id);
+  assert.equal((await vault.getHandsKeyStatus("tenant-a", "invoicing", "stripe:read-only"))?.maskedFingerprint, second.maskedFingerprint);
 });
 
 test("cross-tenant isolation: two tenants using the same role id get fully independent Brain keys", async () => {
@@ -350,7 +351,7 @@ test("revoke-cancels-queued: the router's mock queue drops tasks for a revoked k
     }
   });
 
-  await vault.revokeHandsKey(record.id, { kind: "admin", serviceId: "x" });
+  await vault.revokeHandsKey("tenant-a", record.id, { kind: "admin", serviceId: "x" });
 
   assert.equal(queuedTasks[0].status, "cancelled");
   assert.equal(queuedTasks[1].status, "queued"); // unrelated task untouched
@@ -444,7 +445,7 @@ test("OAuth: an expired credential is silently refreshed and the new access toke
   assert.equal(await handle2.use((buf) => buf.toString("utf8")), "tok-refreshed");
   assert.equal(refresher.calls.length, 1, "the second decrypt must not re-refresh an already-fresh token");
 
-  const status = vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post");
+  const status = await vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post");
   assert.ok(status, "the key must still be connected, not revoked, after a successful refresh");
 });
 
@@ -466,7 +467,7 @@ test("OAuth fail-closed: refresh failure (generic provider error) throws, key st
 
   await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshFailedError);
   assert.equal(refresher.calls.length, 1);
-  assert.ok(vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), "a transient refresh failure must not revoke the key — it may succeed next time");
+  assert.ok(await vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), "a transient refresh failure must not revoke the key — it may succeed next time");
 });
 
 test("OAuth fail-closed: network error during refresh is classified as HandsRefreshFailedError, never a stale handle", async () => {
@@ -500,7 +501,7 @@ test("OAuth fail-closed: a revoked refresh token throws HandsRefreshTokenRevoked
 
   await assert.rejects(() => decryptOAuth(vault, keyId), HandsRefreshTokenRevokedError);
 
-  assert.equal(vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), null, "a revoked-refresh-token failure must actually revoke the stored key, not just fail this one call");
+  assert.equal(await vault.getHandsKeyStatus("tenant-a", "cmo.social", "social-post"), null, "a revoked-refresh-token failure must actually revoke the stored key, not just fail this one call");
   assert.deepEqual(revokedEvents, [keyId], "the same key.revoked event a manual revoke fires must fire here too — #22/#37's revoke-cancels-queued listener depends on it");
 
   // And it must actually stay revoked — a later decrypt attempt fails

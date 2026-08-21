@@ -50,7 +50,7 @@ export function brainKeyRoute(deps: BrainKeyRouteDeps) {
     .get("/", async (c) => {
       const tenantId = c.get("tenantId");
       const [roleId] = await roleIdsForTenant(deps, tenantId);
-      const status = deps.vault.getBrainKeyStatus(tenantId, roleId);
+      const status = await deps.vault.getBrainKeyStatus(tenantId, roleId);
       return c.json({ connected: status !== null, key: status });
     })
     .post("/", zValidator("json", connectSchema), async (c) => {

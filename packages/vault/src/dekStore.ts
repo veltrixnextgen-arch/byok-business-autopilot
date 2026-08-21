@@ -1,23 +1,51 @@
-import type { EncryptedBlob } from "./crypto.js";
 import { generateKey } from "./crypto.js";
+import { InMemoryDekRecordStore, type DekRecordStore } from "./durable/dekRecordStore.js";
 import type { Kms } from "./kms.js";
 
 // Envelope encryption's inner layer: one Data Encryption Key (DEK) per
 // tenant, generated once, encrypted at rest by the KMS master key. Every
 // key record for that tenant is encrypted with the (decrypted) DEK, never
 // directly with the master key — the master key only ever touches DEKs.
+//
+// `store` defaults to an in-memory Map for tests/local dev without a real
+// Postgres connection handy — durableTrustCore.ts (and devTrustCore.ts,
+// which also has a real pool) pass PostgresDekRecordStore explicitly. See
+// durable/dekRecordStore.ts's own module comment for why persisting the
+// DEK is not optional once the key RECORDS it decrypts are durable too:
+// without it, every previously-stored key becomes permanently
+// undecryptable the moment the process restarts and a fresh DEK is
+// generated in its place — the encrypted material would still be sitting
+// in Postgres, silently unusable.
 export class DekStore {
-  private readonly encryptedDeks = new Map<string, EncryptedBlob>();
+  constructor(
+    private readonly kms: Kms,
+    private readonly store: DekRecordStore = new InMemoryDekRecordStore(),
+  ) {}
 
-  constructor(private readonly kms: Kms) {}
-
+  // Restart-mid-write safety: a crash between this DEK insert and the
+  // caller's own key-record write (Vault.storeBrainKey/storeHandsKey) never
+  // leaves a partial record — each is its own single Postgres statement,
+  // so either fully commits or doesn't happen at all. The worst case is an
+  // orphaned-but-harmless DEK row with no key record using it yet, which
+  // the next getOrCreateDek call for this tenant just reuses via the get()
+  // branch above — see durable/vaultDurability.itest.ts's own test for the
+  // proof.
   async getOrCreateDek(tenantId: string): Promise<Buffer> {
-    const existing = this.encryptedDeks.get(tenantId);
+    const existing = await this.store.get(tenantId);
     if (existing) return this.kms.decryptDek(existing);
 
     const dek = generateKey();
     const encrypted = await this.kms.encryptDek(dek);
-    this.encryptedDeks.set(tenantId, encrypted);
-    return dek;
+    const inserted = await this.store.putIfAbsent(tenantId, encrypted);
+    if (inserted) return dek;
+
+    // Lost a concurrent create race — some other caller's DEK is now the
+    // one on file. Use theirs, not the one we just generated (which was
+    // never persisted and must not be used to encrypt anything).
+    const winner = await this.store.get(tenantId);
+    if (!winner) {
+      throw new Error(`DEK for tenant "${tenantId}" vanished between putIfAbsent and get — this should be impossible.`);
+    }
+    return this.kms.decryptDek(winner);
   }
 }

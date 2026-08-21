@@ -77,7 +77,7 @@ export function createHandsTool(
     inputSchema: spec.inputSchema,
     consequential: spec.consequential,
     execute: async (input) => {
-      const keyId = handsVault.resolveHandsKeyId(tenantId, spec.subAgentId, spec.capabilityScope);
+      const keyId = await handsVault.resolveHandsKeyId(tenantId, spec.subAgentId, spec.capabilityScope);
       if (!keyId) {
         onLiveFailure?.(spec.service);
         return { data: `"${spec.service}" isn't connected yet for "${spec.name}" — working in draft mode.`, isError: true };
@@ -86,6 +86,7 @@ export function createHandsTool(
       let handle;
       try {
         handle = await handsVault.decryptHandsKey(
+          tenantId,
           keyId,
           { subAgentId: spec.subAgentId, capabilityScope: spec.capabilityScope },
           requester,

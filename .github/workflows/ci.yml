@@ -179,6 +179,12 @@ jobs:
       - run: npm run test:integration --workspace @byok/db
         env:
           DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
+      # Vault durability: proves the Brain/Hands key + DEK storage swap
+      # (in-memory Maps -> Postgres) preserves RLS tenant isolation
+      # against a REAL Postgres, not just an in-memory fake.
+      - run: npm run test:integration --workspace @byok/vault
+        env:
+          DATABASE_URL: postgres://app_user:app_user_ci_password@localhost:5432/byok
 
   trust-core-attestation:
     name: Trust-core attestation

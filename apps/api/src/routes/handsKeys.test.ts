@@ -21,7 +21,7 @@ function fakeDeps(overrides: Partial<HandsKeyRouteDeps["vault"]> = {}): HandsKey
       storeHandsKey: async () => {
         throw new Error("unused in this test");
       },
-      getHandsKeyStatus: () => {
+      getHandsKeyStatus: async () => {
         throw new Error("unused in this test");
       },
       ...overrides,
@@ -37,7 +37,7 @@ test("GET status reads by the session's tenantId plus the requested subAgentId/c
     "tenant-1",
     SESSION,
     fakeDeps({
-      getHandsKeyStatus: (tenantId, subAgentId, capabilityScope) => {
+      getHandsKeyStatus: async (tenantId, subAgentId, capabilityScope) => {
         seenArgs = [tenantId, subAgentId, capabilityScope];
         return null;
       },
@@ -64,7 +64,7 @@ test("GET status reports connected: true with the key's public status once one e
     createdAt: "",
     updatedAt: "",
   };
-  const app = appWithSession("tenant-1", SESSION, fakeDeps({ getHandsKeyStatus: () => status }));
+  const app = appWithSession("tenant-1", SESSION, fakeDeps({ getHandsKeyStatus: async () => status }));
 
   const res = await app.request("/?subAgentId=invoicing&capabilityScope=stripe:read-only");
   assert.equal(res.status, 200);

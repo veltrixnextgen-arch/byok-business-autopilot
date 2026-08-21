@@ -29,7 +29,7 @@ function makeSpec(overrides: Partial<HandsToolSpec> = {}): HandsToolSpec {
 function fakeVault(decryptHandsKey: HandsKeyProvider["decryptHandsKey"]): HandsKeyProvider {
   return {
     decryptHandsKey,
-    resolveHandsKeyId: () => "hands-key-1",
+    resolveHandsKeyId: async () => "hands-key-1",
   };
 }
 
@@ -53,7 +53,7 @@ test("decrypts just-in-time and zeroes the handle after the call completes", asy
 
 test("claims the spec's own fixed subAgentId+capabilityScope, not anything from tool input", async () => {
   const claims: { subAgentId: string; capabilityScope: string }[] = [];
-  const handsVault = fakeVault(async (_keyId, requestedBy) => {
+  const handsVault = fakeVault(async (_tenantId, _keyId, requestedBy) => {
     claims.push(requestedBy);
     return new SecretHandle(Buffer.from("sk-hands-fake-0002"), 60_000);
   });
@@ -124,7 +124,7 @@ test("issue #22: when resolveHandsKeyId finds nothing connected, the tool return
       decryptCalls++;
       throw new Error("should never be called");
     },
-    resolveHandsKeyId: () => null,
+    resolveHandsKeyId: async () => null,
   };
 
   const tool = createHandsTool(makeSpec(), handsVault, ROUTER, TENANT_ID);
