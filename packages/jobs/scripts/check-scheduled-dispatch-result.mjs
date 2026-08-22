@@ -3,12 +3,22 @@
 // triggered run — companion to poll-scheduled-dispatch-result.mjs, for
 // checking in on a run that's already been waited on once.
 //
-// Usage: node check-scheduled-dispatch-result.mjs <tenantId> <agentId> <sinceIso>
+// Usage: node check-scheduled-dispatch-result.mjs <tenantId> <agentId> <sinceIso> [outFile]
+//
+// issue #161: previously this printed the full JSON straight to the
+// terminal, and the draft text pasted back into chat showed scattered
+// doubled letters. Every code path from the Anthropic API response
+// through to this row's storage was checked and found to do no
+// character-level buffering that could cause that — so the working
+// theory is a terminal/copy-paste artifact, not a real bug. `outFile`
+// writes the raw JSON straight to disk instead, so it can be read back
+// byte-for-byte without ever passing through a terminal's scrollback.
 import { Pool } from "pg";
+import { writeFileSync } from "node:fs";
 
-const [, , tenantId, agentId, sinceIso] = process.argv;
+const [, , tenantId, agentId, sinceIso, outFile] = process.argv;
 if (!tenantId || !agentId || !sinceIso) {
-  console.error("Usage: node check-scheduled-dispatch-result.mjs <tenantId> <agentId> <sinceIso>");
+  console.error("Usage: node check-scheduled-dispatch-result.mjs <tenantId> <agentId> <sinceIso> [outFile]");
   process.exitCode = 2;
   process.exit();
 }
@@ -58,9 +68,16 @@ async function main() {
     return { approvals: approvalRes.rows, costs: costRes.rows, audit: auditRes.rows };
   });
 
-  console.log("approval_queue_items (most recent 3):", JSON.stringify(found.approvals, null, 2));
-  console.log("cost_reservations (most recent 3):", JSON.stringify(found.costs, null, 2));
-  console.log("audit_log (most recent 10):", JSON.stringify(found.audit, null, 2));
+  if (outFile) {
+    writeFileSync(outFile, JSON.stringify(found, null, 2), "utf8");
+    console.log(`Wrote raw JSON to ${outFile} (${found.approvals.length} approval row(s), ${found.costs.length} cost row(s), ${found.audit.length} audit row(s)).`);
+    console.log("Draft excerpt (first 200 chars, for a sanity check only — read the file for the full, untouched text):");
+    console.log(found.approvals[0]?.payload?.draft?.slice(0, 200) ?? "<no approval row found>");
+  } else {
+    console.log("approval_queue_items (most recent 3):", JSON.stringify(found.approvals, null, 2));
+    console.log("cost_reservations (most recent 3):", JSON.stringify(found.costs, null, 2));
+    console.log("audit_log (most recent 10):", JSON.stringify(found.audit, null, 2));
+  }
   await pool.end();
 }
 
