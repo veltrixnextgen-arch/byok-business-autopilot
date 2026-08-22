@@ -167,6 +167,26 @@ export function DashboardScreen() {
             </Card>
           )}
 
+          {/* ADR-031: a key can be "connected" (its row exists, not
+              revoked) while genuinely undecryptable — most likely a
+              rotated KMS master key. Showing this exactly like "never
+              connected" would hide a real, actionable problem; showing
+              nothing at all is the "reports healthy, is broken" pattern
+              this signal exists specifically to avoid. */}
+          {brainKeyStatus != null && !brainKeyStatus.decryptable && (
+            <Card className="flex flex-col items-start justify-between gap-4 border-danger/30 bg-danger/10 sm:flex-row sm:items-center">
+              <div role="alert">
+                <p className="font-display text-base font-semibold text-text">Your connected Brain key can't be used right now</p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  It's connected, but we can no longer decrypt it — reconnect it to keep your agents working.
+                </p>
+              </div>
+              <Link to="/connect" className="shrink-0">
+                <Button variant="gradient">Reconnect</Button>
+              </Link>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatTile label="Agents active" value={null} />
             <StatTile label="Work completed today" value={null} />

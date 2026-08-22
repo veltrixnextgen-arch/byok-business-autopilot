@@ -270,10 +270,49 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   }
 
   /** Status only — never returns material, safe for a route to expose
-   *  directly (issue #15's "is a key already connected" check). */
+   *  directly (issue #15's "is a key already connected" check).
+   *
+   *  Deliberately does NOT attempt decryption — a row existing and not
+   *  being revoked is a cheap, purely-metadata fact. Whether the key
+   *  material behind that row can still actually be decrypted is a
+   *  DIFFERENT question this method does not answer — see
+   *  verifyBrainKeyDecryptable below, added specifically because
+   *  "connected" reading true while decryption is silently broken (found
+   *  live: a rotated KMS master key orphans every DEK with zero visible
+   *  symptom until something tries to decrypt) is the same "reports
+   *  healthy, is broken" shape this codebase has hit multiple times now.
+   *  A caller wanting an honest signal should check both. */
   async getBrainKeyStatus(tenantId: string, roleId: string): Promise<PublicKeyRecord | null> {
     const record = await this.store.getBrainKey(tenantId, roleId);
     return record && !record.revoked ? toPublic(record) : null;
+  }
+
+  /** ADR-031: the real decrypt-path health check `getBrainKeyStatus`
+   *  deliberately isn't. Runs the exact same DEK-fetch + AES-GCM-decrypt
+   *  path `decryptBrainKey` does, immediately zeroes the recovered
+   *  plaintext, and returns only whether it succeeded — never the
+   *  material itself, so this carries none of `decryptBrainKey`'s
+   *  requester-identity restriction (there is nothing here for a caller
+   *  to misuse). Both the DEK's own decrypt (fails if the KMS master key
+   *  that encrypted it is no longer the one configured — exactly the
+   *  rotated-master-key scenario this was built to catch) and the
+   *  material's decrypt (fails on any other corruption/tamper) have to
+   *  succeed for this to return true. A missing or revoked record is
+   *  `false`, not an error — "can I decrypt this" is vacuously false for
+   *  a key that was never usable in the first place, matching
+   *  getBrainKeyStatus's own not-found-or-revoked-reads-as-absent
+   *  convention. */
+  async verifyBrainKeyDecryptable(tenantId: string, roleId: string): Promise<boolean> {
+    const record = await this.store.getBrainKey(tenantId, roleId);
+    if (!record || record.revoked || !record.material) return false;
+    try {
+      const dek = await this.dekStore.getOrCreateDek(record.tenantId);
+      const plaintext = decrypt(record.material, dek, brainAad(record.roleId, record.provider));
+      zeroBuffer(plaintext);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle> {

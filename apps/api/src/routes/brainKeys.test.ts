@@ -42,6 +42,9 @@ function fakeDeps(overrides: Partial<BrainKeyRouteDeps> = {}): BrainKeyRouteDeps
       getBrainKeyStatus: async () => {
         throw new Error("unused in this test");
       },
+      verifyBrainKeyDecryptable: async () => {
+        throw new Error("unused in this test");
+      },
     },
     batchStore: {
       latestForTenant: async () => null,
@@ -66,6 +69,13 @@ test("GET checks status under DEFAULT_BRAIN_ROLE_ID when no org chart is claimed
           seenArgs = [tenantId, roleId];
           return null;
         },
+        // No row exists, so the route must never even call this — see
+        // the "never calls verifyBrainKeyDecryptable" test below for the
+        // explicit assertion; here it just needs to not throw if it were
+        // (wrongly) called.
+        verifyBrainKeyDecryptable: async () => {
+          throw new Error("must not be called when there's no key row");
+        },
       },
     }),
   );
@@ -73,7 +83,7 @@ test("GET checks status under DEFAULT_BRAIN_ROLE_ID when no org chart is claimed
   const res = await app.request("/");
   assert.equal(res.status, 200);
   assert.deepEqual(seenArgs, ["tenant-1", DEFAULT_BRAIN_ROLE_ID]);
-  assert.deepEqual(await res.json(), { connected: false, key: null });
+  assert.deepEqual(await res.json(), { connected: false, decryptable: null, key: null });
 });
 
 test("GET checks status under the org chart's first team id once a chart is claimed", async () => {
@@ -101,6 +111,7 @@ test("GET checks status under the org chart's first team id once a chart is clai
           seenArgs = [tenantId, roleId];
           return status;
         },
+        verifyBrainKeyDecryptable: async () => true,
       },
       batchStore: {
         latestForTenant: async () => ({
@@ -122,7 +133,42 @@ test("GET checks status under the org chart's first team id once a chart is clai
   const res = await app.request("/");
   assert.equal(res.status, 200);
   assert.deepEqual(seenArgs, ["tenant-1", "cfo"]);
-  assert.deepEqual(await res.json(), { connected: true, key: status });
+  assert.deepEqual(await res.json(), { connected: true, decryptable: true, key: status });
+});
+
+// ADR-031: the whole point of this field — a key row existing and not
+// being revoked ("connected") is a different fact than its material
+// still being decryptable right now. A rotated KMS master key is the
+// realistic cause: the row survives, decryption doesn't.
+test("GET reports decryptable: false for a connected key whose material can no longer be decrypted", async () => {
+  const status: PublicKeyRecord = {
+    id: "key-1",
+    tenantId: "tenant-1",
+    type: "brain",
+    roleId: DEFAULT_BRAIN_ROLE_ID,
+    provider: "anthropic",
+    maskedFingerprint: "sk-...4f2a",
+    revoked: false,
+    createdAt: "",
+    updatedAt: "",
+  };
+  const app = appWithSession(
+    "tenant-1",
+    SESSION,
+    fakeDeps({
+      vault: {
+        storeBrainKey: async () => {
+          throw new Error("unused");
+        },
+        getBrainKeyStatus: async () => status,
+        verifyBrainKeyDecryptable: async () => false,
+      },
+    }),
+  );
+
+  const res = await app.request("/");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { connected: true, decryptable: false, key: status });
 });
 
 test("POST rejects a body missing provider/apiKey with 400 before ever calling the vault", async () => {
@@ -161,6 +207,9 @@ test("POST stores the key under every team id in the claimed org chart, validati
           } satisfies PublicKeyRecord;
         },
         getBrainKeyStatus: async () => {
+          throw new Error("unused");
+        },
+        verifyBrainKeyDecryptable: async () => {
           throw new Error("unused");
         },
       },
@@ -208,6 +257,9 @@ test("POST returns 422 (not a 500) when live validation rejects the key, and sto
           throw new ValidationFailedError("Live validation call failed — key was not stored.");
         },
         getBrainKeyStatus: async () => {
+          throw new Error("unused");
+        },
+        verifyBrainKeyDecryptable: async () => {
           throw new Error("unused");
         },
       },
