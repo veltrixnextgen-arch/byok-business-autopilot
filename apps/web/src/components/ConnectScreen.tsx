@@ -108,7 +108,16 @@ export function ConnectScreen() {
 
   useEffect(() => {
     getBrainKeyStatus()
-      .then((status) => setStep(status ? { kind: "connected-summary", status } : { kind: "choose" }))
+      .then((status) => {
+        // ADR-031: a connected-but-undecryptable key (most likely a
+        // rotated KMS master key) has nothing useful for the passive
+        // "you're all set" summary to say — go straight to picking a
+        // provider and pasting a fresh key, exactly like never having
+        // connected one. The dashboard's own banner is what explains WHY
+        // the user landed here in that case; this screen doesn't need
+        // to repeat it.
+        setStep(status && status.decryptable ? { kind: "connected-summary", status } : { kind: "choose" });
+      })
       .catch(() => setStep({ kind: "choose" }));
   }, []);
 
@@ -267,10 +276,16 @@ function Walkthrough({
       onConnected(key);
     } catch (err) {
       setStatus("error");
+      // ADR-032: a provider rejection (BrainKeyRejectedError) is the
+      // user's to fix -- show its own message verbatim. Anything else
+      // reaching here is a server-side failure (a storage error, an
+      // unexpected exception) -- attributing that to the user's own
+      // connection, as this used to, sent a real investigation looking
+      // at the wrong layer entirely.
       setError(
         err instanceof BrainKeyRejectedError
           ? err.message
-          : "Something went wrong connecting that key — check your connection and try again.",
+          : "We couldn't store that key on our end just now — this isn't a problem with your key or connection. Please try again in a moment.",
       );
     }
   }
