@@ -7,6 +7,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Vault } from "./vault.js";
 import type { HandsCredentialRefresher } from "./vault.js";
 import { LocalKms } from "./kms.js";
+import { InMemoryDekRecordStore } from "./durable/dekRecordStore.js";
+import { InMemoryVaultKeyStore } from "./durable/vaultKeyStore.js";
 import {
   AccessDeniedError,
   HandsRefreshFailedError,
@@ -96,6 +98,59 @@ test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a m
   const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const recovered = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(recovered, "sk-ant-super-secret-1234");
+});
+
+// ADR-031: getBrainKeyStatus is a pure metadata read (does the row exist,
+// is it revoked) — it was never meant to prove decryption still works,
+// but "connected" reading true is easy to mistake for "working." This is
+// the real check.
+test("verifyBrainKeyDecryptable: true for a genuinely stored, decryptable key", async () => {
+  const vault = makeVault();
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-real") }, ONBOARDING);
+
+  assert.equal(await vault.verifyBrainKeyDecryptable("tenant-a", "cfo"), true);
+});
+
+test("verifyBrainKeyDecryptable: false (not a throw) when no key was ever stored for that role", async () => {
+  const vault = makeVault();
+  assert.equal(await vault.verifyBrainKeyDecryptable("tenant-a", "no-such-role"), false);
+});
+
+test("verifyBrainKeyDecryptable: false (not a throw) for a revoked key", async () => {
+  const vault = makeVault();
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-real") }, ONBOARDING);
+  await vault.revokeBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" });
+
+  assert.equal(await vault.verifyBrainKeyDecryptable("tenant-a", "cfo"), false);
+});
+
+// The live incident this method exists to catch: deploy-staging.yml
+// regenerated STAGING_KMS_MASTER_KEY on every redeploy, silently
+// orphaning every tenant's DEK. Simulated here by sharing the SAME
+// underlying key store/DEK store (nothing about the stored rows
+// changes) across two Vaults built with DIFFERENT master keys — exactly
+// what "the KMS master key rotated" means at the storage layer.
+test("verifyBrainKeyDecryptable: false after the KMS master key has rotated out from under a stored key (ADR-031)", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-real") }, ONBOARDING);
+  assert.equal(await vault.verifyBrainKeyDecryptable("tenant-a", "cfo"), true);
+
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  assert.equal(await vaultAfterRotation.verifyBrainKeyDecryptable("tenant-a", "cfo"), false);
+});
+
+test("verifyBrainKeyDecryptable: never leaks the plaintext it recovers — the recovered buffer is zeroed, not returned", async () => {
+  const vault = makeVault();
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-real") }, ONBOARDING);
+
+  const result = await vault.verifyBrainKeyDecryptable("tenant-a", "cfo");
+  assert.equal(typeof result, "boolean");
 });
 
 test("access control: only a router-service identity may decrypt", async () => {

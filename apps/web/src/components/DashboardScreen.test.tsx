@@ -39,7 +39,7 @@ function jsonResponse(body: unknown) {
 }
 
 const ME = { userId: "user-1", email: "founder@example.com", tenantId: "tenant-1" };
-const CONNECTED_KEY = { id: "key-1", provider: "anthropic", maskedFingerprint: "sk-...4f2a", createdAt: new Date().toISOString() };
+const CONNECTED_KEY = { id: "key-1", provider: "anthropic", maskedFingerprint: "sk-...4f2a", createdAt: new Date().toISOString(), decryptable: true };
 
 afterEach(() => {
   cleanup();
@@ -149,5 +149,36 @@ describe("DashboardScreen", () => {
 
     await waitFor(() => expect(screen.getByText("Signed in as founder@example.com")).toBeTruthy());
     expect(screen.queryByText("Connect a Brain to get started")).toBeNull();
+  });
+
+  // ADR-031: a key row existing ("connected") is a different fact than
+  // its material still being decryptable — a rotated KMS master key is
+  // the realistic cause. This must surface as its own distinct banner,
+  // not silently look identical to "connected and working."
+  it("shows a reconnect banner (not the Connect CTA) when the key is connected but not decryptable", async () => {
+    meGet.mockResolvedValue(jsonResponse(ME));
+    dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
+    getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue({ ...CONNECTED_KEY, decryptable: false });
+
+    render(<DashboardScreen />);
+
+    expect(await screen.findByText("Your connected Brain key can't be used right now")).toBeTruthy();
+    expect(screen.queryByText("Connect a Brain to get started")).toBeNull();
+    const link = screen.getByRole("link", { name: /reconnect/i });
+    expect(link.getAttribute("href")).toBe("/connect");
+  });
+
+  it("shows neither the Connect CTA nor the reconnect banner for a connected, decryptable key", async () => {
+    meGet.mockResolvedValue(jsonResponse(ME));
+    dashboardGet.mockResolvedValue(jsonResponse({ spendByRoleAllTime: [], spendByRoleToday: [], recentActivity: [] }));
+    getOrgChartForTenant.mockResolvedValue(null);
+    getBrainKeyStatus.mockResolvedValue(CONNECTED_KEY);
+
+    render(<DashboardScreen />);
+
+    await waitFor(() => expect(screen.getByText("Signed in as founder@example.com")).toBeTruthy());
+    expect(screen.queryByText("Connect a Brain to get started")).toBeNull();
+    expect(screen.queryByText("Your connected Brain key can't be used right now")).toBeNull();
   });
 });

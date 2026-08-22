@@ -19,7 +19,7 @@ import { BRAIN_PROVIDERS, validateBrainKey, type BrainProvider } from "../brainK
 export const DEFAULT_BRAIN_ROLE_ID = "default";
 
 export interface BrainKeyRouteDeps {
-  vault: Pick<Vault, "storeBrainKey" | "getBrainKeyStatus">;
+  vault: Pick<Vault, "storeBrainKey" | "getBrainKeyStatus" | "verifyBrainKeyDecryptable">;
   batchStore: Pick<SignupExtractionBatchStore, "latestForTenant">;
 }
 
@@ -51,7 +51,16 @@ export function brainKeyRoute(deps: BrainKeyRouteDeps) {
       const tenantId = c.get("tenantId");
       const [roleId] = await roleIdsForTenant(deps, tenantId);
       const status = await deps.vault.getBrainKeyStatus(tenantId, roleId);
-      return c.json({ connected: status !== null, key: status });
+      // ADR-031: `connected` (a key row exists, not revoked) and
+      // `decryptable` (that row's material can actually be recovered
+      // right now) are deliberately separate facts — connected-but-not-
+      // decryptable (a rotated KMS master key, most likely) is a real,
+      // distinct state the UI should be able to show differently than
+      // either "connected and working" or "never connected." Skipped
+      // entirely when there's no row at all — there is nothing to check
+      // decryptability of.
+      const decryptable = status !== null ? await deps.vault.verifyBrainKeyDecryptable(tenantId, roleId) : null;
+      return c.json({ connected: status !== null, decryptable, key: status });
     })
     .post("/", zValidator("json", connectSchema), async (c) => {
       const { provider, apiKey } = c.req.valid("json");

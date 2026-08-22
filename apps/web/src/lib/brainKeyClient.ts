@@ -8,13 +8,26 @@ export interface BrainKeyStatus {
   provider: string;
   maskedFingerprint: string;
   createdAt: string;
+  /** ADR-031: distinct from the key merely being "connected" (a row
+   *  exists, not revoked) — this reflects whether that row's material
+   *  can actually be decrypted right now. false most likely means the
+   *  KMS master key that encrypted it has since rotated out from under
+   *  it; either way, a connected-but-undecryptable key needs to be
+   *  reconnected, not just left showing green. */
+  decryptable: boolean;
 }
 
 export async function getBrainKeyStatus(): Promise<BrainKeyStatus | null> {
   const res = await apiClient.me["brain-key"].$get();
   if (!res.ok) throw new Error(`Could not check your connected key (${res.status}).`);
-  const { key } = await res.json();
-  return key as BrainKeyStatus | null;
+  const { key, decryptable } = await res.json();
+  if (!key) return null;
+  // The route's underlying PublicKeyRecord type covers both Brain and
+  // Hands key shapes (the general vault-wide union) — this specific
+  // route only ever actually returns a Brain-shaped record, same as
+  // before this file added `decryptable`, which is why a cast (not a
+  // plain spread) is needed here.
+  return { ...key, decryptable: decryptable ?? false } as BrainKeyStatus;
 }
 
 /** Thrown on a 422 (the provider rejected the key) — distinct from a
@@ -30,7 +43,11 @@ export async function connectBrainKey(provider: BrainProvider, apiKey: string): 
   }
   if (!res.ok) throw new Error(`Could not connect that key (${res.status}).`);
   const { key } = await res.json();
-  return key as BrainKeyStatus;
+  // storeBrainKey's response never runs the decrypt-verify check — a key
+  // that was just stored (and, for most providers, just live-validated)
+  // is decryptable by construction at this exact moment, so `true` here
+  // is a correct starting value, not a guess.
+  return { ...key, decryptable: true } as BrainKeyStatus;
 }
 
 export interface CeilingInfo {
