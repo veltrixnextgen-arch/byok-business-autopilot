@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { brainAad, decrypt, encrypt, handsAad, zeroBuffer } from "./crypto.js";
 import type { Kms } from "./kms.js";
-import { DekStore } from "./dekStore.js";
+import { DekStore, DekUndecryptableError } from "./dekStore.js";
 import type { DekRecordStore } from "./durable/dekRecordStore.js";
 import { InMemoryDekRecordStore } from "./durable/dekRecordStore.js";
 import type { VaultKeyStore } from "./durable/vaultKeyStore.js";
@@ -207,12 +207,30 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     return this.audit.all();
   }
 
+  /** ADR-032: the write-side half of DekUndecryptableError handling —
+   *  store/rotate calls need a DEK to encrypt something NEW under, so an
+   *  undecryptable existing one is recoverable here: discard it and
+   *  start fresh. Read paths (decryptBrainKey/decryptHandsKey/
+   *  verifyBrainKeyDecryptable) must NOT use this — see
+   *  DekStore.getOrCreateDek's own comment for why recreating on a read
+   *  would be a pointless, surprising side effect. */
+  private async getDekForWrite(tenantId: string): Promise<Buffer> {
+    try {
+      return await this.dekStore.getOrCreateDek(tenantId);
+    } catch (err) {
+      if (err instanceof DekUndecryptableError) {
+        return this.dekStore.discardAndRecreateDek(tenantId);
+      }
+      throw err;
+    }
+  }
+
   // ---- Brain keys (per-tenant, per-role, ADR-002) -----------------------
 
   async storeBrainKey(input: StoreBrainKeyInput, requester: RequesterIdentity): Promise<PublicKeyRecord> {
     await this.runValidation(input.plaintext, input.validate, input.tenantId, requester);
 
-    const dek = await this.dekStore.getOrCreateDek(input.tenantId);
+    const dek = await this.getDekForWrite(input.tenantId);
     const aad = brainAad(input.roleId, input.provider);
     const material = encrypt(input.plaintext, dek, aad);
 
@@ -245,7 +263,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
 
     await this.runValidation(newPlaintext, validate, record.tenantId, requester);
 
-    const dek = await this.dekStore.getOrCreateDek(record.tenantId);
+    const dek = await this.getDekForWrite(record.tenantId);
     record.material = encrypt(newPlaintext, dek, brainAad(record.roleId, record.provider));
     record.maskedFingerprint = maskFingerprint(newPlaintext);
     record.updatedAt = now();
@@ -341,7 +359,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
   async storeHandsKey(input: StoreHandsKeyInput, requester: RequesterIdentity): Promise<PublicKeyRecord> {
     await this.runValidation(input.plaintext, input.validate, input.tenantId, requester);
 
-    const dek = await this.dekStore.getOrCreateDek(input.tenantId);
+    const dek = await this.getDekForWrite(input.tenantId);
     const aad = handsAad(input.subAgentId, input.capabilityScope);
     const material = encrypt(input.plaintext, dek, aad);
 
@@ -389,7 +407,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
 
     await this.runValidation(newPlaintext, validate, record.tenantId, requester);
 
-    const dek = await this.dekStore.getOrCreateDek(record.tenantId);
+    const dek = await this.getDekForWrite(record.tenantId);
     record.material = encrypt(newPlaintext, dek, handsAad(record.subAgentId, record.capabilityScope));
     record.maskedFingerprint = maskFingerprint(newPlaintext);
     record.updatedAt = now();
@@ -589,7 +607,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     // Re-encrypt in place — SAME record id, SAME AAD scope-binding. Any
     // caller already holding this key id (a Hands tool spec, a status
     // check) keeps working unchanged; only the material behind it rotates.
-    const dek = await this.dekStore.getOrCreateDek(record.tenantId);
+    const dek = await this.getDekForWrite(record.tenantId);
     record.material = encrypt(Buffer.from(JSON.stringify(refreshed), "utf8"), dek, handsAad(record.subAgentId, record.capabilityScope));
     record.updatedAt = now();
     await this.store.updateHandsKey(record);

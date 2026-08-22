@@ -7,6 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Vault } from "./vault.js";
 import type { HandsCredentialRefresher } from "./vault.js";
 import { LocalKms } from "./kms.js";
+import { DekUndecryptableError } from "./dekStore.js";
 import { InMemoryDekRecordStore } from "./durable/dekRecordStore.js";
 import { InMemoryVaultKeyStore } from "./durable/vaultKeyStore.js";
 import {
@@ -151,6 +152,122 @@ test("verifyBrainKeyDecryptable: never leaks the plaintext it recovers — the r
 
   const result = await vault.verifyBrainKeyDecryptable("tenant-a", "cfo");
   assert.equal(typeof result, "boolean");
+});
+
+// ADR-032: the actual live incident — reconnecting Acme's Brain key
+// after the master key was stabilized still failed, because
+// storeBrainKey reused the tenant's EXISTING (now-undecryptable) DEK
+// instead of ever attempting a new one. Write paths must recover from
+// this transparently: discard the dead DEK, encrypt the fresh key under
+// a new one, succeed.
+test("storeBrainKey succeeds (discarding and recreating the DEK) even when the tenant's existing DEK can no longer be decrypted (ADR-032)", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const originalVault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+  await originalVault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-old") }, ONBOARDING);
+
+  // "The master key rotates" — a fresh Vault sharing the same stores,
+  // built with a different KMS.
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  // The reconnect: must succeed, not throw, exactly like the live bug
+  // this test is named for.
+  await vaultAfterRotation.storeBrainKey(
+    { tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-fresh") },
+    ONBOARDING,
+  );
+
+  const handle = await vaultAfterRotation.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  await handle.use(async (plaintext) => {
+    assert.equal(plaintext.toString("utf8"), "sk-ant-fresh");
+  });
+});
+
+test("storeHandsKey succeeds (discarding and recreating the DEK) even when the tenant's existing DEK can no longer be decrypted (ADR-032)", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const originalVault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+  await originalVault.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk_live_old") },
+    ONBOARDING,
+  );
+
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  const stored = await vaultAfterRotation.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk_live_fresh") },
+    ONBOARDING,
+  );
+
+  const handle = await vaultAfterRotation.decryptHandsKey("tenant-a", stored.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER);
+  await handle.use(async (plaintext) => {
+    assert.equal(plaintext.toString("utf8"), "sk_live_fresh");
+  });
+});
+
+// The read-side half: decryptBrainKey/decryptHandsKey must NOT silently
+// discard and recreate the DEK the way write paths do — recreating on a
+// passive read would be a surprising side effect that doesn't even help
+// (the EXISTING material was encrypted under the dead DEK specifically;
+// a fresh DEK can't read it either). The honest behavior is a clear,
+// typed failure.
+test("decryptBrainKey throws DekUndecryptableError (not a silent recreate) when the tenant's DEK can no longer be decrypted", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const originalVault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+  await originalVault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-old") }, ONBOARDING);
+
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  await assert.rejects(() => vaultAfterRotation.decryptBrainKey("tenant-a", "cfo", ROUTER), DekUndecryptableError);
+});
+
+test("decryptHandsKey throws DekUndecryptableError (not a silent recreate) when the tenant's DEK can no longer be decrypted", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const originalVault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+  const stored = await originalVault.storeHandsKey(
+    { tenantId: "tenant-a", subAgentId: "invoicing", capabilityScope: "stripe:read-only", service: "stripe", plaintext: Buffer.from("sk_live_old") },
+    ONBOARDING,
+  );
+
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  await assert.rejects(
+    () => vaultAfterRotation.decryptHandsKey("tenant-a", stored.id, { subAgentId: "invoicing", capabilityScope: "stripe:read-only" }, ROUTER),
+    DekUndecryptableError,
+  );
+});
+
+// verifyBrainKeyDecryptable already returns false on an undecryptable DEK
+// (ADR-031) -- this confirms the read-only promise more strongly: calling
+// it does NOT discard/recreate anything as a side effect. A later write
+// still needs (and gets) the discard-and-recreate path itself.
+test("verifyBrainKeyDecryptable does not discard/recreate the dead DEK as a side effect of checking it", async () => {
+  const store = new InMemoryVaultKeyStore();
+  const dekRecordStore = new InMemoryDekRecordStore();
+  const originalKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const originalVault = new Vault(originalKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+  await originalVault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-old") }, ONBOARDING);
+
+  const rotatedKms = new LocalKms(join(mkdtempSync(join(tmpdir(), "vault-test-")), "master.key"));
+  const vaultAfterRotation = new Vault(rotatedKms, undefined, 60_000, undefined, undefined, store, dekRecordStore);
+
+  assert.equal(await vaultAfterRotation.verifyBrainKeyDecryptable("tenant-a", "cfo"), false);
+  // If the check above had silently discarded/recreated the DEK, this
+  // decrypt (still against the same "rotated" master key) would now
+  // spuriously succeed against the wrong material, or fail a different
+  // way -- it must still fail as a DekUndecryptableError, proving the
+  // dead DEK was left exactly as it was.
+  await assert.rejects(() => vaultAfterRotation.decryptBrainKey("tenant-a", "cfo", ROUTER), DekUndecryptableError);
 });
 
 test("access control: only a router-service identity may decrypt", async () => {

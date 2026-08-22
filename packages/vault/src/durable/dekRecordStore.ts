@@ -15,6 +15,13 @@ export interface DekRecordStore {
    *  a create race knows to re-fetch via get() rather than trust its own
    *  freshly-generated DEK is the one now on file. */
   putIfAbsent(tenantId: string, blob: EncryptedBlob): Promise<boolean>;
+  /** ADR-032: unconditionally overwrites the DEK for tenantId — unlike
+   *  putIfAbsent, this DOES clobber an existing row, deliberately. Called
+   *  only by DekStore.discardAndRecreateDek, only after the existing DEK
+   *  has been confirmed undecryptable (its master key is gone) — at that
+   *  point the old row is already permanently useless, so overwriting it
+   *  loses nothing that wasn't already lost. */
+  replace(tenantId: string, blob: EncryptedBlob): Promise<void>;
 }
 
 export class DevOnlyDekRecordStoreGuardError extends Error {}
@@ -45,6 +52,10 @@ export class InMemoryDekRecordStore implements DekRecordStore {
     if (this.deks.has(tenantId)) return false;
     this.deks.set(tenantId, blob);
     return true;
+  }
+
+  async replace(tenantId: string, blob: EncryptedBlob): Promise<void> {
+    this.deks.set(tenantId, blob);
   }
 }
 
@@ -87,6 +98,20 @@ export class PostgresDekRecordStore implements DekRecordStore {
         [tenantId, blob.ciphertext, blob.iv, blob.authTag],
       )) as unknown as { rows: unknown[] };
       return result.rows.length > 0;
+    });
+  }
+
+  async replace(tenantId: string, blob: EncryptedBlob): Promise<void> {
+    await withTenantScope(this.pool, tenantId, async (client) => {
+      await client.query(
+        `INSERT INTO tenant_deks (tenant_id, encrypted_dek_ciphertext, encrypted_dek_iv, encrypted_dek_auth_tag)
+         VALUES ($1::uuid, $2, $3, $4)
+         ON CONFLICT (tenant_id) DO UPDATE SET
+           encrypted_dek_ciphertext = EXCLUDED.encrypted_dek_ciphertext,
+           encrypted_dek_iv = EXCLUDED.encrypted_dek_iv,
+           encrypted_dek_auth_tag = EXCLUDED.encrypted_dek_auth_tag`,
+        [tenantId, blob.ciphertext, blob.iv, blob.authTag],
+      );
     });
   }
 }

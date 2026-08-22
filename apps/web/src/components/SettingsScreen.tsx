@@ -93,7 +93,12 @@ export function SettingsScreen() {
             {brain.kind === "loading" && <p className="mt-3 text-sm text-text-muted">Loading…</p>}
             {brain.kind === "ready" && brain.status && (
               <div className="mt-3 flex items-center gap-2.5">
-                <Badge tone="accent">Connected</Badge>
+                {/* ADR-031: a row existing ("connected") is a different
+                    fact than its material still being decryptable — show
+                    the distinction here too, not just on the dashboard. */}
+                <Badge tone={brain.status.decryptable ? "accent" : "danger"}>
+                  {brain.status.decryptable ? "Connected" : "Needs reconnect"}
+                </Badge>
                 <span className="font-mono text-sm text-text-muted">{brain.status.maskedFingerprint}</span>
               </div>
             )}

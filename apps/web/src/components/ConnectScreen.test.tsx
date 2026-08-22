@@ -37,12 +37,13 @@ afterEach(() => {
 });
 
 describe("ConnectScreen", () => {
-  it("shows a connected summary immediately when a key is already connected, skipping provider choice", async () => {
+  it("shows a connected summary immediately when a key is already connected and decryptable, skipping provider choice", async () => {
     getBrainKeyStatus.mockResolvedValue({
       id: "key-1",
       provider: "anthropic",
       maskedFingerprint: "sk-...4f2a",
       createdAt: new Date().toISOString(),
+      decryptable: true,
     });
 
     render(<ConnectScreen />);
@@ -50,6 +51,26 @@ describe("ConnectScreen", () => {
     expect(await screen.findByText("Connected")).toBeTruthy();
     expect(screen.getByText("sk-...4f2a")).toBeTruthy();
     expect(screen.queryByText("Anthropic (Claude)")).toBeTruthy(); // provider label shown in the summary
+  });
+
+  // ADR-031: a connected-but-undecryptable key (a rotated KMS master key,
+  // most likely) has nothing useful for the passive "you're all set"
+  // summary to say — this must go straight to picking a provider and
+  // pasting a fresh key, exactly like never having connected one, rather
+  // than showing a misleading "Connected" card.
+  it("skips straight to provider choice (not the connected summary) when the key is connected but not decryptable", async () => {
+    getBrainKeyStatus.mockResolvedValue({
+      id: "key-1",
+      provider: "anthropic",
+      maskedFingerprint: "sk-...4f2a",
+      createdAt: new Date().toISOString(),
+      decryptable: false,
+    });
+
+    render(<ConnectScreen />);
+
+    expect(await screen.findByText("Before you paste anything")).toBeTruthy();
+    expect(screen.queryByText("sk-...4f2a")).toBeNull();
   });
 
   it("walks provider choice -> walkthrough -> connect -> ceiling -> spend-cap -> done", async () => {
