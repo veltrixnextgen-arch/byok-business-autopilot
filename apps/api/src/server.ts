@@ -13,7 +13,7 @@ import {
   TenantCeilingStore,
   TenantScheduleStateStore,
 } from "@byok/db";
-import { createPlatformWorker, createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
+import { attachRedisErrorCircuitBreaker, createPlatformWorker, createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
 import { createEmailSender } from "@byok/notifications";
 import { PostgresCostActivityQueries } from "@byok/router";
 import type { DigestDeps } from "./digest/buildDigestData.js";
@@ -269,6 +269,16 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
   // so a stuck digest connection is at least visible in server logs.
   trackConnectionHealth(digestQueue, 15_000);
   trackConnectionHealth(digestWorker, 15_000);
+  // Issue #160: a command-level Redis error (Upstash's request-quota
+  // rejection, observed live) gets zero backoff from BullMQ itself — its
+  // own retry classifies that as "not a connection error" and re-throws
+  // immediately, so the Worker's main loop just calls back in right away.
+  // Confirmed in production logs as a tight, uninterrupted retry storm
+  // across every BullMQ key. Pausing the worker on a burst of errors, with
+  // an escalating cooldown, is the applied fix — see
+  // redisErrorCircuitBreaker.ts for the full mechanism and why this can't
+  // be solved with ioredis's own retryStrategy/maxRetriesPerRequest.
+  attachRedisErrorCircuitBreaker(digestWorker);
 
   const scheduledDispatchProcessor = createScheduledDispatchProcessor({
     router: trustCore.router,
@@ -286,6 +296,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     { connection: redisConnection },
   );
   const workerHealth = trackConnectionHealth(worker, 15_000);
+  attachRedisErrorCircuitBreaker(worker); // issue #160 — see digestWorker's own comment above
 
   const app = createApp({
     pool,
