@@ -168,6 +168,19 @@ jobs:
           railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
           railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"
           railway variable set "WEB_ORIGIN=$WEB_ORIGIN" --service "$RAILWAY_SERVICE"
+          # Issue: this step alone is exactly what broke sign-in the moment a
+          # real custom domain (www.runwisely.cc / runwisely.cc) was attached
+          # to the Vercel project — WEB_ORIGIN only ever trusts ONE exact
+          # origin (CORS + Better Auth's trustedOrigins, see server.ts's
+          # webOrigins), and this step unconditionally overwrites it with the
+          # auto-derived .vercel.app alias on every single deploy. Fixed by
+          # making ADDITIONAL_WEB_ORIGINS additive (server.ts) — deliberately
+          # NOT set anywhere in this workflow, so a value set directly on the
+          # Railway service (e.g. "https://www.runwisely.cc,https://runwisely.cc")
+          # survives every redeploy untouched, same "some values MUST survive
+          # a redeploy" discipline as STAGING_KMS_MASTER_KEY/
+          # INTERNAL_METRICS_TOKEN above, just via a plain Railway variable
+          # rather than a GitHub secret (a domain name isn't sensitive).
           # Onboarding-only platform inference key (ADR-003) — server.ts's
           # readServerConfigFromEnv throws at boot without it, same
           # discipline as DATABASE_URL/BETTER_AUTH_SECRET.

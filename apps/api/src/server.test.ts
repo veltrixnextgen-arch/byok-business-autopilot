@@ -115,6 +115,53 @@ test("respects an explicit PORT, BETTER_AUTH_URL, and WEB_ORIGIN", () => {
   assert.equal(config.webOrigin, "https://app.example.com");
 });
 
+// The CORS-outage-on-domain-change bug: WEB_ORIGIN alone can only ever
+// trust one exact origin, which is exactly what broke sign-in the moment
+// this product moved onto a real domain with both a www and bare-apex
+// form. webOrigins is the fix's actual surface — always includes
+// webOrigin, additive from ADDITIONAL_WEB_ORIGINS.
+test("webOrigins defaults to exactly [webOrigin] when ADDITIONAL_WEB_ORIGINS is unset", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    WEB_ORIGIN: "https://app.example.com",
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(config.webOrigins, ["https://app.example.com"]);
+});
+
+test("ADDITIONAL_WEB_ORIGINS adds extra trusted origins alongside webOrigin, comma-separated and trimmed", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    WEB_ORIGIN: "https://www.runwisely.cc",
+    ADDITIONAL_WEB_ORIGINS: "https://runwisely.cc, https://runwisely-autopilot.vercel.app",
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(config.webOrigins, [
+    "https://www.runwisely.cc",
+    "https://runwisely.cc",
+    "https://runwisely-autopilot.vercel.app",
+  ]);
+});
+
+test("ADDITIONAL_WEB_ORIGINS ignores empty entries and never duplicates webOrigin", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    WEB_ORIGIN: "https://www.runwisely.cc",
+    ADDITIONAL_WEB_ORIGINS: ",https://www.runwisely.cc,,https://runwisely.cc,",
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(config.webOrigins, ["https://www.runwisely.cc", "https://runwisely.cc"]);
+});
+
 test("crossSiteCookies defaults to false (SameSite=None needs HTTPS, which local dev doesn't have)", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",

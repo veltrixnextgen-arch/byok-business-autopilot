@@ -45,11 +45,17 @@ export interface CreateAppOptions {
   pool: PoolLike;
   auth: Auth;
   trustCore: TrustCoreDeps;
-  /** apps/web's own origin (e.g. http://localhost:3002 in dev) — needed
-   *  because they run on different ports/domains, and the session cookie
-   *  Better Auth sets only gets sent cross-origin if CORS explicitly
-   *  allows this exact origin with credentials. */
+  /** apps/web's own canonical origin (e.g. http://localhost:3002 in dev) —
+   *  used for building redirect/callback URLs. See webOrigins below for
+   *  what CORS itself actually checks against. */
   webOrigin: string;
+  /** Every trusted web origin CORS should accept — see ServerConfig's own
+   *  doc comment (server.ts) for why this can't just be webOrigin: a
+   *  browser sends whichever origin the user actually typed (e.g.
+   *  www.runwisely.cc vs. runwisely.cc), and the session cookie Better
+   *  Auth sets only gets sent cross-origin if CORS explicitly allows that
+   *  exact origin with credentials. */
+  webOrigins: string[];
   /** The idea -> interview -> extraction -> org-chart flow (ADR-014,
    *  ADR-015) — separate from trustCore because it's user-scoped, not
    *  tenant-scoped, and needs its own store plus the platform's onboarding
@@ -130,7 +136,7 @@ export function createApp(options: CreateAppOptions) {
   const autonomyStore = new PostgresDurableAutonomyStore(options.pool);
 
   const app = new Hono<AppEnv>()
-    .use("*", cors({ origin: options.webOrigin, credentials: true }))
+    .use("*", cors({ origin: options.webOrigins, credentials: true }))
     .route("/health", healthRoute({ redis: options.scheduler.health, buildSha: options.buildSha }))
     // Better Auth's default basePath is /api/auth on both server and
     // client (createBrowserAuthClient doesn't override it) — this mount
