@@ -42,6 +42,13 @@ export interface ServerConfig {
   authSecret: string;
   authBaseUrl: string;
   webOrigin: string;
+  /** Every trusted web origin — always includes webOrigin, plus whatever
+   *  ADDITIONAL_WEB_ORIGINS (comma-separated) adds. Used for CORS and
+   *  Better Auth's trustedOrigins, the two places that must accept more
+   *  than one exact origin (a browser sends the one the user actually
+   *  typed); every other call site in this file wants the single
+   *  canonical webOrigin instead, not this list. */
+  webOrigins: string[];
   /** See AuthConfigOptions.crossSiteCookies — off by default because
    *  SameSite=None requires Secure (HTTPS), which local dev's
    *  http://localhost can't satisfy. Explicit opt-in via env var. */
@@ -113,6 +120,18 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const port = Number(env.PORT ?? 3000);
   const authBaseUrl = env.BETTER_AUTH_URL ?? `http://localhost:${port}`;
   const webOrigin = env.WEB_ORIGIN ?? "http://localhost:3002";
+  // A single hardcoded WEB_ORIGIN is exactly what broke sign-in the moment
+  // this product moved from a Vercel-generated domain to a real one: CORS
+  // and Better Auth's trustedOrigins both only ever trusted one exact
+  // origin, so adding www.runwisely.cc/runwisely.cc meant either one
+  // (whichever wasn't WEB_ORIGIN) got a blocked CORS preflight. Optional,
+  // comma-separated, additive — WEB_ORIGIN stays the one canonical value
+  // every redirect/URL-building call site in this file still uses.
+  const additionalWebOrigins = (env.ADDITIONAL_WEB_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+  const webOrigins = [...new Set([webOrigin, ...additionalWebOrigins])];
   const crossSiteCookies = env.CROSS_SITE_COOKIES === "true";
 
   const googleClientId = env.GOOGLE_OAUTH_CLIENT_ID;
@@ -132,6 +151,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
     authSecret,
     authBaseUrl,
     webOrigin,
+    webOrigins,
     crossSiteCookies,
     anthropicApiKey,
     internalMetricsToken,
@@ -165,7 +185,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     pool,
     baseURL: config.authBaseUrl,
     secret: config.authSecret,
-    trustedOrigins: [config.webOrigin],
+    trustedOrigins: config.webOrigins,
     crossSiteCookies: config.crossSiteCookies,
   });
   const batchStore = new SignupExtractionBatchStore(pool);
@@ -303,6 +323,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     auth,
     trustCore,
     webOrigin: config.webOrigin,
+    webOrigins: config.webOrigins,
     extraction: { batchStore, apiKey: config.anthropicApiKey },
     metrics: { metricsStore, internalMetricsToken: config.internalMetricsToken },
     // Reuses authSecret for state-token signing (ADR-021) — see
@@ -321,6 +342,8 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`@byok/api listening on http://localhost:${info.port}`);
-    console.log(`crossSiteCookies=${config.crossSiteCookies} authBaseUrl=${config.authBaseUrl} webOrigin=${config.webOrigin}`);
+    console.log(
+      `crossSiteCookies=${config.crossSiteCookies} authBaseUrl=${config.authBaseUrl} webOrigin=${config.webOrigin} webOrigins=${config.webOrigins.join(",")}`,
+    );
   });
 }
