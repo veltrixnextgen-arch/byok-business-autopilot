@@ -115,7 +115,14 @@ async function reachSubmittingPhase() {
   // scheduled environment, where a same-tick assumption was observed to
   // flake even though it never did locally.
   const continueButton = await screen.findByRole("button", { name: /continue/i });
-  await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false));
+  // TextQuestion's disabled state is a synchronous `!local.trim()` derived
+  // straight from onChange's setState — there's no debounce or async gap
+  // to wait out. The default 1000ms waitFor timeout is enough on a quiet
+  // machine but flaked on CI's shared runner (21 other test files, full
+  // monorepo suite in one job) even with the retry this waitFor already
+  // adds — a longer timeout tolerates that contention without weakening
+  // what's actually being asserted.
+  await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false), { timeout: 5000 });
   fireEvent.click(continueButton);
 
   await waitFor(() => expect(screen.getByText("Building your company…")).toBeTruthy());
