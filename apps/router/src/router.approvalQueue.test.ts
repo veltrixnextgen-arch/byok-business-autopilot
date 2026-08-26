@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approval-queue";
+import { ApprovalQueue, InMemoryDurableAutonomyStore, MockEffectExecutor } from "@byok/approval-queue";
 import { Router, ProductionRouterGuardError } from "./router.js";
 import { InMemoryDedupStore } from "./dedup.js";
 import { InMemoryTaskLedger } from "./ledger.js";
@@ -16,7 +16,7 @@ function alwaysCompletesExecutor(): AgentExecutor {
 }
 
 test("executor success routes through the approval queue: pending review, not immediately 'completed'", async () => {
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
   const task = await router.submitTask({
@@ -35,7 +35,7 @@ test("executor success routes through the approval queue: pending review, not im
 test("resolving the queued action with APPROVE does not change RouterTask status retroactively (async decoupling), but dispatches the effect", async () => {
   let dispatched = false;
   const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
-  const queue = new ApprovalQueue(new AutonomyEngine(), effectExecutor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), effectExecutor);
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
   const task = await router.submitTask({
@@ -58,7 +58,7 @@ test("resolving the queued action with APPROVE does not change RouterTask status
 test("earned autonomy bypass: task completes immediately, no queue entry, effect dispatches", async () => {
   let dispatched = false;
   const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // never spot-check
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // never spot-check
   const queue = new ApprovalQueue(autonomy, effectExecutor);
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
@@ -71,7 +71,7 @@ test("earned autonomy bypass: task completes immediately, no queue entry, effect
     dedupKey: "task-3",
   });
   await queue.resolve("default", first.id, { kind: "APPROVE" });
-  autonomy.acceptOffer("default", "invoicing");
+  await queue.acceptOffer("default", "invoicing");
 
   const second = await router.submitTask({
     subAgentId: "invoicing",
@@ -88,7 +88,7 @@ test("earned autonomy bypass: task completes immediately, no queue entry, effect
 });
 
 test("tenantId defaults to 'default' and flows through to the queue's autonomy tracking", async () => {
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
   const task = await router.submitTask({
@@ -105,7 +105,7 @@ test("tenantId defaults to 'default' and flows through to the queue's autonomy t
 });
 
 test("a failed execution never reaches the approval queue", async () => {
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const failingExecutor: AgentExecutor = { async execute() { return { error: "boom" }; } };
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), failingExecutor, undefined, queue);
 
@@ -126,7 +126,7 @@ test("ADR-008: production refuses to construct a Router missing either CostGate 
   // on ApprovalQueue's default in-memory store would otherwise throw here
   // too, for an unrelated reason, before Router's own guard is even
   // reached. This test is about Router's guard specifically.
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const original = process.env.NODE_ENV;
   try {
     process.env.NODE_ENV = "production";
@@ -151,7 +151,7 @@ test("ADR-008: production refuses to construct a Router missing either CostGate 
 
 test("issue #22: a result with missingHands is submitted as a pure draft — effect dropped even though the caller requested one", async () => {
   let capturedEffect: unknown;
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const draftingExecutor: AgentExecutor = {
     async execute() {
       return { result: "Drafted the reminder email — connect Resend to actually send it.", missingHands: ["resend"] };
@@ -182,7 +182,7 @@ test("issue #22: a result with missingHands is submitted as a pure draft — eff
 
 test("issue #22: the ledger note for a missingHands task names what to connect, not the generic review/autonomy note", async () => {
   const ledger = new InMemoryTaskLedger();
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const draftingExecutor: AgentExecutor = {
     async execute() {
       return { result: "drafted", missingHands: ["stripe", "resend"] };
@@ -205,7 +205,7 @@ test("issue #22: the ledger note for a missingHands task names what to connect, 
 
 test("issue #22: a fully-connected result (no missingHands) keeps the effect and the usual review note, unaffected", async () => {
   let capturedEffect: unknown;
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const originalSubmit = queue.submitProposedAction.bind(queue);
   queue.submitProposedAction = (action) => {
     capturedEffect = action.effect;
@@ -229,7 +229,7 @@ test("issue #22: a fully-connected result (no missingHands) keeps the effect and
 // ---- R2/ADR-024/T10: the CEO-tier dispatch pathway -------------------
 
 test("T10/ADR-004: a promptTier 'ceo' task routes through submitRecommendation, never submitProposedAction", async () => {
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   let proposedActionCalled = false;
   const originalSubmitProposed = queue.submitProposedAction.bind(queue);
   queue.submitProposedAction = (action) => {
@@ -256,7 +256,7 @@ test("T10/ADR-004: a promptTier 'ceo' task routes through submitRecommendation, 
 test("T10/ADR-004: a promptTier 'ceo' task NEVER dispatches an effect, even when the caller requests one", async () => {
   let dispatched = false;
   const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
-  const queue = new ApprovalQueue(new AutonomyEngine(), effectExecutor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), effectExecutor);
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
   await router.submitTask({
@@ -279,7 +279,7 @@ test("T10/ADR-004: a promptTier 'ceo' task NEVER dispatches an effect, even when
 });
 
 test("a promptTier 'role-lead'/'sub-agent' task (or the default) is unaffected — still uses submitProposedAction", async () => {
-  const queue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), new MockEffectExecutor());
   const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), alwaysCompletesExecutor(), undefined, queue);
 
   await router.submitTask({

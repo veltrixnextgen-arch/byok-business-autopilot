@@ -1,4 +1,4 @@
-import type { ApprovalQueue, DurableAutonomyStore } from "@byok/approval-queue";
+import type { ApprovalQueue } from "@byok/approval-queue";
 import { UnknownActionError, UnknownRecommendationError } from "@byok/approval-queue";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -18,23 +18,7 @@ const resolveSchema = z.object({
 });
 
 export interface ApprovalsRouteDeps extends ApprovalsViewDeps {
-  approvalQueue: Pick<ApprovalQueue, "pendingActions" | "pendingRecommendationItems" | "resolve" | "resolveRecommendation">;
-  /**
-   * NOT the same thing as `deps.approvalQueue.autonomy` (the live,
-   * in-memory AutonomyEngine every actual dispatch decision reads —
-   * see queue.ts). This is the durable Postgres store
-   * (autonomyStore.ts), read here only for stateFor()/acceptOffer().
-   *
-   * KNOWN GAP, flagged deliberately rather than silently worked around:
-   * ApprovalQueue's real bypass-check (submitProposedAction) consults
-   * the in-memory AutonomyEngine, which is never written to this table.
-   * So accepting an offer here durably records `active = true` in
-   * autonomy_counters, but has NO effect on live dispatch behavior until
-   * ApprovalQueue itself is rewired to read from a DurableAutonomyStore
-   * instead of the in-memory engine — a separate, real trust-core change,
-   * not something this route can or should paper over.
-   */
-  autonomyStore: Pick<DurableAutonomyStore, "acceptOffer">;
+  approvalQueue: Pick<ApprovalQueue, "pendingActions" | "pendingRecommendationItems" | "resolve" | "resolveRecommendation" | "acceptOffer">;
 }
 
 export function approvalsRoute(deps: ApprovalsRouteDeps) {
@@ -83,7 +67,7 @@ export function approvalsRoute(deps: ApprovalsRouteDeps) {
       const tenantId = c.get("tenantId");
       const taskType = c.req.param("taskType");
       try {
-        await deps.autonomyStore.acceptOffer(tenantId, taskType);
+        await deps.approvalQueue.acceptOffer(tenantId, taskType);
         return c.json({ accepted: true });
       } catch (err) {
         return c.json({ error: err instanceof Error ? err.message : "Could not accept this offer." }, 404);

@@ -41,20 +41,21 @@ const RECOMMENDATION: RecommendationItem = {
   createdAt: "2026-08-20T01:00:00.000Z",
 };
 
-function fakeDeps(overrides: Partial<ApprovalsRouteDeps> = {}): ApprovalsRouteDeps {
+function fakeDeps(overrides: Partial<Omit<ApprovalsRouteDeps, "approvalQueue">> & { approvalQueue?: Partial<ApprovalsRouteDeps["approvalQueue"]> } = {}): ApprovalsRouteDeps {
   return {
+    ...overrides,
     approvalQueue: {
       pendingActions: async () => [ACTION],
       pendingRecommendationItems: async () => [RECOMMENDATION],
       resolve: async () => ({ dispatched: false }),
       resolveRecommendation: async () => {},
+      acceptOffer: async () => {},
+      ...overrides.approvalQueue,
     },
     costActivity: {
       costByRefIds: async () => ({}),
       autonomyStatus: async () => [],
     },
-    autonomyStore: { acceptOffer: async () => {} },
-    ...overrides,
   };
 }
 
@@ -177,9 +178,9 @@ test("POST /:id/resolve surfaces UnknownRecommendationError as a 404 too", async
   assert.equal(res.status, 404);
 });
 
-test("POST /autonomy/:taskType/accept calls the durable store's acceptOffer, scoped to the real tenant", async () => {
+test("POST /autonomy/:taskType/accept calls approvalQueue.acceptOffer, scoped to the real tenant", async () => {
   let called: [string, string] | undefined;
-  const deps = fakeDeps({ autonomyStore: { acceptOffer: async (tenantId, taskType) => { called = [tenantId, taskType]; } } });
+  const deps = fakeDeps({ approvalQueue: { acceptOffer: async (tenantId, taskType) => { called = [tenantId, taskType]; } } });
   const app = appWithSession("tenant-1", SESSION, deps);
   const res = await app.request("/autonomy/agent-1/accept", { method: "POST" });
   assert.equal(res.status, 200);
@@ -188,7 +189,7 @@ test("POST /autonomy/:taskType/accept calls the durable store's acceptOffer, sco
 
 test("POST /autonomy/:taskType/accept returns 404 when there's no pending offer", async () => {
   const deps = fakeDeps({
-    autonomyStore: {
+    approvalQueue: {
       acceptOffer: async () => {
         throw new Error('No pending autonomy offer for tenant "tenant-1", task type "agent-1".');
       },

@@ -1,4 +1,4 @@
-import { ApprovalQueue, AutonomyEngine, MockEffectExecutor, PostgresDurableApprovalStore } from "@byok/approval-queue";
+import { ApprovalQueue, MockEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
 import { PostgresDurableAuditLog, TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDedupStore, InMemoryTaskLedger, OpenMultiAgentExecutor, Router } from "@byok/router";
@@ -50,7 +50,18 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
 
   const auditLog = new PostgresDurableAuditLog(pool);
   const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), DEV_TIER_MODEL_MAP);
-  const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor(), undefined, new PostgresDurableApprovalStore(pool, auditLog));
+  // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
+  // AutonomyEngine this used to be — this closes the accept-offer
+  // split-brain (apps/api/src/routes/approvals.ts's own doc comment on
+  // ApprovalsRouteDeps used to describe it as a known, deliberate gap):
+  // accepting an offer durably recorded active=true in this exact table,
+  // but live dispatch gating (submitProposedAction) read a completely
+  // separate, in-memory engine that reset on every restart and could
+  // never see it. There is now exactly one autonomy store, and it's this
+  // one — the same instance apps/api/src/index.ts wires into the
+  // approvals route below, not a second one constructed there.
+  const autonomyStore = new PostgresDurableAutonomyStore(pool);
+  const approvalQueue = new ApprovalQueue(autonomyStore, new MockEffectExecutor(), undefined, new PostgresDurableApprovalStore(pool, auditLog));
   const ledger = new InMemoryTaskLedger();
 
   const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
