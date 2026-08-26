@@ -191,3 +191,45 @@ test("a second tenant claiming (a different user's) batch cannot cross-claim an 
     await cleanup([userA, userB], [tenantA, tenantB]);
   }
 });
+
+// Issue #141: updateOrgChart alone is user-scoped (withUserScope) — once
+// claimed, 0006's own RLS policy closes the app.user_id path entirely, so
+// updateOrgChart against an already-claimed batch touches zero rows,
+// silently. This is the real proof updateOrgChartForTenant is what a
+// post-claim edit (e.g. cadence editing) must use instead.
+test("updateOrgChart (user-scoped) silently touches nothing on an already-claimed batch; updateOrgChartForTenant does", async () => {
+  const store = new SignupExtractionBatchStore(pool);
+  const userId = await seedUser();
+  const tenantId = await seedTenant();
+  try {
+    const batchId = await seedCompletedBatch(store, userId, "a laundromat");
+    await store.claimLatestForTenant(userId, tenantId);
+
+    await store.updateOrgChart(userId, batchId, { meta: { idea: "never applied" } } as never);
+    const stillOriginal = await store.getForTenant(tenantId, batchId);
+    assert.deepEqual(stillOriginal?.orgChart, { meta: { idea: "a laundromat" } });
+
+    await store.updateOrgChartForTenant(tenantId, batchId, { meta: { idea: "updated via tenant scope" } } as never);
+    const updated = await store.getForTenant(tenantId, batchId);
+    assert.deepEqual(updated?.orgChart, { meta: { idea: "updated via tenant scope" } });
+  } finally {
+    await cleanup([userId], [tenantId]);
+  }
+});
+
+test("updateOrgChartForTenant is scoped correctly — tenant B cannot edit tenant A's claimed org chart", async () => {
+  const store = new SignupExtractionBatchStore(pool);
+  const userA = await seedUser();
+  const tenantA = await seedTenant();
+  const tenantB = await seedTenant();
+  try {
+    const batchId = await seedCompletedBatch(store, userA, "a bike shop");
+    await store.claimLatestForTenant(userA, tenantA);
+
+    await store.updateOrgChartForTenant(tenantB, batchId, { meta: { idea: "tenant B's edit" } } as never);
+    const stillOwnedByA = await store.getForTenant(tenantA, batchId);
+    assert.deepEqual(stillOwnedByA?.orgChart, { meta: { idea: "a bike shop" } }, "tenant B's write must not reach tenant A's row");
+  } finally {
+    await cleanup([userA], [tenantA, tenantB]);
+  }
+});

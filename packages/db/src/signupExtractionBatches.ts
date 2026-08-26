@@ -136,6 +136,25 @@ export class SignupExtractionBatchStore {
     });
   }
 
+  /** Tenant-scoped equivalent of `updateOrgChart` (issue #141) — needed
+   *  because a claimed batch is no longer reachable via app.user_id at
+   *  all once tenant_id is set (0006's own RLS policy closes that path
+   *  deliberately, see that migration's comment); `updateOrgChart`
+   *  would silently touch zero rows against an already-claimed batch.
+   *  Whole-org-chart read-modify-write, same as the user-scoped version —
+   *  callers (e.g. cadence editing) read the current chart, mutate the
+   *  one field they care about, and write the whole thing back. */
+  async updateOrgChartForTenant(tenantId: string, id: string, orgChart: OrgChart): Promise<void> {
+    await withTenantScope(this.pool, tenantId, async (client) => {
+      await client.query(
+        `UPDATE signup_extraction_batches
+         SET org_chart = $3::jsonb, updated_at = now()
+         WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+        [id, tenantId, JSON.stringify(orgChart)],
+      );
+    });
+  }
+
   /** The tenant's claimed org chart, if any (issue #38) — the
    *  post-transfer read path DashboardScreen/OrgChartScreen use once an
    *  organization exists. The tenant_id unique index means there's at

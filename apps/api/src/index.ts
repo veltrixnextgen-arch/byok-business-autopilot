@@ -11,7 +11,7 @@ import {
   type SignupExtractionBatchStore,
   type SignupMetricsStore,
 } from "@byok/db";
-import { syncTenantSchedule, type ConnectionHealth, type RepeatableQueueLike } from "@byok/jobs";
+import { syncTenantSchedule, type ConnectionHealth, type QueueLike, type RepeatableQueueLike } from "@byok/jobs";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -38,7 +38,7 @@ import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
 import { tierRoute } from "./routes/tier.js";
-import { computeDesiredSchedule } from "./scheduler/computeDesiredSchedule.js";
+import { computeDesiredSchedule, type ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
 
 export interface CreateAppOptions {
   pool: PoolLike;
@@ -81,7 +81,9 @@ export interface CreateAppOptions {
    *  BullMQ job/queue name the scheduled-dispatch worker (also constructed
    *  at bootstrap) listens on — both sides must agree on it. */
   scheduler: {
-    queue: RepeatableQueueLike;
+    // Issue #159: widened to also include .add() (a real BullMQ Queue
+    // satisfies both — see scheduler.ts's own comment on this exact type).
+    queue: RepeatableQueueLike & QueueLike<ScheduledDispatchPayload>;
     jobName: string;
     /** Live status of the Queue's and Worker's own Redis connections
      *  (packages/jobs's trackConnectionHealth) — surfaced via /health and
