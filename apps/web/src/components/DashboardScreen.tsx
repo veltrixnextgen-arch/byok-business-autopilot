@@ -42,7 +42,10 @@ const ACTIVITY_KIND_LABELS: Record<string, string> = {
   reserved: "Cost reserved",
   settled: "Cost settled",
   queued: "Queued for approval",
-  APPROVE: "Approved",
+  // Effect-dispatch decision (docs/DECISIONS.md): "Reviewed", not
+  // "Approved" — draft-only for all of MVP-1/Phase 2, so the activity
+  // feed must not read as if something was actually sent/executed.
+  APPROVE: "Reviewed",
   REJECT: "Rejected",
   MODIFY: "Modified",
   "recommendation-submitted": "Recommendation submitted",

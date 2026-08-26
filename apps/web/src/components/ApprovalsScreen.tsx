@@ -173,9 +173,19 @@ function QueueCard({
       </div>
 
       <div className="mt-3 rounded-lg border border-border-subtle bg-bg px-3.5 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">If you approve</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">If you mark this reviewed</p>
         <p className="mt-1.5 text-sm text-text-secondary">
-          {item.effectDescription ?? "Nothing further happens — this marks the work reviewed. There's no external effect to approve."}
+          {
+            // Effect-dispatch decision (docs/DECISIONS.md): draft-only for
+            // all of MVP-1/Phase 2, deliberately, not an unfinished
+            // feature — item.effectDescription is never non-null today
+            // (no code path sets ProposedAction.effect), and the button
+            // below says "Mark reviewed," not "Approve," so nothing here
+            // implies a real-world action was taken. The branch stays for
+            // when real dispatch actually ships — it should read
+            // accurately then without another copy pass.
+            item.effectDescription ?? "Nothing is sent, posted, or executed — this only marks the work reviewed."
+          }
         </p>
       </div>
 
@@ -184,7 +194,7 @@ function QueueCard({
       {mode === "view" && (
         <div className="mt-6 grid grid-cols-3 gap-2">
           <Button variant="gradient" disabled={submitting} onClick={() => submit({ kind: "APPROVE" })}>
-            Approve
+            Mark reviewed
           </Button>
           <Button variant="secondary" disabled={submitting} onClick={() => setMode("modify")}>
             Modify
@@ -220,7 +230,7 @@ function QueueCard({
       {mode === "modify" && (
         <div className="mt-6 space-y-3">
           <label htmlFor="modify-output" className="block text-sm font-medium text-text-secondary">
-            Edit the output before it's approved
+            Edit the output before it's marked reviewed
           </label>
           <textarea
             id="modify-output"
@@ -239,7 +249,7 @@ function QueueCard({
               onClick={() => submit({ kind: "MODIFY", editedOutput: (editedOutput || item.output).trim() })}
               className="flex-1"
             >
-              {submitting ? "Saving…" : "Approve with edits"}
+              {submitting ? "Saving…" : "Mark reviewed with edits"}
             </Button>
           </div>
         </div>
