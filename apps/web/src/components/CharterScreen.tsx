@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { Charter, CompanyCharter } from "@byok/contracts";
-import { acceptDraft, createDraft, getCharterState, updateDraft } from "../lib/charterClient";
+import { acceptDraft, createDraft, getCharterState, updateDraft, type CharterAcceptResult } from "../lib/charterClient";
 import { getOrgChartForTenant } from "../lib/extractionClient";
 import { AppShell } from "./AppShell";
 import { Button, Card } from "./ui";
@@ -10,7 +10,11 @@ type ScreenState =
   | { kind: "loading" }
   | { kind: "empty" }
   | { kind: "editing"; draft: CompanyCharter; ceoName: string | null }
-  | { kind: "installed"; active: CompanyCharter };
+  | { kind: "installed"; active: CompanyCharter }
+  // Issue #135: a distinct state, not an immediate auto-navigate — what
+  // the handoff actually scheduled needs to be seen, not just computed
+  // and thrown away the way this screen used to.
+  | { kind: "accepted"; sync: CharterAcceptResult["sync"] };
 
 const SAVE_ERROR_MESSAGE = "Couldn't save that — try again.";
 
@@ -79,8 +83,8 @@ export function CharterScreen() {
     setError(null);
     try {
       await updateDraft(state.draft.id, content);
-      await acceptDraft(state.draft.id);
-      await navigate({ to: "/dashboard" });
+      const { sync } = await acceptDraft(state.draft.id);
+      setState({ kind: "accepted", sync });
     } catch {
       setError("Couldn't hand off the Charter — try again.");
       setAccepting(false);
@@ -93,12 +97,16 @@ export function CharterScreen() {
         <header className="mb-10 space-y-1">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Company charter</p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {state.kind === "installed" ? "Your company's charter" : "Review your charter"}
+            {state.kind === "installed" && "Your company's charter"}
+            {state.kind === "accepted" && "Charter handed off"}
+            {state.kind !== "installed" && state.kind !== "accepted" && "Review your charter"}
           </h1>
           <p className="text-text-secondary">
-            {state.kind === "installed"
-              ? "The constitution of your AI company — installed as your CEO agent's master prompt."
-              : "The idea, sharpened — the MVP — every role's mandate — this month's goals — your budget ceiling. Edit anything, then hand it off."}
+            {state.kind === "installed" && "The constitution of your AI company — installed as your CEO agent's master prompt."}
+            {state.kind === "accepted" && "Here's what that actually scheduled."}
+            {state.kind !== "installed" &&
+              state.kind !== "accepted" &&
+              "The idea, sharpened — the MVP — every role's mandate — this month's goals — your budget ceiling. Edit anything, then hand it off."}
           </p>
         </header>
 
@@ -114,6 +122,8 @@ export function CharterScreen() {
 
         {state.kind === "installed" && <InstalledView charter={state.active} />}
 
+        {state.kind === "accepted" && <AcceptedView sync={state.sync} onContinue={() => navigate({ to: "/dashboard" })} />}
+
         {state.kind === "editing" && (
           <EditingView
             key={state.draft.id}
@@ -128,6 +138,35 @@ export function CharterScreen() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function AcceptedView({ sync, onContinue }: { sync: CharterAcceptResult["sync"]; onContinue: () => void }) {
+  const scheduledCount = sync?.added.length ?? 0;
+  return (
+    <Card>
+      {sync ? (
+        <>
+          <p className="text-sm text-text-secondary">
+            {scheduledCount > 0
+              ? `${scheduledCount} task${scheduledCount === 1 ? "" : "s"} scheduled to run on cadence.`
+              : "No cadence-triggered tasks to schedule yet."}
+          </p>
+          {sync.clampNotes.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm text-text-muted">
+              {sync.clampNotes.map((note) => (
+                <li key={note.taskId}>⚠ {note.reason}</li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-text-secondary">Nothing was scheduled yet — claim an org chart first.</p>
+      )}
+      <Button variant="gradient" className="mt-6" onClick={onContinue}>
+        Continue to dashboard
+      </Button>
+    </Card>
   );
 }
 
