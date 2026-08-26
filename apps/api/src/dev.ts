@@ -1,4 +1,4 @@
-import { createPool, runMigrations, verifySchemaCurrent } from "@byok/db";
+import { createPool, runMigrations, verifyNoPublicApiExposure, verifySchemaCurrent } from "@byok/db";
 import { createDevTrustCore } from "./dev/devTrustCore.js";
 import { readServerConfigFromEnv, startServer } from "./server.js";
 
@@ -12,5 +12,6 @@ const pool = createPool({ connectionString: config.databaseUrl });
 // the same way staging did.
 await runMigrations(pool);
 await verifySchemaCurrent(pool);
+await verifyNoPublicApiExposure(pool);
 
 startServer(config, createDevTrustCore(pool, { google: config.google ?? undefined }), pool);
