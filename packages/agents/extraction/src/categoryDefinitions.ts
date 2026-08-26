@@ -7,12 +7,12 @@ import type { TeamHint } from "@byok/templates";
 // research/new-idea task instead of only software work, and (2) a client's
 // paid-work tasks clustering into "cfo" just because they happen to be
 // finance-shaped.
-export interface CategoryDefinition {
+interface CategoryDefinition {
   definition: string;
   examples: [string, string];
 }
 
-export const CATEGORY_DEFINITIONS: Record<TeamHint, CategoryDefinition> = {
+const CATEGORY_DEFINITIONS: Record<TeamHint, CategoryDefinition> = {
   founder: {
     definition:
       "ONLY the Chief-of-Staff-style meta-task: synthesizing what OTHER teams already reported into a weekly " +
