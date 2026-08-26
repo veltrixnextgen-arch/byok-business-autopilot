@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { CostGate, InMemoryDurableReservationStore, PricingTable } from "@byok/cost-gate";
 import type { CeilingConfig, TierModelMap } from "@byok/cost-gate";
 import { Router } from "./router.js";
-import { InMemoryDedupStore } from "./dedup.js";
-import { InMemoryTaskLedger } from "./ledger.js";
+import { InMemoryDurableDedupStore } from "./durable/dedupStore.js";
+import { InMemoryDurableTaskLedger } from "./durable/ledgerStore.js";
 import type { AgentExecutor, ExecutionOutcome } from "./executor.js";
 import type { RouterTask } from "./types.js";
 
@@ -40,7 +40,7 @@ function countingExecutor(): { executor: AgentExecutor; callCount: () => number 
 test("PROCEED: gate allows the task through, executor runs, reservation settles", async () => {
   const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} });
   const { executor, callCount } = countingExecutor();
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor, gate);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor, gate);
 
   const task = await router.submitTask({
     subAgentId: "invoicing",
@@ -59,7 +59,7 @@ test("PROCEED: gate allows the task through, executor runs, reservation settles"
 test("QUEUE: gate blocks the task before the executor ever runs", async () => {
   const gate = makeGate({ companyMonthlyUsd: 0.0000001, perRoleUsd: {}, perTaskTypeUsd: {} });
   const { executor, callCount } = countingExecutor();
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor, gate);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor, gate);
 
   const task = await router.submitTask({
     subAgentId: "invoicing",
@@ -78,7 +78,7 @@ test("QUEUE: gate blocks the task before the executor ever runs", async () => {
 test("SKIP: gate blocks the task before the executor ever runs, and never reserves budget", async () => {
   const gate = makeGate({ companyMonthlyUsd: 0.0000001, perRoleUsd: {}, perTaskTypeUsd: {} });
   const { executor, callCount } = countingExecutor();
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor, gate);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor, gate);
 
   const task = await router.submitTask({
     subAgentId: "invoicing",
@@ -103,7 +103,7 @@ test("DOWNGRADE: the executor receives the DOWNGRADED model, not the originally 
       return { result: "ok", costUsd: 0.001 };
     },
   };
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor, gate);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor, gate);
 
   const task = await router.submitTask({
     subAgentId: "invoicing",
@@ -130,7 +130,7 @@ test("a failed execution releases its reservation instead of settling it", async
       return callNumber === 1 ? { error: "provider billing error" } : { result: "ok", costUsd: 0.001 };
     },
   };
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), flakyExecutor, gate);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), flakyExecutor, gate);
 
   const first = await router.submitTask({
     subAgentId: "invoicing",
@@ -158,7 +158,7 @@ test("a failed execution releases its reservation instead of settling it", async
 
 test("no CostGate configured: behaves exactly as before (no gating at all)", async () => {
   const { executor, callCount } = countingExecutor();
-  const router = new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor); // no gate
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor); // no gate
 
   const task = await router.submitTask({
     subAgentId: "invoicing",

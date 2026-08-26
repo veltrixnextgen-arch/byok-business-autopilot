@@ -1,7 +1,7 @@
 import { ApprovalQueue, MockEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
 import { PostgresDurableAuditLog, TenantCeilingStore, type PoolLike } from "@byok/db";
-import { InMemoryDedupStore, InMemoryTaskLedger, OpenMultiAgentExecutor, Router } from "@byok/router";
+import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
 import { DEV_TIER_MODEL_MAP, createDevKms } from "./dev/devTrustCore.js";
@@ -28,13 +28,9 @@ const ROUTER_SERVICE_IDENTITY: RequesterIdentity = { kind: "router-service", ser
  * (local dev) keeps using createDevTrustCore unchanged — this file is
  * new, not a replacement for that one.
  *
- * Router's ledger and dedup store are DELIBERATELY still in-memory here —
- * see docs/DECISIONS.md ADR-026 for why (their durable counterparts
- * implement a different async interface Router's constructor doesn't
- * accept; making them durable is a larger, separate change, tracked in
- * issue TBD). Anyone reading "staging now uses durable trust-core wiring"
- * should not assume that covers the task ledger or dedup store — it does
- * not.
+ * #120: Router's ledger and dedup store are now PostgresDurableTaskLedger/
+ * PostgresDurableDedupStore, not the in-memory ones ADR-026 originally
+ * left here — see durable/ledgerStore.ts and durable/dedupStore.ts.
  */
 export function createDurableTrustCore(pool: PoolLike, options: { google?: { clientId: string; clientSecret: string } } = {}): TrustCoreDeps {
   const pricingTable: PricingTable = loadDefaultPricingTable();
@@ -62,7 +58,7 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // approvals route below, not a second one constructed there.
   const autonomyStore = new PostgresDurableAutonomyStore(pool);
   const approvalQueue = new ApprovalQueue(autonomyStore, new MockEffectExecutor(), undefined, new PostgresDurableApprovalStore(pool, auditLog));
-  const ledger = new InMemoryTaskLedger();
+  const ledger = new PostgresDurableTaskLedger(pool);
 
   const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
   if (options.google) {
@@ -97,7 +93,7 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // omitting Hands here doesn't change what can dispatch today, only
   // keeps this executor's tool surface at zero until that's revisited.
   const executor = new OpenMultiAgentExecutor(vault, ROUTER_SERVICE_IDENTITY, DEV_TIER_MODEL_MAP.T1);
-  const router = new Router(ledger, new InMemoryDedupStore(), executor, costGate, approvalQueue);
+  const router = new Router(ledger, new PostgresDurableDedupStore(pool), executor, costGate, approvalQueue);
 
-  return { router, costGate, approvalQueue, ledger, vault, tierModelMap: DEV_TIER_MODEL_MAP };
+  return { router, costGate, approvalQueue, vault, tierModelMap: DEV_TIER_MODEL_MAP };
 }

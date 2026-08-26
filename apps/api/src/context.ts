@@ -2,7 +2,7 @@ import type { ApprovalQueue } from "@byok/approval-queue";
 import type { Auth } from "@byok/auth";
 import type { PoolClientLike } from "@byok/db";
 import type { CostGate, TierModelMap } from "@byok/cost-gate";
-import type { Router, TaskLedger } from "@byok/router";
+import type { Router } from "@byok/router";
 import type { Vault } from "@byok/vault";
 
 export type AppSession = Awaited<ReturnType<Auth["api"]["getSession"]>>;
@@ -34,12 +34,6 @@ export interface TrustCoreDeps {
   router: Router;
   costGate: CostGate;
   approvalQueue: ApprovalQueue;
-  /** The same TaskLedger instance the Router above wraps — exposed
-   *  directly because the extraction batch (ADR-014) appends to it
-   *  without going through Router.submitTask's approval-queue coupling,
-   *  which exists for real agent actions with potential real-world
-   *  effects, not a read-only document like an org chart. */
-  ledger: TaskLedger;
   /** BYOK Brain/Hands key custody (issue #15/#22, ADR-002). Same
    *  single-process-dev-honest wiring as the rest of trust-core — see
    *  devTrustCore.ts's own comment on why LocalKms/StagingKms there is

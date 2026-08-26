@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { ApprovalQueue, MockEffectExecutor, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { TenantCeilingStore, type PoolLike } from "@byok/db";
-import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
+import { InMemoryDurableDedupStore, InMemoryDurableTaskLedger, MockExecutor, Router } from "@byok/router";
 import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "../oauth/googleCalendar.js";
@@ -97,8 +97,11 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
   // reads/writes this exact table, so `npm run dev` needs the same object
   // identity staging/production have to exercise that path meaningfully.
   const approvalQueue = new ApprovalQueue(new PostgresDurableAutonomyStore(pool), new MockEffectExecutor());
-  const ledger = new InMemoryTaskLedger();
-  const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
+  // #120: dev-only in-memory ledger/dedup — guarded to refuse construction
+  // outside dev/test (durable/ledgerStore.ts, durable/dedupStore.ts).
+  // Postgres-backed for any deployed environment: see durableTrustCore.ts.
+  const ledger = new InMemoryDurableTaskLedger();
+  const router = new Router(ledger, new InMemoryDurableDedupStore(), new MockExecutor(), costGate, approvalQueue);
 
   const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
   if (options.google) {
@@ -120,5 +123,5 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
     new PostgresDekRecordStore(pool),
   );
 
-  return { router, costGate, approvalQueue, ledger, vault, tierModelMap: DEV_TIER_MODEL_MAP };
+  return { router, costGate, approvalQueue, vault, tierModelMap: DEV_TIER_MODEL_MAP };
 }

@@ -1,5 +1,8 @@
 import { withTenantScope, type PoolLike } from "@byok/db";
+import { isDevOrTestEnvironment } from "@byok/vault";
 import type { RouterTaskStatus } from "../types.js";
+
+export class DevOnlyTaskLedgerGuardError extends Error {}
 
 export interface DurableLedgerEntry {
   tenantId: string;
@@ -13,7 +16,8 @@ export interface StoredDurableLedgerEntry extends DurableLedgerEntry {
   at: string;
 }
 
-/** Async, tenant-scoped counterpart to TaskLedger (ledger.ts). */
+/** Tenant-scoped, durable ledger — #120: replaced the old synchronous,
+ *  process-local TaskLedger, which this codebase no longer has. */
 export interface DurableTaskLedger {
   append(entry: DurableLedgerEntry): Promise<void>;
   entriesFor(tenantId: string, subAgentId: string): Promise<readonly StoredDurableLedgerEntry[]>;
@@ -21,6 +25,21 @@ export interface DurableTaskLedger {
 
 export class InMemoryDurableTaskLedger implements DurableTaskLedger {
   private readonly entries: StoredDurableLedgerEntry[] = [];
+
+  // ADR-028's principle, applied per #120: a construction guard lands with
+  // the durability fix, never added after the fact. This class resets on
+  // every restart and nothing outside this process can ever see an entry
+  // held in it — same reasoning as every other InMemoryDurableXStore in
+  // this codebase (approvalStore.ts, autonomyStore.ts, vault's
+  // dekRecordStore.ts).
+  constructor() {
+    if (!isDevOrTestEnvironment()) {
+      throw new DevOnlyTaskLedgerGuardError(
+        "InMemoryDurableTaskLedger cannot be constructed outside a dev or test environment — " +
+          "use PostgresDurableTaskLedger for any deployed environment.",
+      );
+    }
+  }
 
   async append(entry: DurableLedgerEntry): Promise<void> {
     this.entries.push({ ...entry, at: new Date().toISOString() });

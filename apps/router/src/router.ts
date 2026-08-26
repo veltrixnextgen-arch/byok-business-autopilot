@@ -3,8 +3,8 @@ import type { CostGate, Reservation } from "@byok/cost-gate";
 import { ApprovalQueue } from "@byok/approval-queue";
 import { isProductionEnvironment } from "@byok/vault";
 import type { AgentExecutor } from "./executor.js";
-import type { DedupStore } from "./dedup.js";
-import type { TaskLedger } from "./ledger.js";
+import type { DurableDedupStore } from "./durable/dedupStore.js";
+import type { DurableTaskLedger } from "./durable/ledgerStore.js";
 import { deriveTags, type TaggingHints } from "./tagging.js";
 import type { RecommendationItem } from "@byok/approval-queue";
 import type { RouterTask, RouterTaskInput } from "./types.js";
@@ -20,10 +20,15 @@ export class ProductionRouterGuardError extends Error {}
 // costGate and approvalQueue are both optional in dev/test (existing
 // behavior for callers that don't need them is unchanged), but ADR-008:
 // production refuses to construct a Router without both.
+//
+// ADR-039: ledger and dedupStore are the durable, tenant-scoped
+// interfaces now (Postgres for any deployed environment) — not the
+// synchronous, in-memory TaskLedger/DedupStore this constructor used to
+// take. See durable/ledgerStore.ts and durable/dedupStore.ts.
 export class Router {
   constructor(
-    private readonly ledger: TaskLedger,
-    private readonly dedupStore: DedupStore,
+    private readonly ledger: DurableTaskLedger,
+    private readonly dedupStore: DurableDedupStore,
     private readonly executor: AgentExecutor,
     private readonly costGate?: CostGate,
     private readonly approvalQueue?: ApprovalQueue,
@@ -37,14 +42,17 @@ export class Router {
   }
 
   async submitTask(input: RouterTaskInput, hints: TaggingHints = {}): Promise<RouterTask> {
-    const existing = this.dedupStore.get(input.dedupKey);
-    if (existing) return existing; // idempotent replay — never re-execute a seen dedupKey
-
     const now = () => new Date().toISOString();
     const tenantId = input.tenantId ?? "default";
     const tags = deriveTags(hints, input.tags ?? []);
 
-    const task: RouterTask = {
+    // Atomic get-or-create: the row-level UNIQUE(tenant_id, dedup_key)
+    // constraint (durable/dedupStore.ts) is what actually fixes the
+    // multi-replica race the old in-memory get()-then-set() pattern could
+    // never close — two replicas racing the same dedupKey can't both
+    // "win" here. `factory` is only ever invoked if nothing existing was
+    // found, so a replayed dedupKey never re-generates a task id/timestamps.
+    const { task: createdOrExistingTask, created } = await this.dedupStore.getOrCreate(tenantId, input.dedupKey, () => ({
       id: randomUUID(),
       tenantId,
       subAgentId: input.subAgentId,
@@ -60,10 +68,11 @@ export class Router {
       status: "pending",
       systemPrompt: input.systemPrompt,
       promptTier: input.promptTier ?? "sub-agent",
-    };
+    }));
+    if (!created) return createdOrExistingTask; // idempotent replay — never re-execute a seen dedupKey
+    const task = createdOrExistingTask;
 
-    this.dedupStore.set(input.dedupKey, task);
-    this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: "pending", at: task.createdAt });
+    await this.ledger.append({ tenantId, taskId: task.id, subAgentId: task.subAgentId, status: "pending" });
 
     // GATE — strictly before the executor. QUEUE/SKIP never reach it.
     let reservation: Reservation | undefined;
@@ -83,12 +92,12 @@ export class Router {
       if (verdict.kind === "QUEUE" || verdict.kind === "SKIP") {
         task.status = verdict.kind === "QUEUE" ? "queued" : "skipped";
         task.updatedAt = now();
-        this.dedupStore.set(input.dedupKey, task);
-        this.ledger.append({
+        await this.dedupStore.update(task);
+        await this.ledger.append({
+          tenantId,
           taskId: task.id,
           subAgentId: task.subAgentId,
           status: task.status,
-          at: task.updatedAt,
           note: verdict.reason,
         });
         return task; // never reaches the executor
@@ -100,7 +109,8 @@ export class Router {
 
     task.status = "in_progress";
     task.updatedAt = now();
-    this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: "in_progress", at: task.updatedAt });
+    await this.dedupStore.update(task);
+    await this.ledger.append({ tenantId, taskId: task.id, subAgentId: task.subAgentId, status: "in_progress" });
 
     const outcome = await this.executor.execute(task).catch((err: Error) => ({ error: err.message }) as const);
 
@@ -109,8 +119,8 @@ export class Router {
       task.status = "failed";
       task.error = outcome.error;
       if (this.costGate && reservation) await this.costGate.release(reservation.id);
-      this.dedupStore.set(input.dedupKey, task);
-      this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: task.status, at: task.updatedAt, note: task.error });
+      await this.dedupStore.update(task);
+      await this.ledger.append({ tenantId, taskId: task.id, subAgentId: task.subAgentId, status: task.status, note: task.error });
       return task;
     }
 
@@ -157,12 +167,12 @@ export class Router {
         task.status = "awaiting_review";
         task.approvalActionId = task.id;
         task.updatedAt = now();
-        this.dedupStore.set(input.dedupKey, task);
-        this.ledger.append({
+        await this.dedupStore.update(task);
+        await this.ledger.append({
+          tenantId,
           taskId: task.id,
           subAgentId: task.subAgentId,
           status: task.status,
-          at: task.updatedAt,
           note: "CEO recommendation — guidance only, no dispatch pathway (T10)",
         });
         return task;
@@ -184,12 +194,12 @@ export class Router {
       task.status = queued ? "awaiting_review" : "completed";
       task.approvalActionId = task.id;
       task.updatedAt = now();
-      this.dedupStore.set(input.dedupKey, task);
-      this.ledger.append({
+      await this.dedupStore.update(task);
+      await this.ledger.append({
+        tenantId,
         taskId: task.id,
         subAgentId: task.subAgentId,
         status: task.status,
-        at: task.updatedAt,
         note: task.missingHands
           ? `drafted only — connect ${task.missingHands.join(", ")} to enable real actions`
           : queued
@@ -201,12 +211,12 @@ export class Router {
 
     // No approval queue configured — preserve prior behavior exactly.
     task.status = "completed";
-    this.dedupStore.set(input.dedupKey, task);
-    this.ledger.append({ taskId: task.id, subAgentId: task.subAgentId, status: task.status, at: task.updatedAt });
+    await this.dedupStore.update(task);
+    await this.ledger.append({ tenantId, taskId: task.id, subAgentId: task.subAgentId, status: task.status });
     return task;
   }
 
-  ledgerFor(subAgentId: string) {
-    return this.ledger.entriesFor(subAgentId);
+  async ledgerFor(tenantId: string, subAgentId: string) {
+    return this.ledger.entriesFor(tenantId, subAgentId);
   }
 }

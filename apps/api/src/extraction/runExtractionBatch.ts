@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { InterviewAnswers, OrgChart } from "@byok/contracts";
 import type { CostGate } from "@byok/cost-gate";
 import { CUSTOMIZE_MODEL, extractOrgChart } from "@byok/extraction";
-import type { TaskLedger } from "@byok/router";
 import type { SignupExtractionBatchStore } from "@byok/db";
 
 // The Anthropic SDK's raw error text for a rejected key ("401
@@ -18,14 +17,13 @@ function isApiKeyRejection(err: unknown): boolean {
 
 export interface RunExtractionBatchDeps {
   costGate: CostGate;
-  ledger: TaskLedger;
   // Narrowed to just the methods used, not the concrete class — its pool
   // field is private, which would otherwise force every test to construct
-  // a real one (matches TaskLedger's own interface/InMemoryTaskLedger split).
+  // a real one.
   batchStore: Pick<SignupExtractionBatchStore, "start" | "complete" | "fail">;
   apiKey: string;
   /** Defaults to the real extractOrgChart — injectable so tests can
-   *  exercise the gate/ledger/batchStore orchestration above without a
+   *  exercise the gate/batchStore orchestration above without a
    *  live Anthropic call, the same reason OpenMultiAgentExecutor takes an
    *  orchestratorFactory instead of constructing its client inline. */
   extract?: typeof extractOrgChart;
@@ -50,9 +48,16 @@ export type RunExtractionBatchResult =
  * extraction has no effect and produces a document (the org chart) the
  * user reviews directly in the UI, so routing it through submitTask would
  * queue every signup's org chart for "human approval," which the
- * mechanism was never meant for. The ledger append calls below give this
- * the same visibility a submitTask-routed task would have gotten, without
- * that mismatch.
+ * mechanism was never meant for.
+ *
+ * #120: this used to also append to Router's shared TaskLedger, purely
+ * for visibility — removed when that ledger became durable and
+ * tenant-scoped (durable/ledgerStore.ts), since this function runs
+ * BEFORE any tenant exists (ADR-015) and has no tenantId to give it.
+ * Nothing lost: batchStore.start/complete/fail (below) already durably
+ * tracks this exact batch's lifecycle in Postgres, and nothing in
+ * production ever read the ledger's own entriesFor() for this
+ * (or any) subAgentId — confirmed before removing, not assumed.
  */
 export async function runExtractionBatch(
   deps: RunExtractionBatchDeps,
@@ -60,10 +65,6 @@ export async function runExtractionBatch(
 ): Promise<RunExtractionBatchResult> {
   const batch = await deps.batchStore.start(input.userId, input.idea);
   const taskId = batch.id;
-  const now = () => new Date().toISOString();
-
-  deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "pending", at: now() });
-
   const { verdict, reservation } = await deps.costGate.evaluateAndReserve({
     taskId,
     // There's no company/tenant yet at this pre-org stage (ADR-015) — the
@@ -89,7 +90,6 @@ export async function runExtractionBatch(
     // durable-store detail) — logged for operators, but never shown to the
     // user directly; the user-facing reason stays plain language regardless
     // of which ceiling tripped or why.
-    deps.ledger.append({ taskId, subAgentId: "extraction-batch", status, at: now(), note: verdict.reason });
     await deps.batchStore.fail(input.userId, batch.id, `${verdict.kind}: ${verdict.reason}`);
     const userReason =
       verdict.kind === "QUEUE"
@@ -106,8 +106,6 @@ export async function runExtractionBatch(
     throw new Error(`CostGate returned a ${verdict.kind} verdict with no reservation — invariant violation.`);
   }
 
-  deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "in_progress", at: now() });
-
   try {
     // verdict.model carries a DOWNGRADE's rewritten model, if any — but
     // extractOrgChart's own internal calls each name their own model
@@ -118,7 +116,6 @@ export async function runExtractionBatch(
     const chart = await extract(input.idea, input.answers, { apiKey: deps.apiKey });
     await deps.costGate.settle(reservation.id, chart.meta.costUsd);
     await deps.batchStore.complete(input.userId, batch.id, chart, chart.meta.costUsd);
-    deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "completed", at: now() });
     return { status: "completed", batchId: batch.id, chart, costUsd: chart.meta.costUsd };
   } catch (err) {
     await deps.costGate.release(reservation.id);
@@ -128,7 +125,6 @@ export async function runExtractionBatch(
         ? err.message
         : "extraction failed";
     await deps.batchStore.fail(input.userId, batch.id, message);
-    deps.ledger.append({ taskId, subAgentId: "extraction-batch", status: "failed", at: now(), note: message });
     return { status: "failed", batchId: batch.id, error: message };
   }
 }
