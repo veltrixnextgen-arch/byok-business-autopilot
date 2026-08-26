@@ -93,11 +93,13 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // comment) always wins over the fixed model here; DEV_TIER_MODEL_MAP.T1
   // is only a fallback for the theoretical no-CostGate case, which never
   // happens in this durable wiring (costGate is always passed to Router
-  // below). No handsVault/handsTools yet — MVP-1 is deliberately
-  // draft-only (see issue TBD, effect-dispatch posture): every scheduled
-  // task's RouterTaskInput already omits `effect` entirely regardless, so
-  // omitting Hands here doesn't change what can dispatch today, only
-  // keeps this executor's tool surface at zero until that's revisited.
+  // below). No handsVault/handsTools yet — draft-only for all of
+  // MVP-1/Phase 2 is now a settled decision, not an open "TBD" (ADR-043):
+  // every scheduled task's RouterTaskInput already omits `effect`
+  // entirely regardless, so omitting Hands here doesn't change what can
+  // dispatch today, only keeps this executor's tool surface at zero
+  // until the ADR's gates (real pilot usage, a Hands connection actually
+  // usable in production) clear.
   const executor = new OpenMultiAgentExecutor(vault, ROUTER_SERVICE_IDENTITY, DEV_TIER_MODEL_MAP.T1);
   const router = new Router(ledger, new PostgresDurableDedupStore(pool), executor, costGate, approvalQueue);
 
