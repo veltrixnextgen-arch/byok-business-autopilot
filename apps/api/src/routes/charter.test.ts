@@ -267,6 +267,60 @@ test("POST /draft/:id/accept generates a cascade from the draft content + claime
   assert.equal(cascade.subAgents.length, 1);
 });
 
+test("POST /draft/:id/accept surfaces onAccepted's sync result, not just the installed charter", async () => {
+  const draft = makeDraft();
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: {
+      getActive: async () => null,
+      getLatestDraft: async () => draft,
+      createDraft: async () => {
+        throw new Error("unused");
+      },
+      updateDraft: async () => {
+        throw new Error("unused");
+      },
+      get: async () => draft,
+      accept: async (_tenantId, _id, cascade) => ({ ...draft, status: "active", cascade, installedAt: "2026-01-02T00:00:00.000Z" }),
+    },
+    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    onAccepted: async () => ({ added: ["tenant-1:agent-1:task-1"], removed: [], unchanged: [], clampNotes: [{ taskId: "task-1", reason: "Clamped to solo tier's daily floor." }] }),
+  });
+
+  const res = await app.request("/draft/charter-1/accept", { method: "POST" });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { sync: { added: string[]; removed: string[]; unchanged: string[]; clampNotes: { taskId: string; reason: string }[] } | null };
+  assert.deepEqual(body.sync, {
+    added: ["tenant-1:agent-1:task-1"],
+    removed: [],
+    unchanged: [],
+    clampNotes: [{ taskId: "task-1", reason: "Clamped to solo tier's daily floor." }],
+  });
+});
+
+test("POST /draft/:id/accept returns sync: null when onAccepted is omitted (existing R2-era test shape)", async () => {
+  const draft = makeDraft();
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: {
+      getActive: async () => null,
+      getLatestDraft: async () => draft,
+      createDraft: async () => {
+        throw new Error("unused");
+      },
+      updateDraft: async () => {
+        throw new Error("unused");
+      },
+      get: async () => draft,
+      accept: async (_tenantId, _id, cascade) => ({ ...draft, status: "active", cascade, installedAt: "2026-01-02T00:00:00.000Z" }),
+    },
+    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+  });
+
+  const res = await app.request("/draft/charter-1/accept", { method: "POST" });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { sync: unknown };
+  assert.equal(body.sync, null);
+});
+
 test("POST /draft/:id/accept 409s when no org chart has been claimed yet", async () => {
   const draft = makeDraft();
   const app = appWithSession("tenant-1", SESSION, {

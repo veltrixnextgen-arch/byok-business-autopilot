@@ -2,9 +2,15 @@ import { zValidator } from "@hono/zod-validator";
 import type { Charter } from "@byok/contracts";
 import { generateCascade } from "@byok/extraction";
 import type { CompanyCharterStore, SignupExtractionBatchStore } from "@byok/db";
+import type { SyncResult } from "@byok/jobs";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../context.js";
+import type { ClampNote } from "../scheduler/computeDesiredSchedule.js";
+
+export interface CharterSyncResult extends SyncResult {
+  clampNotes: ClampNote[];
+}
 
 export interface CharterRouteDeps {
   charters: Pick<
@@ -17,8 +23,15 @@ export interface CharterRouteDeps {
    *  a Charter handoff makes the company actually run on its own, not just
    *  installs prompts nothing dispatches yet. Optional so charter.test.ts's
    *  existing R2-era tests don't all need a scheduler double; omitted in
-   *  those, it's simply not called. */
-  onAccepted?: (tenantId: string) => Promise<void>;
+   *  those, it's simply not called.
+   *
+   *  Issue #135: returns what was actually scheduled (added/removed/
+   *  unchanged job ids, plus any tier-floor clamp notes) — the accept
+   *  response surfaces this instead of silently discarding it the way this
+   *  callback used to (`Promise<void>`, result thrown away). `null` means
+   *  "nothing to schedule yet" (shouldn't happen post-accept, but never
+   *  assumed), not an error. */
+  onAccepted?: (tenantId: string) => Promise<CharterSyncResult | null>;
 }
 
 const roleMandateSchema = z.object({
@@ -107,7 +120,7 @@ export function charterRoute(deps: CharterRouteDeps) {
       const cascade = generateCascade(draft.content, batch.orgChart, previousActive?.cascade);
 
       const installed = await deps.charters.accept(tenantId, id, cascade);
-      await deps.onAccepted?.(tenantId);
-      return c.json({ charter: installed });
+      const sync = (await deps.onAccepted?.(tenantId)) ?? null;
+      return c.json({ charter: installed, sync });
     });
 }
