@@ -42,7 +42,7 @@ const MAX_OUTPUT_TOKENS = 8000;
 // tenant-scoped route exists — ADR-015). Keep these two constants in sync by
 // hand; a mismatch would make the Charter's stated ceiling a lie about what
 // actually gates spend.
-export const DEFAULT_CHARTER_BUDGET_CEILING_USD = 50;
+const DEFAULT_CHARTER_BUDGET_CEILING_USD = 50;
 
 // Issue #124: this used to be swallowed by pipeline.ts's graceful
 // degradation, same as a budget shortfall — but a truncated/malformed
@@ -52,7 +52,7 @@ export const DEFAULT_CHARTER_BUDGET_CEILING_USD = 50;
 // `new Error(...)`, so whoever eventually reads batch.error — today
 // that's the raw message the extraction-batch UI shows verbatim — sees
 // something they can act on, not an internal tool-call description.
-export class OnboardingBatchIncompleteError extends Error {
+class OnboardingBatchIncompleteError extends Error {
   constructor(reason: string) {
     super(`We couldn't finish setting up your company — ${reason} Please try again.`);
     this.name = "OnboardingBatchIncompleteError";
