@@ -1,9 +1,13 @@
 name: Deploy (staging)
 
 # Issue #26: deploys trigger from tags, not arbitrary commits. Tagging
-# vX.Y.Z-staging deploys the full stack (Neon migrations + RLS verification,
-# Railway apps/api, Vercel apps/web) to staging only — there is no
-# production environment or production deploy path yet.
+# vX.Y.Z-staging deploys the full stack (Supabase migrations + RLS
+# verification, Railway apps/api, Vercel apps/web) to staging only —
+# there is no production environment or production deploy path yet.
+# ADR-041: moved from Neon to Supabase (free tier allows the multiple
+# projects a real staging environment needs); SUPABASE_DATABASE_URL is
+# the app_user connection string, direct (not Supavisor) — see that
+# ADR for why pooling was deliberately not used here.
 on:
   push:
     tags:
@@ -33,9 +37,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Run migrations against managed Postgres (Neon)
+      - name: Run migrations against managed Postgres (Supabase)
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: npm run db:migrate
 
       # RLS negative test — see packages/db/src/verifyRlsIsolation.ts.
@@ -44,9 +48,9 @@ jobs:
       # session cannot read a row inserted under tenant A — zero rows
       # returned, not an error. This step's log output is the evidence
       # copied into the PR description.
-      - name: Verify RLS isolation against live Neon (real negative test)
+      - name: Verify RLS isolation against live Supabase (real negative test)
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: npm run db:verify-rls
 
       - name: Install Railway and Vercel CLIs
@@ -126,21 +130,22 @@ jobs:
       # below, for the same reason: some values MUST survive a redeploy,
       # not just tolerate one.
       #
-      # NEON_DATABASE_URL is Neon's DIRECT connection string (Neon's own
-      # guidance: migrations/DDL should use direct, not pooled — see the
-      # migrate + verify-rls steps above, which also use it as-is). The
-      # live app is the opposite case (concurrent request traffic is
-      # exactly what Neon's pooler is for), so Railway's DATABASE_URL gets
-      # the POOLED variant instead — derived here, not asked for as a
-      # second secret: Neon's pooled hostname is the direct one with
-      # `-pooler` inserted before the first `.` (documented, stable
-      # convention), so a bad derivation would just fail the health check
-      # below loudly, not silently misconfigure anything.
+      # ADR-041: SUPABASE_DATABASE_URL is the direct connection string —
+      # used as-is for the live app too, not a separate pooled variant.
+      # Neon's pooler (pgbouncer transaction mode) was implicitly proven
+      # safe by production history before this move; Supavisor's
+      # transaction mode has the same category of behavior but wasn't
+      # something this codebase could verify without live traffic, and
+      # two prior real pooled-connection incidents (ADR-030) argued
+      # against trusting that by default. pg.Pool already caps
+      # concurrency (`max: 10`) client-side — a second, unverified
+      # pooling layer underneath buys nothing. Do not reach for
+      # Supavisor transaction mode here without re-deriving this.
       - name: Configure Railway environment and deploy apps/api
         id: railway_deploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
           WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -153,17 +158,15 @@ jobs:
           fi
 
           BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-          NEON_DATABASE_URL_POOLED=$(echo "$NEON_DATABASE_URL" | sed -E 's/@([^.\/]+)\./@\1-pooler./')
           # BETTER_AUTH_SECRET is derived/generated here (not pulled from a
           # registered GitHub secret), so GitHub doesn't know to mask it
           # automatically — register it explicitly in case any CLI command
           # echoes it back as confirmation output. STAGING_KMS_MASTER_KEY
-          # is already a registered secret (masked automatically); no
-          # explicit add-mask needed for it.
+          # and SUPABASE_DATABASE_URL are already registered secrets
+          # (masked automatically); no explicit add-mask needed for them.
           echo "::add-mask::$BETTER_AUTH_SECRET"
-          echo "::add-mask::$NEON_DATABASE_URL_POOLED"
 
-          railway variable set "DATABASE_URL=$NEON_DATABASE_URL_POOLED" --service "$RAILWAY_SERVICE"
+          railway variable set "DATABASE_URL=$SUPABASE_DATABASE_URL" --service "$RAILWAY_SERVICE"
           railway variable set "REDIS_URL=$UPSTASH_REDIS_URL" --service "$RAILWAY_SERVICE"
           railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
           railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"

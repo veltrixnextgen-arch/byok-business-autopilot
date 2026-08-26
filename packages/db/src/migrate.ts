@@ -23,6 +23,8 @@ const MIGRATION_FILES = [
   "0010_tenant_tier_and_scheduler.sql",
   "0011_vault_durable_storage.sql",
   "0012_audit_log_vault_source.sql",
+  "0013_disable_rls_on_unprotected_tables.sql",
+  "0014_revoke_supabase_api_roles.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every
@@ -126,6 +128,55 @@ export async function verifySchemaCurrent(pool: QueryablePool): Promise<void> {
     const detail = missing.map((c) => `${c.table}.${c.column} (added by ${c.addedBy})`).join(", ");
     throw new SchemaDriftError(
       `Database schema is behind what this code expects — missing: ${detail}. Run migrations (runMigrations / npm run db:migrate) before starting the server.`,
+    );
+  }
+}
+
+export class PublicApiExposureError extends Error {}
+
+/**
+ * ADR-041's standing regression guard, not a one-time fix: Supabase
+ * auto-enables RLS and grants anon/authenticated (its own public REST
+ * API roles) broad privileges on every NEW table in the public schema —
+ * per table, at creation time, not per database. 0013/0014 closed this
+ * for the tables that existed when this was found; a future migration
+ * that adds a table without knowing about this would silently reopen
+ * the exact same exposure. Independent of runMigrations, same ADR-022
+ * option (b) reasoning as verifySchemaCurrent — checked on every boot,
+ * not just right after a migration runs.
+ *
+ * Two checks:
+ * 1. Every public table is owned by this connection's own role. Not
+ *    Supabase-specific — this is what actually lets runMigrations()
+ *    (which always runs as the app's own connection role, per ADR-022)
+ *    ALTER a table a future migration touches; a table owned by a
+ *    different role (e.g. bootstrapped by an admin role and never
+ *    transferred, the exact gap ADR-041 hit setting this up the first
+ *    time) fails the next ALTER TABLE outright, not just this check.
+ * 2. anon/authenticated hold zero grants on any public table. This
+ *    query naturally no-ops on Neon or CI's local Postgres — those
+ *    roles don't exist there, so they can never appear as a grantee;
+ *    no environment-detection branch needed.
+ */
+export async function verifyNoPublicApiExposure(pool: QueryablePool): Promise<void> {
+  const ownerResult = (await pool.query(
+    `SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'public' AND tableowner <> current_user`,
+  )) as { rows: Array<{ tablename: string; tableowner: string }> };
+  if (ownerResult.rows.length > 0) {
+    const detail = ownerResult.rows.map((r) => `${r.tablename} (owned by "${r.tableowner}")`).join(", ");
+    throw new PublicApiExposureError(
+      `Table(s) not owned by this connection's own role: ${detail}. A table this role doesn't own can't be ALTERed by a future migration — transfer ownership (ALTER TABLE ... OWNER TO) before it's used.`,
+    );
+  }
+
+  const grantResult = (await pool.query(
+    `SELECT table_name, grantee, privilege_type FROM information_schema.role_table_grants
+     WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated')`,
+  )) as { rows: Array<{ table_name: string; grantee: string; privilege_type: string }> };
+  if (grantResult.rows.length > 0) {
+    const detail = grantResult.rows.map((r) => `${r.table_name}: ${r.grantee} has ${r.privilege_type}`).join(", ");
+    throw new PublicApiExposureError(
+      `Supabase's anon/authenticated roles hold a grant on public table(s): ${detail}. Supabase re-applies its default grants per table, not per database — a table created since the last fix reopened this. Re-run 0014_revoke_supabase_api_roles.sql's REVOKE pattern against it.`,
     );
   }
 }
