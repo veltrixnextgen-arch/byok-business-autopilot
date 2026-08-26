@@ -16,7 +16,6 @@ function appWithUser(userId: string, deps: ExtractionRouteDeps) {
 function fakeDeps(overrides: Partial<ExtractionRouteDeps> = {}): ExtractionRouteDeps {
   return {
     costGate: { evaluateAndReserve: () => ({ verdict: { kind: "SKIP", reason: "unused in this test", model: "x" } }) } as never,
-    ledger: { append: () => {}, entriesFor: () => [], allEntries: () => [] },
     apiKey: "test-key",
     batchStore: {
       start: async () => {

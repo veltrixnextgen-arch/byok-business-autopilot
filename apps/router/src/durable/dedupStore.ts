@@ -1,5 +1,8 @@
 import { withTenantScope, type PoolLike } from "@byok/db";
+import { isDevOrTestEnvironment } from "@byok/vault";
 import type { RouterTask } from "../types.js";
+
+export class DevOnlyDedupStoreGuardError extends Error {}
 
 export interface GetOrCreateResult {
   task: RouterTask;
@@ -11,10 +14,11 @@ export interface GetOrCreateResult {
 }
 
 /**
- * Async, tenant-scoped counterpart to DedupStore (dedup.ts). Where the
- * in-memory version relies on being the only process holding the Map,
- * getOrCreate here is the actual multi-instance fix: the row is created
- * with a UNIQUE(tenant_id, dedup_key) constraint and
+ * Tenant-scoped, durable dedup store — #120: replaced the old
+ * synchronous, process-local DedupStore, which this codebase no longer
+ * has. Where that in-memory version relied on being the only process
+ * holding the Map, getOrCreate here is the actual multi-instance fix: the
+ * row is created with a UNIQUE(tenant_id, dedup_key) constraint and
  * INSERT ... ON CONFLICT DO NOTHING, so two router processes racing the
  * same dedupKey can't both "win" — exactly one INSERT succeeds, and the
  * loser reads the winner's row back instead of creating a duplicate task.
@@ -27,6 +31,21 @@ export interface DurableDedupStore {
 
 export class InMemoryDurableDedupStore implements DurableDedupStore {
   private readonly byKey = new Map<string, RouterTask>();
+
+  // Same reasoning as InMemoryDurableTaskLedger's guard just above in this
+  // PR (ADR-028's principle, per #120) — resets on every restart, and its
+  // whole job (cross-replica idempotent replay protection) is exactly the
+  // guarantee that silently stops holding the moment a second replica
+  // exists, which this guard prevents from happening unnoticed in any
+  // deployed environment.
+  constructor() {
+    if (!isDevOrTestEnvironment()) {
+      throw new DevOnlyDedupStoreGuardError(
+        "InMemoryDurableDedupStore cannot be constructed outside a dev or test environment — " +
+          "use PostgresDurableDedupStore for any deployed environment.",
+      );
+    }
+  }
 
   private key(tenantId: string, dedupKey: string): string {
     return `${tenantId}|${dedupKey}`;

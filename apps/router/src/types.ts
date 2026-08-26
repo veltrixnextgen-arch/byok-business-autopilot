@@ -101,11 +101,3 @@ export interface RouterTaskInput {
    *  differently in router.ts. */
   promptTier?: PromptTier;
 }
-
-export interface LedgerEntry {
-  taskId: string;
-  subAgentId: string;
-  status: RouterTaskStatus;
-  at: string;
-  note?: string;
-}

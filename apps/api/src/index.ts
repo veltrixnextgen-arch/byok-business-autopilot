@@ -219,7 +219,6 @@ export function createApp(options: CreateAppOptions) {
       extractionRoute({
         batchStore: options.extraction.batchStore,
         costGate: options.trustCore.costGate,
-        ledger: options.trustCore.ledger,
         apiKey: options.extraction.apiKey,
       }),
     )

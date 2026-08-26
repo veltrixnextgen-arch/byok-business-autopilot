@@ -1,15 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Router } from "./router.js";
-import { InMemoryDedupStore } from "./dedup.js";
-import { InMemoryTaskLedger } from "./ledger.js";
+import { InMemoryDurableDedupStore } from "./durable/dedupStore.js";
+import { InMemoryDurableTaskLedger } from "./durable/ledgerStore.js";
 import { MockExecutor } from "./executor.js";
 import { deriveTags } from "./tagging.js";
 import type { AgentExecutor, ExecutionOutcome } from "./executor.js";
 import type { RouterTask } from "./types.js";
 
+const DEFAULT_TENANT = "default";
+
 function makeRouter(executor: AgentExecutor = new MockExecutor()) {
-  return new Router(new InMemoryTaskLedger(), new InMemoryDedupStore(), executor);
+  return new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), executor);
 }
 
 test("tagging: derives operational tags from hints", () => {
@@ -84,14 +86,14 @@ test("per-sub-agent ledger: records pending -> in_progress -> completed for the 
     dedupKey: "ledger-test-2",
   });
 
-  const invoicingEntries = router.ledgerFor("invoicing");
+  const invoicingEntries = await router.ledgerFor(DEFAULT_TENANT, "invoicing");
   assert.deepEqual(
     invoicingEntries.map((e) => e.status),
     ["pending", "in_progress", "completed"],
   );
   assert.ok(invoicingEntries.every((e) => e.subAgentId === "invoicing"));
 
-  const triageEntries = router.ledgerFor("tier1-triage");
+  const triageEntries = await router.ledgerFor(DEFAULT_TENANT, "tier1-triage");
   assert.equal(triageEntries.length, 3);
   assert.ok(triageEntries.every((e) => e.subAgentId === "tier1-triage"));
 });
@@ -115,7 +117,7 @@ test("failed execution is recorded as failed in both the task and the ledger", a
   assert.equal(task.status, "failed");
   assert.equal(task.error, "provider billing error");
 
-  const entries = router.ledgerFor("invoicing");
+  const entries = await router.ledgerFor(DEFAULT_TENANT, "invoicing");
   assert.equal(entries.at(-1)!.status, "failed");
   assert.equal(entries.at(-1)!.note, "provider billing error");
 });
