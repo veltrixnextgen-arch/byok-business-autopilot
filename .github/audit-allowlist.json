@@ -1,18 +1,3 @@
 {
-  "entries": [
-    {
-      "id": "GHSA-9m65-766c-r333",
-      "package": "@tanstack/start-server-core",
-      "reason": "Vulnerable copy is reached only through apps/web's build-time-only @tanstack/react-start-plugin (already the newest version published — no fix exists to upgrade to). The actual runtime framework, @tanstack/react-start, resolves its own separately-patched copy; apps/web/src has no createServerFn usage. See docs/TRACKING.md for the full trace.",
-      "addedAt": "2026-08-07",
-      "expiresAt": "2026-11-05"
-    },
-    {
-      "id": "GHSA-67mh-4wv8-2f99",
-      "package": "esbuild",
-      "reason": "Reached only through packages/db's drizzle-kit -> the deprecated @esbuild-kit/core-utils (merged into tsx upstream). Requires exposing esbuild's own dev server, which nothing in this repo does; drizzle-kit is a local-only migration CLI, never deployed. A narrow overrides pin was tried and confirmed not to work (two syntaxes, each verified with a clean reinstall). See docs/TRACKING.md for the full trace.",
-      "addedAt": "2026-08-07",
-      "expiresAt": "2026-11-05"
-    }
-  ]
+  "entries": []
 }

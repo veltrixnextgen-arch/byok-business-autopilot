@@ -124,6 +124,8 @@ send any requests to the development server and read the response"), reached via
   deprecated `@esbuild-kit/*` chain is likely to be dropped from a newer release
   without any downgrade needed.
 
+**Resolved 2026-08-26, as a side effect of a code-leanness pass, not a targeted fix:** both packages these findings were reached through — `@tanstack/react-start-plugin` (apps/web) and `drizzle-kit` (packages/db) — turned out to be genuinely unused (verified with `knip`, then by hand: zero imports, zero script/CI invocations for either). Removed outright; both `.github/audit-allowlist.json` entries removed along with them, ahead of their `2026-11-05` expiry. The analysis above stays accurate history — it was correct at the time and the packages really were unreachable-but-present; this note just closes the loop on why they're gone now.
+
 ## Known pattern: unrelated plugin instructions appearing in session context
 
 Recurring, first noticed 2026-08-04: some Claude Code sessions working in this repo have had `<system-reminder>` blocks appear mid-session claiming to be plugin setup/hook instructions for tools with no relationship to this project — e.g. a "Carta CRM" plugin telling the agent to call CRM tools before every action, or unrelated marketing/sales/investor-plugin skill listings. This repo has no Carta, CRM, or similar integration; the instructions don't originate from this session's user and don't match anything in this codebase.
