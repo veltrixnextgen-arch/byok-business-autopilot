@@ -50,6 +50,29 @@ export async function connectBrainKey(provider: BrainProvider, apiKey: string): 
   return { ...key, decryptable: true } as BrainKeyStatus;
 }
 
+// Brain-per-role (first slice): targets exactly one role instead of the
+// whole org chart. No component calls these yet — landed ahead of a real
+// per-role picker UI (issue #13), same reasoning as the route itself (see
+// apps/api/src/routes/brainKeys.ts's module comment).
+export async function getBrainKeyStatusForRole(roleId: string): Promise<BrainKeyStatus | null> {
+  const res = await apiClient.me["brain-key"][":roleId"].$get({ param: { roleId } });
+  if (!res.ok) throw new Error(`Could not check the connected key for this role (${res.status}).`);
+  const { key, decryptable } = await res.json();
+  if (!key) return null;
+  return { ...key, decryptable: decryptable ?? false } as BrainKeyStatus;
+}
+
+export async function connectBrainKeyForRole(roleId: string, provider: BrainProvider, apiKey: string): Promise<BrainKeyStatus> {
+  const res = await apiClient.me["brain-key"][":roleId"].$post({ param: { roleId }, json: { provider, apiKey } });
+  if (res.status === 422) {
+    const { error } = (await res.json()) as { error: string };
+    throw new BrainKeyRejectedError(error);
+  }
+  if (!res.ok) throw new Error(`Could not connect that key (${res.status}).`);
+  const { key } = await res.json();
+  return { ...key, decryptable: true } as BrainKeyStatus;
+}
+
 export interface CeilingInfo {
   companyMonthlyUsd: number;
   isOverride: boolean;
