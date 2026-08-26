@@ -241,6 +241,108 @@ test("POST stores the key under every team id in the claimed org chart, validati
   assert.deepEqual(rolesWithValidate, ["cfo"]);
 });
 
+test("GET /:roleId checks status under exactly the given role, ignoring the org chart entirely", async () => {
+  let seenArgs: [string, string] | undefined;
+  const app = appWithSession(
+    "tenant-1",
+    SESSION,
+    fakeDeps({
+      vault: {
+        storeBrainKey: async () => {
+          throw new Error("unused");
+        },
+        getBrainKeyStatus: async (tenantId, roleId) => {
+          seenArgs = [tenantId, roleId];
+          return null;
+        },
+        verifyBrainKeyDecryptable: async () => {
+          throw new Error("must not be called when there's no key row");
+        },
+      },
+      // An org chart IS claimed here, with different team ids — GET
+      // /:roleId must ignore it entirely and use exactly the path param,
+      // proving this route doesn't fall back to roleIdsForTenant at all.
+      batchStore: {
+        latestForTenant: async () => ({
+          id: "batch-1",
+          userId: "user-1",
+          tenantId: "tenant-1",
+          idea: "x",
+          status: "completed",
+          orgChart: fakeOrgChart(["cfo", "sales"]),
+          costUsd: 0.01,
+          error: null,
+          createdAt: "",
+          updatedAt: "",
+        }),
+      },
+    }),
+  );
+
+  const res = await app.request("/product-dev");
+  assert.equal(res.status, 200);
+  assert.deepEqual(seenArgs, ["tenant-1", "product-dev"]);
+  assert.deepEqual(await res.json(), { connected: false, decryptable: null, key: null });
+});
+
+test("POST /:roleId stores the key under exactly the given role, not fanned out across the org chart", async () => {
+  const storedRoleIds: string[] = [];
+  const rolesWithValidate: string[] = [];
+  const app = appWithSession(
+    "tenant-1",
+    SESSION,
+    fakeDeps({
+      vault: {
+        storeBrainKey: async (input) => {
+          storedRoleIds.push(input.roleId);
+          if (input.validate) rolesWithValidate.push(input.roleId);
+          return {
+            id: `key-${input.roleId}`,
+            tenantId: input.tenantId,
+            type: "brain",
+            roleId: input.roleId,
+            provider: input.provider,
+            maskedFingerprint: "sk-...abcd",
+            revoked: false,
+            createdAt: "",
+            updatedAt: "",
+          } satisfies PublicKeyRecord;
+        },
+        getBrainKeyStatus: async () => {
+          throw new Error("unused");
+        },
+        verifyBrainKeyDecryptable: async () => {
+          throw new Error("unused");
+        },
+      },
+      batchStore: {
+        latestForTenant: async () => ({
+          id: "batch-1",
+          userId: "user-1",
+          tenantId: "tenant-1",
+          idea: "x",
+          status: "completed",
+          orgChart: fakeOrgChart(["cfo", "sales"]),
+          costUsd: 0.01,
+          error: null,
+          createdAt: "",
+          updatedAt: "",
+        }),
+      },
+    }),
+  );
+
+  const res = await app.request("/product-dev", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "anthropic", apiKey: "sk-ant-real-key" }),
+  });
+
+  assert.equal(res.status, 201);
+  assert.deepEqual(storedRoleIds, ["product-dev"]);
+  assert.deepEqual(rolesWithValidate, ["product-dev"]);
+});
+
 test("POST returns 422 (not a 500) when live validation rejects the key, and stores nothing", async () => {
   let storeCalls = 0;
   const app = appWithSession(
