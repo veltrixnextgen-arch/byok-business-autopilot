@@ -1,4 +1,4 @@
-import { createPool, runMigrations, verifySchemaCurrent } from "@byok/db";
+import { createPool, runMigrations, verifyNoPublicApiExposure, verifySchemaCurrent } from "@byok/db";
 import { createDurableTrustCore } from "./durableTrustCore.js";
 import { readServerConfigFromEnv, startServer } from "./server.js";
 
@@ -31,5 +31,10 @@ const pool = createPool({ connectionString: config.databaseUrl });
 // above but leaves this one.
 await runMigrations(pool);
 await verifySchemaCurrent(pool);
+// ADR-041: Supabase re-applies its anon/authenticated default grants and
+// RLS-auto-enable per table, not per database — a future migration
+// adding a table would silently reopen that exposure without this.
+// No-ops cleanly on Neon/local Postgres (those roles don't exist there).
+await verifyNoPublicApiExposure(pool);
 
 startServer(config, createDurableTrustCore(pool, { google: config.google ?? undefined }), pool);

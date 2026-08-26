@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { migrationFiles, migrationsDir, runMigrations, schemaCanaries, SchemaDriftError, verifySchemaCurrent } from "./migrate.js";
+import {
+  migrationFiles,
+  migrationsDir,
+  PublicApiExposureError,
+  runMigrations,
+  schemaCanaries,
+  SchemaDriftError,
+  verifyNoPublicApiExposure,
+  verifySchemaCurrent,
+} from "./migrate.js";
 
 // ADR-022: migrations run on every boot now, wrapped in a Postgres
 // advisory lock so concurrent replicas serialize rather than race DDL —
@@ -202,6 +211,46 @@ test("verifySchemaCurrent reports every missing canary at once, not just the fir
       /monthly_ceiling_usd/.test(err.message) &&
       /prompt_tier/.test(err.message) &&
       /tenants\.tier/.test(err.message),
+  );
+});
+
+// ADR-041: standing regression guard, not a one-time fix — Supabase
+// re-applies its anon/authenticated default grants and RLS-auto-enable
+// per table, not per database, so a future migration adding a table
+// could silently reopen the exact exposure 0013/0014 closed.
+function fakeExposurePool(opts: { mismatchedOwners?: Array<{ tablename: string; tableowner: string }>; grants?: Array<{ table_name: string; grantee: string; privilege_type: string }> }) {
+  return {
+    async query(text: string) {
+      if (text.includes("pg_tables")) return { rows: opts.mismatchedOwners ?? [] };
+      if (text.includes("role_table_grants")) return { rows: opts.grants ?? [] };
+      throw new Error(`fakeExposurePool: unexpected query: ${text}`);
+    },
+  };
+}
+
+test("verifyNoPublicApiExposure resolves cleanly with no ownership mismatch and no anon/authenticated grants", async () => {
+  const pool = fakeExposurePool({});
+  await assert.doesNotReject(() => verifyNoPublicApiExposure(pool));
+});
+
+test("verifyNoPublicApiExposure resolves cleanly when anon/authenticated don't exist at all (Neon, CI's local Postgres) — the grant query naturally returns nothing, no environment branch needed", async () => {
+  const pool = fakeExposurePool({ grants: [] });
+  await assert.doesNotReject(() => verifyNoPublicApiExposure(pool));
+});
+
+test("verifyNoPublicApiExposure throws PublicApiExposureError naming a table not owned by this connection's own role", async () => {
+  const pool = fakeExposurePool({ mismatchedOwners: [{ tablename: "widgets", tableowner: "postgres" }] });
+  await assert.rejects(
+    () => verifyNoPublicApiExposure(pool),
+    (err: unknown) => err instanceof PublicApiExposureError && /widgets/.test(err.message) && /"postgres"/.test(err.message),
+  );
+});
+
+test("verifyNoPublicApiExposure throws PublicApiExposureError naming a table anon/authenticated still has a grant on", async () => {
+  const pool = fakeExposurePool({ grants: [{ table_name: "widgets", grantee: "anon", privilege_type: "SELECT" }] });
+  await assert.rejects(
+    () => verifyNoPublicApiExposure(pool),
+    (err: unknown) => err instanceof PublicApiExposureError && /widgets/.test(err.message) && /anon/.test(err.message) && /SELECT/.test(err.message),
   );
 });
 
