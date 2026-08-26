@@ -4,9 +4,8 @@ export * from "./reservations.js";
 export * from "./ceilings.js";
 export * from "./tierRouter.js";
 export * from "./gate.js";
-export * from "./auditLog.js";
 export * from "./exhaustion.js";
-export { CostGate } from "./costGate.js";
+export { CostGate, DevOnlyCostGateAuditGuardError } from "./costGate.js";
 export type {
   GateEvent,
   GateEventListener,

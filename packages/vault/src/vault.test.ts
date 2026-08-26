@@ -575,9 +575,11 @@ test("audit log records every operation and never contains key material", async 
   await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   await vault.revokeBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" });
 
-  const events = vault.auditEvents();
-  const operations = events.map((e) => e.operation);
-  assert.deepEqual(operations, ["store", "decrypt-granted", "revoke"]);
+  // recentForTenant is newest-first (matches PostgresDurableAuditLog's own
+  // ORDER BY seq DESC — a "recent activity" read, not a full-history one).
+  const events = await vault.auditEvents("tenant-a");
+  const operations = events.map((e) => e.kind);
+  assert.deepEqual(operations, ["revoke", "decrypt-granted", "store"]);
 
   const serializedLog = JSON.stringify(events);
   assert.ok(!serializedLog.includes("audit-test-secret"));

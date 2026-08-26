@@ -8,8 +8,8 @@ import type { VaultKeyStore } from "./durable/vaultKeyStore.js";
 import { InMemoryVaultKeyStore } from "./durable/vaultKeyStore.js";
 import { maskFingerprint } from "./fingerprint.js";
 import { SecretHandle } from "./secretHandle.js";
-import type { AuditLog } from "./auditLog.js";
-import { InMemoryAuditLog } from "./auditLog.js";
+import { isDevOrTestEnvironment } from "./env.js";
+import { InMemoryDurableAuditLog, type DurableAuditLog, type StoredAuditEvent } from "@byok/db";
 import {
   AccessDeniedError,
   HandsRefreshFailedError,
@@ -158,8 +158,36 @@ function now(): string {
   return new Date().toISOString();
 }
 
+// #149: Vault's audit trail (key store/rotate/revoke/decrypt-granted/
+// decrypt-denied — who touched which tenant's key, and when) used to be a
+// bespoke, always-in-memory AuditLog with no durable counterpart at all.
+// It's now the same shared, tenant-scoped DurableAuditLog every other
+// trust-core audit trail writes through (packages/db's audit_log table,
+// source="vault") — durableTrustCore.ts passes a real PostgresDurableAuditLog
+// for any deployed environment. This guard is why: an omitted `audit`
+// argument outside dev/test would otherwise silently fall back to an
+// in-memory instance whose entire audit trail vanishes on the next
+// restart — exactly the gap this issue closed. `InMemoryDurableAuditLog`
+// itself lives in @byok/db and stays unguarded there (it's a generic,
+// reusable in-memory implementation of the shared interface, used the
+// same way by cost-gate and approval-queue's own tests) — the guard
+// belongs here, at the one call site that decides whether defaulting to
+// it is safe for THIS deployment.
+export class DevOnlyVaultAuditGuardError extends Error {}
+
+function defaultAuditLog(): DurableAuditLog {
+  if (!isDevOrTestEnvironment()) {
+    throw new DevOnlyVaultAuditGuardError(
+      "Vault cannot default its audit log to an in-memory store outside a dev or test environment — " +
+        "pass a real DurableAuditLog (e.g. PostgresDurableAuditLog) for any deployed environment.",
+    );
+  }
+  return new InMemoryDurableAuditLog();
+}
+
 export class Vault implements BrainKeyProvider, HandsKeyProvider {
   private readonly dekStore: DekStore;
+  private readonly audit: DurableAuditLog;
   private readonly listeners: VaultEventListener[] = [];
   // In-flight OAuth refresh promises, keyed by Hands key id. A second
   // decryptHandsKey call for the SAME expired key while a refresh is
@@ -177,7 +205,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
 
   constructor(
     kms: Kms,
-    private readonly audit: AuditLog = new InMemoryAuditLog(),
+    audit?: DurableAuditLog,
     private readonly ttlMs: number = DEFAULT_TTL_MS,
     private readonly handsCredentialRefreshers: ReadonlyMap<string, HandsCredentialRefresher> = new Map(),
     private readonly refreshTimeoutMs: number = DEFAULT_REFRESH_TIMEOUT_MS,
@@ -192,6 +220,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     dekRecordStore: DekRecordStore = new InMemoryDekRecordStore(),
   ) {
     this.dekStore = new DekStore(kms, dekRecordStore);
+    this.audit = audit ?? defaultAuditLog();
   }
 
   onEvent(listener: VaultEventListener): void {
@@ -203,8 +232,15 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     for (const listener of this.listeners) listener(full);
   }
 
-  auditEvents(): readonly ReturnType<AuditLog["all"]>[number][] {
-    return this.audit.all();
+  private async logAudit(kind: string, tenantId: string, refId: string, detail?: Record<string, unknown>): Promise<void> {
+    await this.audit.append({ tenantId, source: "vault", kind, refId, detail });
+  }
+
+  /** tenantId-scoped, most-recent-first — mirrors DurableAuditLog.recentForTenant
+   *  exactly (no wider "every tenant" read exists, matching every other
+   *  durable store in this codebase, and RLS would refuse one anyway). */
+  async auditEvents(tenantId: string, limit?: number): Promise<readonly StoredAuditEvent[]> {
+    return this.audit.recentForTenant(tenantId, limit);
   }
 
   /** ADR-032: the write-side half of DekUndecryptableError handling —
@@ -247,7 +283,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       updatedAt: now(),
     };
     await this.store.putBrainKey(record);
-    this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
+    await this.logAudit("store", input.tenantId, record.id, { requester });
     return toPublic(record);
   }
 
@@ -269,7 +305,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.updatedAt = now();
     await this.store.updateBrainKey(record);
 
-    this.audit.append({ operation: "rotate", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
+    await this.logAudit("rotate", record.tenantId, record.id, { requester });
     return toPublic(record);
   }
 
@@ -283,7 +319,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.updatedAt = now();
     await this.store.updateBrainKey(record);
 
-    this.audit.append({ operation: "revoke", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
+    await this.logAudit("revoke", record.tenantId, record.id, { requester });
     this.emit({ type: "key.revoked", keyId: record.id, tenantId: record.tenantId, keyType: "brain", roleId });
   }
 
@@ -337,20 +373,16 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     assertRouterServiceIdentity(requester);
     const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record || record.revoked || !record.material) {
-      this.audit.append({
-        operation: "decrypt-denied",
-        keyId: record?.id ?? `role:${roleId}`,
-        tenantId: record?.tenantId ?? tenantId,
+      await this.logAudit("decrypt-denied", record?.tenantId ?? tenantId, record?.id ?? `role:${roleId}`, {
         requester,
-        at: now(),
-        detail: "not found or revoked",
+        reason: "not found or revoked",
       });
       throw new KeyNotFoundError(`No active Brain key for role "${roleId}".`);
     }
 
     const dek = await this.dekStore.getOrCreateDek(record.tenantId);
     const plaintext = decrypt(record.material, dek, brainAad(record.roleId, record.provider));
-    this.audit.append({ operation: "decrypt-granted", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
+    await this.logAudit("decrypt-granted", record.tenantId, record.id, { requester });
     return new SecretHandle(plaintext, this.ttlMs);
   }
 
@@ -378,7 +410,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       updatedAt: now(),
     };
     await this.store.putHandsKey(record);
-    this.audit.append({ operation: "store", keyId: record.id, tenantId: input.tenantId, requester, at: now() });
+    await this.logAudit("store", input.tenantId, record.id, { requester });
     return toPublic(record);
   }
 
@@ -413,7 +445,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.updatedAt = now();
     await this.store.updateHandsKey(record);
 
-    this.audit.append({ operation: "rotate", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
+    await this.logAudit("rotate", record.tenantId, record.id, { requester });
     return toPublic(record);
   }
 
@@ -427,7 +459,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     record.updatedAt = now();
     await this.store.updateHandsKey(record);
 
-    this.audit.append({ operation: "revoke", keyId: record.id, tenantId: record.tenantId, requester, at: now() });
+    await this.logAudit("revoke", record.tenantId, record.id, { requester });
     this.emit({
       type: "key.revoked",
       keyId: record.id,
@@ -454,13 +486,9 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     assertRouterServiceIdentity(requester);
     const record = await this.store.getHandsKeyById(tenantId, keyId);
     if (!record || record.revoked || !record.material) {
-      this.audit.append({
-        operation: "decrypt-denied",
-        keyId,
-        tenantId: record?.tenantId ?? "unknown",
+      await this.logAudit("decrypt-denied", record?.tenantId ?? "unknown", keyId, {
         requester,
-        at: now(),
-        detail: "not found or revoked",
+        reason: "not found or revoked",
       });
       throw new KeyNotFoundError(`No active Hands key "${keyId}".`);
     }
@@ -472,13 +500,9 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     try {
       plaintext = decrypt(record.material, dek, claimedAad);
     } catch {
-      this.audit.append({
-        operation: "decrypt-denied",
-        keyId,
-        tenantId: record.tenantId,
+      await this.logAudit("decrypt-denied", record.tenantId, keyId, {
         requester,
-        at: now(),
-        detail: `scope-binding mismatch: claimed ${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
+        reason: `scope-binding mismatch: claimed ${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
       });
       throw new ScopeBindingError(
         `Hands key "${keyId}" is not bound to subAgentId="${requestedBy.subAgentId}", ` +
@@ -489,13 +513,9 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     // Opaque (default, issue #22): unchanged behavior — hand the decrypted
     // bytes straight back, no expiry/refresh concept applies.
     if (record.credentialKind !== "oauth") {
-      this.audit.append({
-        operation: "decrypt-granted",
-        keyId,
-        tenantId: record.tenantId,
+      await this.logAudit("decrypt-granted", record.tenantId, keyId, {
         requester,
-        at: now(),
-        detail: `scope=${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
+        scope: `${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
       });
       return new SecretHandle(plaintext, this.ttlMs);
     }
@@ -516,13 +536,9 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
       ? await this.getOrRefreshCredential(keyId, record, credential, requester)
       : credential;
 
-    this.audit.append({
-      operation: "decrypt-granted",
-      keyId,
-      tenantId: record.tenantId,
+    await this.logAudit("decrypt-granted", record.tenantId, keyId, {
       requester,
-      at: now(),
-      detail: `scope=${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
+      scope: `${requestedBy.subAgentId}:${requestedBy.capabilityScope}`,
     });
     return new SecretHandle(Buffer.from(freshCredential.accessToken, "utf8"), this.ttlMs);
   }
@@ -616,13 +632,9 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     // reflection of the access token, which rotates silently and often;
     // updating it here would make the UI's masked fingerprint flicker on
     // every background refresh for no reason the user did anything.
-    this.audit.append({
-      operation: "rotate",
-      keyId: record.id,
-      tenantId: record.tenantId,
+    await this.logAudit("rotate", record.tenantId, record.id, {
       requester,
-      at: now(),
-      detail: `silent OAuth refresh (${record.service})`,
+      reason: `silent OAuth refresh (${record.service})`,
     });
 
     return refreshed;
@@ -639,7 +651,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     if (!validate) return;
     const ok = await validate(plaintext);
     if (!ok) {
-      this.audit.append({ operation: "validate-failed", keyId: "pending", tenantId, requester, at: now() });
+      await this.logAudit("validate-failed", tenantId, "pending", { requester });
       throw new ValidationFailedError("Live validation call failed — key was not stored.");
     }
   }

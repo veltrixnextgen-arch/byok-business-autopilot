@@ -57,9 +57,9 @@ test("settle after a successful execution moves the reservation into settled spe
   const { reservation } = await gate.evaluateAndReserve(makeInput());
   assert.ok(reservation);
   await gate.settle(reservation!.id, 0.002);
-  const audit = gate.auditEvents();
+  const audit = await gate.auditEvents("tenant-a");
   assert.equal(audit.length, 1);
-  assert.equal(audit[0].verdict, "PROCEED");
+  assert.equal(audit[0].kind, "PROCEED");
 });
 
 test("release after a failed execution does not count the reservation as spend", async () => {
@@ -95,12 +95,14 @@ test("every evaluation is audit-logged, in order, regardless of verdict", async 
   const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} });
   await gate.evaluateAndReserve(makeInput({ taskId: "task-1" }));
   await gate.evaluateAndReserve(makeInput({ taskId: "task-2", model: "not-a-real-model" }));
-  const audit = gate.auditEvents();
+  // recentForTenant is newest-first (matches PostgresDurableAuditLog's own
+  // ORDER BY seq DESC — a "recent activity" read, not a full-history one).
+  const audit = await gate.auditEvents("tenant-a");
   assert.deepEqual(
-    audit.map((e) => [e.taskId, e.verdict]),
+    audit.map((e) => [e.refId, e.kind]),
     [
-      ["task-1", "PROCEED"],
       ["task-2", "QUEUE"],
+      ["task-1", "PROCEED"],
     ],
   );
 });
