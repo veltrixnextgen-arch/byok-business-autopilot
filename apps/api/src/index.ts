@@ -156,9 +156,10 @@ export function createApp(options: CreateAppOptions) {
             options.extraction.batchStore.latestForTenant(tenantId),
             getTenantTier(options.pool, tenantId),
           ]);
-          if (!batch?.orgChart) return; // shouldn't happen post-accept; nothing to schedule if it did
-          const { desired } = computeDesiredSchedule(tenantId, tier, batch.orgChart);
-          await syncTenantSchedule(options.scheduler.queue, options.scheduler.jobName, tenantId, desired);
+          if (!batch?.orgChart) return null; // shouldn't happen post-accept; nothing to schedule if it did
+          const { desired, clampNotes } = computeDesiredSchedule(tenantId, tier, batch.orgChart);
+          const result = await syncTenantSchedule(options.scheduler.queue, options.scheduler.jobName, tenantId, desired);
+          return { ...result, clampNotes };
         },
       }),
     )
