@@ -26,6 +26,17 @@ export interface ActivityByDimension {
   totalUsd: number;
 }
 
+// #149/#150 widened the shared audit_log's own AuditSource to include
+// "vault" — but this dashboard feed's whole documented purpose (below) is
+// queue/gate activity, a fundamentally different concern from Vault's own
+// key store/rotate/revoke/decrypt security trail. Narrowing the type
+// (and filtering the query itself, not just the type) keeps this feed's
+// behavior exactly what it was before that PR — a deliberate choice, not
+// an accidental side effect of a shared-table change.
+export interface DashboardActivityEvent extends Omit<StoredAuditEvent, "source"> {
+  source: "cost-gate" | "approval-queue";
+}
+
 export interface AutonomyStatus {
   taskType: string;
   active: boolean;
@@ -45,8 +56,12 @@ export interface CostActivityQueries {
   spendByTaskType(tenantId: string, since?: Date): Promise<SpendByDimension[]>;
   /** Earned-autonomy status for every task type this tenant has any history for. */
   autonomyStatus(tenantId: string): Promise<AutonomyStatus[]>;
-  /** Recent queue/gate activity — the unified audit_log, newest first. */
-  recentActivity(tenantId: string, limit?: number): Promise<StoredAuditEvent[]>;
+  /** Recent queue/gate activity — the unified audit_log, newest first.
+   *  Deliberately excludes Vault's own security audit trail (source
+   *  "vault") — that's a different concern (who touched which key), not
+   *  "what did my agents do," and belongs on a security/keys screen if
+   *  one is ever built, not folded silently into this feed. */
+  recentActivity(tenantId: string, limit?: number): Promise<DashboardActivityEvent[]>;
   /** Task count AND spend grouped by task type (= sub-agent, see the
    *  module note above) since a given time — the digest's "what each
    *  agent did" panel needs a count, not just a dollar total. */
@@ -138,12 +153,17 @@ export class PostgresCostActivityQueries implements CostActivityQueries {
     });
   }
 
-  async recentActivity(tenantId: string, limit = 50): Promise<StoredAuditEvent[]> {
+  async recentActivity(tenantId: string, limit = 50): Promise<DashboardActivityEvent[]> {
     return withTenantScope(this.pool, tenantId, async (client) => {
       const result = (await client.query(
         // ORDER BY seq, not `at` — see durableAuditLog.ts's recentForTenant
-        // for why (now() ties within one transaction).
-        `SELECT id, tenant_id, source, kind, ref_id, detail, at FROM audit_log WHERE tenant_id = $1::uuid ORDER BY seq DESC LIMIT $2`,
+        // for why (now() ties within one transaction). source IN (...),
+        // not just tenant_id — see DashboardActivityEvent's own comment:
+        // Vault's rows exist in this same table now (#149/#150) but don't
+        // belong in this feed.
+        `SELECT id, tenant_id, source, kind, ref_id, detail, at FROM audit_log
+         WHERE tenant_id = $1::uuid AND source IN ('cost-gate', 'approval-queue')
+         ORDER BY seq DESC LIMIT $2`,
         [tenantId, limit],
       )) as unknown as {
         rows: Array<{ id: string; tenant_id: string; source: "cost-gate" | "approval-queue"; kind: string; ref_id: string | null; detail: Record<string, unknown> | null; at: string }>;

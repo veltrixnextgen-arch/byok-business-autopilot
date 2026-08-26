@@ -48,6 +48,30 @@ test("autonomyStatus surfaces offeredAt, and null when no offer is pending", asy
   ]);
 });
 
+// #149/#150 put Vault's own audit_log rows (source="vault") in the same
+// shared table this feed reads — recentActivity's own documented purpose
+// is queue/gate activity, not Vault's security trail, so the query must
+// keep excluding it explicitly, not rely on nothing ever writing there.
+test("recentActivity's query excludes Vault's own audit_log rows (source=\"vault\")", async () => {
+  // withTenantScope wraps the real query in BEGIN/set_config/COMMIT calls
+  // on the same client — capture every call, not just the last one.
+  const capturedSql: string[] = [];
+  const client: PoolClientLike = {
+    async query(sql: string) {
+      capturedSql.push(sql);
+      return { rows: [] };
+    },
+    release() {},
+  };
+  const pool: PoolLike = { connect: async () => client };
+  const queries = new PostgresCostActivityQueries(pool);
+  await queries.recentActivity(TENANT_ID);
+  assert.ok(
+    capturedSql.some((sql) => /source IN \('cost-gate', 'approval-queue'\)/.test(sql)),
+    "expected the SELECT to filter out source='vault'",
+  );
+});
+
 test("costByRefIds maps each ref id to its real reserved amount", async () => {
   const pool = fakePool([
     { ref_id: "task-1", amount_usd: "0.049500" },
