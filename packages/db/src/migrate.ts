@@ -23,6 +23,8 @@ const MIGRATION_FILES = [
   "0010_tenant_tier_and_scheduler.sql",
   "0011_vault_durable_storage.sql",
   "0012_audit_log_vault_source.sql",
+  "0013_disable_rls_on_unprotected_tables.sql",
+  "0014_revoke_supabase_api_roles.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every
