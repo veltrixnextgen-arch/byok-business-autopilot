@@ -19,3 +19,22 @@ export async function resumeSchedule(): Promise<void> {
   const res = await apiClient.me.scheduler.resume.$post();
   if (!res.ok) throw new Error(`Could not resume your automation (${res.status}).`);
 }
+
+/** Issue #159: no UI calls this yet — same API-first scoping as issue
+ *  #141's cadence-editing route. Runs one cadence-triggered task through
+ *  the real dispatch path immediately, instead of waiting for its next
+ *  tick. */
+export class RunNowThrottledError extends Error {}
+
+export async function runTaskNow(taskId: string): Promise<{ enqueued: true; taskId: string; agentId: string }> {
+  const res = await apiClient.me.scheduler["run-now"].$post({ json: { taskId } });
+  if (res.status === 429) {
+    const { error } = (await res.json()) as { error: string };
+    throw new RunNowThrottledError(error);
+  }
+  if (!res.ok) {
+    const { error } = (await res.json().catch(() => ({ error: undefined }))) as { error?: string };
+    throw new Error(error ?? `Could not run that task now (${res.status}).`);
+  }
+  return res.json();
+}
