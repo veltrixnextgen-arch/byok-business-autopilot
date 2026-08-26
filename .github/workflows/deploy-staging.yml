@@ -1,13 +1,22 @@
 name: Deploy (staging)
 
-# Issue #26: deploys trigger from tags, not arbitrary commits. Tagging
-# vX.Y.Z-staging deploys the full stack (Supabase migrations + RLS
-# verification, Railway apps/api, Vercel apps/web) to staging only —
-# there is no production environment or production deploy path yet.
-# ADR-041: moved from Neon to Supabase (free tier allows the multiple
-# projects a real staging environment needs); SUPABASE_DATABASE_URL is
-# the app_user connection string, direct (not Supavisor) — see that
-# ADR for why pooling was deliberately not used here.
+# The real staging environment (2026-08-26): a second, genuinely separate
+# Supabase project, Railway environment, Upstash database, and KMS master
+# key — none shared with production. This is what deploy-staging.yml used
+# to mean before it was renamed to deploy-production.yml; see that file's
+# header for the full reasoning on why the split happened and how each
+# workflow keeps the other's secrets out of reach (a GitHub Environment per
+# target, a distinct tag suffix per target, an explicit `-e staging` on
+# every Railway CLI call rather than relying on the CLI's default link).
+#
+# API-only, deliberately: apps/web has no second Vercel project yet (not
+# asked for, and provisioning one silently here would risk a staging build
+# landing on the SAME Vercel project that serves real traffic — worse than
+# not having a staging web target at all). Everything below proves apps/api
+# boots clean against the isolated Supabase project, RLS holds, and a real
+# signup/org-creation round-trip works — same rigor as the production
+# workflow's own checks, just without a browser-facing frontend to also
+# deploy.
 on:
   push:
     tags:
@@ -21,12 +30,10 @@ jobs:
   deploy:
     name: Deploy staging stack
     runs-on: ubuntu-latest
+    environment: railway-staging
     env:
-      # The Railway project has more than one service (Railway's GitHub
-      # integration auto-detected a service per package.json it found) —
-      # a Project Token doesn't know which one to target on its own.
-      # apps/api is the only one this deploy touches.
       RAILWAY_SERVICE: "@byok/api"
+      RAILWAY_ENV: staging
     steps:
       - uses: actions/checkout@v4
 
@@ -37,210 +44,75 @@ jobs:
 
       - run: npm ci
 
-      - name: Run migrations against managed Postgres (Supabase)
+      - name: Run migrations against managed Postgres (Supabase, staging project)
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: npm run db:migrate
 
-      # RLS negative test — see packages/db/src/verifyRlsIsolation.ts.
-      # "Migrations ran" only proves the schema loaded; this connects as the
-      # app's own restricted role (never a superuser) and proves tenant B's
-      # session cannot read a row inserted under tenant A — zero rows
-      # returned, not an error. This step's log output is the evidence
-      # copied into the PR description.
+      # Same real negative test as production's workflow — see
+      # packages/db/src/verifyRlsIsolation.ts and deploy-production.yml's
+      # own comment on this step for what it does and doesn't prove.
       - name: Verify RLS isolation against live Supabase (real negative test)
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: npm run db:verify-rls
 
-      - name: Install Railway and Vercel CLIs
-        run: npm install -g @railway/cli@5.30.3 vercel@58.4.4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@5.30.3
 
-      # Vercel's <project-name>.vercel.app alias is reserved at project
-      # creation and stays constant across every production deploy — read it
-      # from the API instead of guessing, so apps/api's WEB_ORIGIN (needed
-      # for CORS + Better Auth trustedOrigins) is correct before apps/api
-      # ever starts, with zero string-guessing.
-      - name: Determine Vercel's stable production domain
-        id: vercel_domain
+      # Belt-and-suspenders alongside the explicit `-e "$RAILWAY_ENV"` on
+      # every command below — see deploy-production.yml's identical step
+      # for why this exists even though most commands also take -e.
+      - name: Link Railway environment explicitly
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          # Vercel API error bodies are plain error codes/messages, never
-          # secrets — safe to print for diagnosis. Try scoped to the team
-          # first; a project owned by a personal account (not a team)
-          # returns 404 for a teamId-scoped lookup even with correct IDs,
-          # so fall back to the unscoped lookup rather than guess which
-          # kind of account this is.
-          HTTP_STATUS=$(curl -s -o /tmp/vercel_project.json -w "%{http_code}" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
-            -H "Authorization: Bearer $VERCEL_TOKEN")
-          echo "Vercel API HTTP status (with teamId): $HTTP_STATUS"
-          cat /tmp/vercel_project.json
-          echo ""
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway environment "$RAILWAY_ENV"
 
-          if [ "$HTTP_STATUS" -ge 400 ]; then
-            echo "Retrying without teamId (personal-account project)..."
-            HTTP_STATUS=$(curl -s -o /tmp/vercel_project.json -w "%{http_code}" \
-              "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
-              -H "Authorization: Bearer $VERCEL_TOKEN")
-            echo "Vercel API HTTP status (without teamId): $HTTP_STATUS"
-            cat /tmp/vercel_project.json
-            echo ""
-          fi
-
-          if [ "$HTTP_STATUS" -ge 400 ]; then
-            echo "::error::Vercel API request failed with HTTP $HTTP_STATUS both with and without teamId — see response bodies above."
-            exit 1
-          fi
-          NAME=$(jq -r '.name // empty' /tmp/vercel_project.json)
-          if [ -z "$NAME" ]; then
-            echo "::error::Could not read the Vercel project's name from the API — cannot derive its stable domain."
-            exit 1
-          fi
-          echo "Vercel project name: $NAME"
-          echo "url=https://$NAME.vercel.app" >> "$GITHUB_OUTPUT"
-
-      # apps/api's runtime config lives entirely in Railway's own env store
-      # (never in a GitHub secret used only for CI-to-platform auth) — set
-      # here from values this job already holds, so nothing needs to be
-      # hand-copied into Railway's dashboard.
-      #
-      # BETTER_AUTH_SECRET is generated fresh on every staging deploy —
-      # genuinely fine: rotating it just invalidates existing sessions,
-      # every signed-in user re-logs in, nothing is lost.
-      #
-      # STAGING_KMS_MASTER_KEY is NOT the same kind of fine, and was wrongly
-      # bucketed with BETTER_AUTH_SECRET in this comment before the vault
-      # durability work (ADR-028) landed: it's the key that encrypts every
-      # tenant's DEK (packages/vault/src/durable/dekRecordStore.ts), which
-      # in turn decrypts every tenant's actual Brain/Hands key material.
-      # Regenerating it on every deploy doesn't invalidate a session — it
-      # permanently orphans every DEK encrypted under the previous key,
-      # silently: `getBrainKeyStatus` only checks that a key ROW exists,
-      # never that it can still be decrypted, so this failure mode produces
-      # no error anywhere until something actually tries to decrypt (see
-      # ADR-031). Found live: staging had already redeployed twice since a
-      # real tenant's key was connected, by the time anyone tried to
-      # exercise decryption for real. STAGING_KMS_MASTER_KEY is now a real,
-      # persisted GitHub secret — generated once, stored, never regenerated
-      # by this workflow — same durability discipline as INTERNAL_METRICS_TOKEN
-      # below, for the same reason: some values MUST survive a redeploy,
-      # not just tolerate one.
-      #
-      # ADR-041: SUPABASE_DATABASE_URL is the direct connection string —
-      # used as-is for the live app too, not a separate pooled variant.
-      # Neon's pooler (pgbouncer transaction mode) was implicitly proven
-      # safe by production history before this move; Supavisor's
-      # transaction mode has the same category of behavior but wasn't
-      # something this codebase could verify without live traffic, and
-      # two prior real pooled-connection incidents (ADR-030) argued
-      # against trusting that by default. pg.Pool already caps
-      # concurrency (`max: 10`) client-side — a second, unverified
-      # pooling layer underneath buys nothing. Do not reach for
-      # Supavisor transaction mode here without re-deriving this.
+      # No Vercel project for staging yet, so there is no web origin to
+      # derive from an API call the way production's workflow does — the
+      # Railway URL (generated below) stands in as its own origin. A
+      # backend-only environment trusting requests that claim to come from
+      # itself is a reasonable placeholder specifically because nothing
+      # else can legitimately claim to be this origin yet; revisit if a
+      # real staging frontend is ever added.
       - name: Configure Railway environment and deploy apps/api
         id: railway_deploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           UPSTASH_REDIS_URL: ${{ secrets.REDIS_URL }}
-          WEB_ORIGIN: ${{ steps.vercel_domain.outputs.url }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           INTERNAL_METRICS_TOKEN: ${{ secrets.INTERNAL_METRICS_TOKEN }}
           STAGING_KMS_MASTER_KEY: ${{ secrets.STAGING_KMS_MASTER_KEY }}
         run: |
           if [ -z "$STAGING_KMS_MASTER_KEY" ]; then
-            echo "::error::STAGING_KMS_MASTER_KEY secret is not set. This must be a real, persisted repo secret (generate once with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\") — it is never regenerated by this workflow, because doing so permanently orphans every tenant's DEK. Refusing to deploy rather than silently booting with an empty/undefined KMS master key."
+            echo "::error::STAGING_KMS_MASTER_KEY secret is not set for the railway-staging environment. This must be a real, persisted environment secret (generate once with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\") — it is never regenerated by this workflow, because doing so permanently orphans every tenant's DEK. Refusing to deploy rather than silently booting with an empty/undefined KMS master key."
+            exit 1
+          fi
+          if [ -z "$UPSTASH_REDIS_URL" ]; then
+            echo "::error::REDIS_URL secret is not set for the railway-staging environment. Create a separate Upstash Redis database for staging (never share production's) and register its connection string as the REDIS_URL environment secret."
             exit 1
           fi
 
           BETTER_AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-          # BETTER_AUTH_SECRET is derived/generated here (not pulled from a
-          # registered GitHub secret), so GitHub doesn't know to mask it
-          # automatically — register it explicitly in case any CLI command
-          # echoes it back as confirmation output. STAGING_KMS_MASTER_KEY
-          # and SUPABASE_DATABASE_URL are already registered secrets
-          # (masked automatically); no explicit add-mask needed for them.
           echo "::add-mask::$BETTER_AUTH_SECRET"
 
-          railway variable set "DATABASE_URL=$SUPABASE_DATABASE_URL" --service "$RAILWAY_SERVICE"
-          railway variable set "REDIS_URL=$UPSTASH_REDIS_URL" --service "$RAILWAY_SERVICE"
-          railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE"
-          railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE"
-          railway variable set "WEB_ORIGIN=$WEB_ORIGIN" --service "$RAILWAY_SERVICE"
-          # Issue: this step alone is exactly what broke sign-in the moment a
-          # real custom domain (www.runwisely.cc / runwisely.cc) was attached
-          # to the Vercel project — WEB_ORIGIN only ever trusts ONE exact
-          # origin (CORS + Better Auth's trustedOrigins, see server.ts's
-          # webOrigins), and this step unconditionally overwrites it with the
-          # auto-derived .vercel.app alias on every single deploy. Fixed by
-          # making ADDITIONAL_WEB_ORIGINS additive (server.ts) — deliberately
-          # NOT set anywhere in this workflow, so a value set directly on the
-          # Railway service (e.g. "https://www.runwisely.cc,https://runwisely.cc")
-          # survives every redeploy untouched, same "some values MUST survive
-          # a redeploy" discipline as STAGING_KMS_MASTER_KEY/
-          # INTERNAL_METRICS_TOKEN above, just via a plain Railway variable
-          # rather than a GitHub secret (a domain name isn't sensitive).
-          # Onboarding-only platform inference key (ADR-003) — server.ts's
-          # readServerConfigFromEnv throws at boot without it, same
-          # discipline as DATABASE_URL/BETTER_AUTH_SECRET.
-          railway variable set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" --service "$RAILWAY_SERVICE"
-          # Unlike BETTER_AUTH_SECRET/STAGING_KMS_MASTER_KEY above, this one
-          # is a registered GitHub secret, not generated fresh per deploy —
-          # the founder needs a STABLE token to keep hitting /internal/metrics
-          # with across the whole 20-tester pilot, not one that rotates (and
-          # breaks their bookmarked URL) on every redeploy.
-          railway variable set "INTERNAL_METRICS_TOKEN=$INTERNAL_METRICS_TOKEN" --service "$RAILWAY_SERVICE"
-          # apps/web (vercel.app) and apps/api (railway.app) are genuinely
-          # different sites, not just different ports — the session
-          # cookie's default SameSite=Lax is never sent on cross-site
-          # fetch() calls. Off by default (see AuthConfigOptions.crossSiteCookies)
-          # since SameSite=None needs HTTPS, which local dev's
-          # http://localhost doesn't have; staging is HTTPS end to end.
-          railway variable set "CROSS_SITE_COOKIES=true" --service "$RAILWAY_SERVICE"
-          # ADR-007: StagingKms/isProductionEnvironment() key on NODE_ENV —
-          # Railway/Nixpacks may default this to "production" for Node
-          # builds, which would trip the ADR-007 guard. Pin it explicitly.
-          railway variable set "NODE_ENV=staging" --service "$RAILWAY_SERVICE"
-          # engines.node in package.json alone didn't move Nixpacks off an
-          # older default (confirmed live: "crypto is not defined", the
-          # global Web Crypto API Node only exposes unflagged from v20) —
-          # this is Nixpacks' own documented, guaranteed override.
-          railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE"
-          # ADR-029: self-reported build identity. The "Verify the
-          # deployment actually succeeded" step below polls /health and
-          # compares its buildSha field against this exact value — set
-          # from $GITHUB_SHA (the commit this run checked out and built),
-          # not anything Railway's own API reports about itself.
-          railway variable set "BUILD_SHA=${{ github.sha }}" --service "$RAILWAY_SERVICE"
+          railway variable set "DATABASE_URL=$SUPABASE_DATABASE_URL" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "REDIS_URL=$UPSTASH_REDIS_URL" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "STAGING_KMS_MASTER_KEY=$STAGING_KMS_MASTER_KEY" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "INTERNAL_METRICS_TOKEN=$INTERNAL_METRICS_TOKEN" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "CROSS_SITE_COOKIES=true" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "NODE_ENV=staging" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "NIXPACKS_NODE_VERSION=22" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "BUILD_SHA=${{ github.sha }}" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
 
-          # railwayapp/cli#696: `railway up`'s build succeeds on Railway's
-          # platform, but the CLI's build-log GraphQL subscription fails
-          # intermittently ("Failed to stream build logs: Failed to
-          # retrieve build log"), and the CLI exits 1 on that even though
-          # the deploy itself is fine. A 3x retry of the SAME failing call
-          # did not clear it (confirmed live: v0.3.0-staging and
-          # v0.3.1-staging both failed 3/3 attempts, ~65s each, each
-          # hitting a genuinely fresh build-logs URL — this is not a
-          # transient flake at our usage, it fires every time). `--ci`
-          # doesn't avoid it either (Railway's own support station: the
-          # equivalent log-stream path is "implemented but currently
-          # broken" under CI tokens). `--detach` sidesteps the bug
-          # entirely by never opening that subscription — it returns as
-          # soon as the build is queued, which is also why STEP 2 removed
-          # it originally (an old container can keep answering traffic
-          # during the swap, making a fast health check falsely
-          # "pass" against stale code). The fixed wait below plus the
-          # SECOND deploy further down plus the health-check loop plus
-          # the real functional checks (signup, org creation) after it
-          # give the swap several minutes of real elapsed time before
-          # anything is trusted — mitigating that race without depending
-          # on the broken log stream.
+          # Same railwayapp/cli#696 log-streaming bug and --detach fix as
+          # deploy-production.yml — see that file's comment for the full
+          # history.
           for attempt in 1 2; do
-            if railway up --service "$RAILWAY_SERVICE" --detach; then
+            if railway up --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" --detach; then
               break
             fi
             if [ "$attempt" -eq 2 ]; then
@@ -260,11 +132,11 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          OUTPUT=$(railway domain --service "$RAILWAY_SERVICE" 2>&1)
+          OUTPUT=$(railway domain --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" 2>&1)
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.railway\.app' | head -1)
           if [ -z "$URL" ]; then
-            LIST_OUTPUT=$(railway domain list --service "$RAILWAY_SERVICE" 2>&1)
+            LIST_OUTPUT=$(railway domain list --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" 2>&1)
             echo "$LIST_OUTPUT"
             HOST=$(echo "$LIST_OUTPUT" | grep -oE '[a-zA-Z0-9.-]+\.up\.railway\.app' | head -1)
             if [ -n "$HOST" ]; then
@@ -278,20 +150,22 @@ jobs:
           echo "Railway URL: $URL"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
-      # BETTER_AUTH_URL needs Railway's own domain, which only exists after
-      # the first deploy above — set it now and redeploy once more so it's
-      # in place before this URL sees any real traffic.
-      - name: Set BETTER_AUTH_URL and redeploy apps/api
+      # WEB_ORIGIN/BETTER_AUTH_URL both set to Railway's own domain here —
+      # see the "no Vercel project for staging yet" note above the deploy
+      # step. Needs Railway's domain, which only exists after the first
+      # deploy, so this is a second variable-set + redeploy, same as
+      # production's workflow.
+      - name: Set WEB_ORIGIN/BETTER_AUTH_URL and redeploy apps/api
         id: redeploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          railway variable set "BETTER_AUTH_URL=${{ steps.railway_domain.outputs.url }}" --service "$RAILWAY_SERVICE"
+          RAILWAY_URL="${{ steps.railway_domain.outputs.url }}"
+          railway variable set "WEB_ORIGIN=$RAILWAY_URL" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
+          railway variable set "BETTER_AUTH_URL=$RAILWAY_URL" --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV"
 
-          # Same railwayapp/cli#696 log-streaming bug as the first railway
-          # up above, same --detach fix, same reasoning.
           for attempt in 1 2; do
-            if railway up --service "$RAILWAY_SERVICE" --detach; then
+            if railway up --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" --detach; then
               break
             fi
             if [ "$attempt" -eq 2 ]; then
@@ -321,43 +195,9 @@ jobs:
           echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
           exit 1
 
-      # 2026-08-14 incident (docs/TRACKING.md): every deploy attempt from
-      # PR #115 through #121's merges failed or was skipped (a malformed
-      # REDIS_URL crashed the BullMQ worker on boot), and this workflow
-      # reported green through all six tagged releases anyway — the health
-      # check above passed because Railway, which never promotes a failed
-      # deployment, kept quietly serving a stale pre-incident build. A 200
-      # from /health proves SOMETHING answers; it never proves it's THIS
-      # run's deploy.
-      #
-      # ADR-029, 2026-08-21: this step went through THREE rewrites trying
-      # to answer "is the running build the build I just deployed" by
-      # asking Railway's own API to describe its deployment record:
-      #   1. matched meta.commitHash against $GITHUB_SHA — broke
-      #      immediately (PR #133): railway up's CLI-upload path doesn't
-      #      reliably populate that field at all.
-      #   2. matched by creation time instead — broke on the very next
-      #      run: `railway deployment list` sorted by createdAt can have a
-      #      real SUCCESS entry followed CHRONOLOGICALLY LATER by an
-      #      unrelated SKIPPED one (Railway's own native auto-deploy-on-
-      #      push noticing nothing left to build), and "take the latest
-      #      entry" picked the harmless SKIP.
-      #   3. asked `railway status --json` directly for the active
-      #      deployment instead of scanning a list — failed differently
-      #      again on the very next three releases (v0.6.21, v0.6.22,
-      #      v0.6.23), never finding activeDeployments[0] at all within
-      #      the timeout.
-      # Three different failure modes from the same root cause: every
-      # version asked the PLATFORM to describe itself, and that
-      # description is unreliable specifically for the deploy mechanism
-      # this workflow uses. The fix is a different mechanism entirely —
-      # ask the RUNNING PROCESS what it thinks it is. `BUILD_SHA` is set
-      # on Railway (above, before `railway up`) to this exact run's
-      # $GITHUB_SHA; GET /health now echoes it back verbatim as
-      # `buildSha` (apps/api/src/routes/health.ts, ADR-029). This works
-      # regardless of deploy mechanism, Railway CLI version, or Railway's
-      # own API/JSON shape, because it never asks Railway anything — only
-      # the app itself, which is the actual thing we want to know about.
+      # Same self-reported-build-identity check as production's workflow
+      # (ADR-029) — see that file's comment for the three failed approaches
+      # this replaced and why.
       - name: Verify the deployment actually succeeded and is what's serving traffic
         env:
           RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
@@ -365,61 +205,44 @@ jobs:
         run: |
           node apps/api/scripts/verify-build-sha.mjs "$RAILWAY_URL/health" "${{ github.sha }}" 30 10000 || {
             echo "::error::Dumping Railway logs for diagnosis."
-            railway logs --deployment --latest -n 200 2>&1 || true
+            railway logs --deployment --latest -n 200 --environment "$RAILWAY_ENV" 2>&1 || true
             exit 1
           }
 
-      # A real signup, not just a health check — /health proves the
-      # process is up, not that auth actually works end to end. On
-      # failure, dump Railway's own logs immediately (RAILWAY_TOKEN is
-      # already in scope here) instead of guessing from an empty HTTP
-      # error body.
+      # Real signup + org creation, same as production's workflow — proves
+      # auth and RLS-scoped writes work end to end against the isolated
+      # staging database, not just that the process answers /health.
       - name: Verify signup actually works end to end
         env:
           RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           STAMP=$(date +%s)
           echo "$STAMP" > /tmp/deploy_verify_stamp.txt
           STATUS=$(curl -s -c /tmp/deploy_verify_cookies.txt -D /tmp/signup_headers.txt -o /tmp/signup_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/sign-up/email" \
             -H "Content-Type: application/json" \
-            -H "Origin: $WEB_URL" \
+            -H "Origin: $RAILWAY_URL" \
             -d "{\"email\":\"deploy-verify-$STAMP@example.invalid\",\"password\":\"Str0ngTempPassw0rd!\",\"name\":\"deploy verify\"}")
           echo "Signup HTTP status: $STATUS"
           cat /tmp/signup_resp.json 2>/dev/null
           echo ""
           if [ "$STATUS" -ge 300 ]; then
             echo "::error::Signup failed with HTTP $STATUS — fetching Railway logs for diagnosis."
-            # Log shipping lags the request slightly; give it a moment so
-            # the actual error line is in the fetched window, not just
-            # "Starting Container".
             sleep 8
-            railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
+            railway logs --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" 2>&1 | tail -100 || true
             exit 1
           fi
-          # Not just "did it 200" — the actual bug this caught was a
-          # cross-site cookie the browser silently drops on every
-          # subsequent request. Assert the attribute directly.
-          if ! grep -qi "SameSite=None" /tmp/signup_headers.txt; then
-            echo "::error::Signup succeeded but the session cookie is missing SameSite=None — it won't survive cross-site fetch() calls from apps/web. Headers:"
-            cat /tmp/signup_headers.txt
-            exit 1
-          fi
-          echo "Signup succeeded end to end, with a cross-site-capable session cookie."
+          echo "Signup succeeded end to end."
 
-      # Step 3: a signed-up user must be able to create an organization and
-      # land in it. Reuses the signup step's session cookie.
       - name: Verify org creation actually works end to end
         env:
           RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           STAMP=$(cat /tmp/deploy_verify_stamp.txt)
           STATUS=$(curl -s -b /tmp/deploy_verify_cookies.txt -o /tmp/org_resp.json -w "%{http_code}" -X POST "$RAILWAY_URL/api/auth/organization/create" \
             -H "Content-Type: application/json" \
-            -H "Origin: $WEB_URL" \
+            -H "Origin: $RAILWAY_URL" \
             -d "{\"name\":\"Deploy verify $STAMP\",\"slug\":\"deploy-verify-$STAMP\"}")
           echo "Org create HTTP status: $STATUS"
           cat /tmp/org_resp.json 2>/dev/null
@@ -427,165 +250,18 @@ jobs:
           if [ "$STATUS" -ge 300 ]; then
             echo "::error::Org creation failed with HTTP $STATUS — fetching Railway logs for diagnosis."
             sleep 8
-            railway logs --service "$RAILWAY_SERVICE" 2>&1 | tail -100 || true
+            railway logs --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENV" 2>&1 | tail -100 || true
             exit 1
           fi
           echo "Org creation succeeded end to end."
 
-      # Ensure the project's Root Directory is actually apps/web (a Vercel
-      # project setting, not something a vercel.json in the repo can
-      # declare — the CLI applies it relative to wherever it's invoked
-      # from, so we also run the CLI from the repo root, not `cd apps/web`
-      # first, to avoid compounding into a doubled path) AND that the
-      # Framework Preset is explicitly tanstack-start. The project's
-      # earlier broken attempt (wrong Root Directory) apparently left the
-      # Framework Preset stuck on a wrong auto-detected guess, so the build
-      # falls back to generic Node.js entrypoint scanning instead of
-      # trusting Nitro's own Build Output API — "No entrypoint found"
-      # even though .vercel/output/functions/__server.func/index.mjs
-      # exists exactly where Nitro's vercel preset put it.
-      - name: Ensure Vercel project Root Directory + Framework Preset are correct
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          curl -sf -X PATCH "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"rootDirectory":"apps/web","framework":"tanstack-start"}' > /dev/null
-
-      # Root cause of the stuck-idea-submission bug (2026-08-07): the
-      # `--build-env VITE_API_URL=...` flag on the deploy step below is
-      # ONLY seen by Vercel when it actually re-runs the build — and
-      # ADR-016's own workaround right below (no --force, so a broken
-      # jsxDEV bundle doesn't get reproduced) means Vercel is free to
-      # reuse a cached build instead. When it does, a `--build-env` value
-      # passed on the CLI invocation never reaches the bundle at all,
-      # silently: apps/web shipped with `authClient`'s dev-only
-      # `http://localhost:3000` fallback baked in, so every getSession()
-      # call failed instantly with ERR_CONNECTION_REFUSED — unreachable
-      # from any real visitor's browser, no matter how recent the deploy.
-      # Setting it as a real Vercel *project* environment variable (not
-      # just a transient CLI flag) is the officially supported mechanism
-      # Vercel's own build-cache invalidation is designed to key off —
-      # upsert=true so this is idempotent across every deploy. Kept
-      # alongside the existing --build-env flag below, not instead of it:
-      # belt and suspenders, and neither one touches the no-`--force`
-      # workaround itself.
-      - name: Ensure Vercel's VITE_API_URL env var matches this deploy's Railway URL
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          curl -sf -X POST "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?upsert=true" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"key\":\"VITE_API_URL\",\"value\":\"${{ steps.railway_domain.outputs.url }}\",\"type\":\"plain\",\"target\":[\"production\"]}" > /dev/null
-
-      # Now that Railway's URL is known, build apps/web with it baked in as
-      # VITE_API_URL (Vite inlines this at build time, so it must be correct
-      # for THIS deploy, not patched in afterward) and promote to Vercel's
-      # stable production domain determined above.
-      - name: Deploy apps/web to Vercel
-        id: vercel_deploy
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          # KNOWN FRAGILITY (see docs/DECISIONS.md ADR-016, and the
-          # tracking issue it links): a clean/forced install of apps/web's
-          # current toolchain pin (nitro 3.0.260610-beta + vite 8.2.0 +
-          # @vitejs/plugin-react 6.0.5) produces an SSR bundle that calls
-          # jsxDEV instead of the production JSX runtime, crashing every
-          # page that actually renders. Reusing Vercel's build cache
-          # (i.e. NOT forcing a fresh install — no --force here) is
-          # currently the only thing keeping the deployed bundle correct.
-          # Two stable-toolchain fixes were tried and reverted: nitro@3.0.0
-          # needs vite@^7 (breaks TanStack Start's start-plugin-core, which
-          # needs vite@>=7 — compatible in principle, but pairing it with
-          # nitro@3.0.0 left the site silently non-interactive, not just
-          # differently broken); @vitejs/plugin-react@4.7.0 (the last
-          # pre-oxc release) can't resolve against vite@8.2.0 at all. Do
-          # not add --force back without also fixing the underlying jsxDEV
-          # bug — it will reproduce the crash on the very next deploy.
-          vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
-            --build-env VITE_API_URL="${{ steps.railway_domain.outputs.url }}" \
-            > /tmp/vercel-deploy-url.txt
-          cat /tmp/vercel-deploy-url.txt
-
-      - name: Smoke-check the deployed dashboard route
-        env:
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
-        run: |
-          # /dashboard alone isn't enough: with no session cookie it
-          # 307-redirects out of its beforeLoad guard before the page ever
-          # actually renders, so an SSR-render bug (e.g. the SSR bundle
-          # crashing on jsxDEV — caught live during STEP 5 verification)
-          # would sail through this check. "/" always renders for real
-          # (no auth guard, no redirect), so check both.
-          for i in $(seq 1 30); do
-            DASHBOARD_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/dashboard")
-            ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL/")
-            if [ "$DASHBOARD_STATUS" -lt 500 ] && [ "$ROOT_STATUS" -lt 500 ]; then
-              echo "apps/web reachable at $WEB_URL/dashboard (HTTP $DASHBOARD_STATUS) and $WEB_URL/ (HTTP $ROOT_STATUS)"
-              exit 0
-            fi
-            echo "Waiting for apps/web to come up ($i/30, last status dashboard=$DASHBOARD_STATUS root=$ROOT_STATUS)..."
-            sleep 5
-          done
-          echo "::error::apps/web never became reachable at $WEB_URL/dashboard"
-          exit 1
-
-      # A 200 status alone isn't enough either — caught live 2026-08-03
-      # (docs/DECISIONS.md ADR-016, issue #39): a broken deploy returned
-      # 200 with zero console errors while being completely
-      # non-interactive (typing into the idea box never revealed the
-      # submit button). This actually drives the page the way a real
-      # visitor would, via a headless browser, and fails if that
-      # doesn't work — not just if the server returns an error status.
-      - name: Verify apps/web is actually interactive, not just reachable
-        env:
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
-        run: |
-          # `npx playwright install` alone only downloads the browser
-          # binary into npx's temp cache — it does NOT leave `playwright`
-          # resolvable as an importable package, so the script's own
-          # `import { chromium } from "playwright"` 404'd on the very
-          # first real run (ERR_MODULE_NOT_FOUND) despite the browser
-          # download itself succeeding. Installing it for real first
-          # (--no-save: CI-only tooling, not a committed dependency,
-          # same as the Railway/Vercel CLIs above) fixes the import.
-          npm install --no-save playwright@1.49.1
-          npx playwright install --with-deps chromium
-          node apps/web/scripts/verify-staging-interactive.mjs "$WEB_URL"
-
-      # A page can be interactive AND still be broken — the /login
-      # regression this catches (STEP 7 auth-pages PR) was a 200-returning,
-      # fully-functional, zero-console-error page that rendered as
-      # unstyled 1995 HTML. The interactivity check above can't tell that
-      # apart from a real page; this asserts the design tokens actually
-      # reached the DOM as computed styles across /, /login, /signup, and
-      # /dashboard (via a disposable test account, same pattern as the
-      # signup/org-creation verification steps above).
-      - name: Verify apps/web's design tokens are actually applied, not just downloaded
-        env:
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
-          RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
-        run: |
-          npm install --no-save playwright@1.49.1
-          npx playwright install --with-deps chromium
-          node apps/web/scripts/verify-staging-styled.mjs "$WEB_URL" "$RAILWAY_URL"
-
       - name: Summary
         env:
-          WEB_URL: ${{ steps.vercel_domain.outputs.url }}
           API_URL: ${{ steps.railway_domain.outputs.url }}
         run: |
           {
             echo "### Staging deploy complete"
             echo ""
-            echo "- apps/web: $WEB_URL"
             echo "- apps/api: $API_URL"
-            echo "- Dashboard: $WEB_URL/dashboard"
+            echo "- No web frontend deployed (no second Vercel project provisioned)"
           } >> "$GITHUB_STEP_SUMMARY"
