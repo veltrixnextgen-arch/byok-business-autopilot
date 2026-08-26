@@ -6,9 +6,8 @@ export * from "./durable/dekRecordStore.js";
 export * from "./durable/vaultKeyStore.js";
 export * from "./fingerprint.js";
 export * from "./secretHandle.js";
-export * from "./auditLog.js";
 export * from "./types.js";
-export { Vault } from "./vault.js";
+export { Vault, DevOnlyVaultAuditGuardError } from "./vault.js";
 export type {
   StoreBrainKeyInput,
   StoreHandsKeyInput,

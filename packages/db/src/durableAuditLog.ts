@@ -4,12 +4,13 @@ import { withTenantScope, type PoolClientLike, type PoolLike } from "./tenantCon
  * Shared unified audit log (audit_log table, migrations/0002_durable_storage.sql)
  * — see that file's header for why it's one table with a `source` column
  * rather than per-source tables. Exported from @byok/db's public interface
- * so trust-core packages (cost-gate, approval-queue) can write to it
- * without a deep import — each keeps its OWN existing sync in-memory
- * GateAuditLog/QueueAuditLog untouched; this is the separate, async,
- * durable-storage path.
+ * so trust-core packages (cost-gate, approval-queue, vault) can write to it
+ * without a deep import. Originally landed alongside each package's own
+ * bespoke sync in-memory audit log (GateAuditLog, Vault's AuditLog); issues
+ * #149/#150 replaced both of those with this shared interface directly —
+ * see costGate.ts's and vault.ts's own construction guard comments.
  */
-export type AuditSource = "cost-gate" | "approval-queue";
+export type AuditSource = "cost-gate" | "approval-queue" | "vault";
 
 export interface DurableAuditEvent {
   tenantId: string;
