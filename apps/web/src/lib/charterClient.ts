@@ -36,12 +36,22 @@ export async function updateDraft(id: string, content: Charter): Promise<Company
   return draft as CompanyCharter;
 }
 
+/** Issue #135: what the accept ceremony actually scheduled — surfaced so
+ *  the UI can show it instead of silently discarding it the way this
+ *  route used to (the backend always computed it; nothing displayed it).
+ *  `null` means nothing was scheduled (no claimed org chart — shouldn't
+ *  happen post-accept, but the UI should still handle it, not assume). */
+export interface CharterAcceptResult {
+  charter: CompanyCharter;
+  sync: { added: string[]; removed: string[]; unchanged: string[]; clampNotes: { taskId: string; reason: string }[] } | null;
+}
+
 /** The handoff ceremony (master-plan-v2.md Stage 4 #11): "Hand the Charter
  *  to [CEO name]?" → installs this draft as the active Charter and
  *  generates the three-tier prompt cascade from it. */
-export async function acceptDraft(id: string): Promise<CompanyCharter> {
+export async function acceptDraft(id: string): Promise<CharterAcceptResult> {
   const res = await apiClient.me.charter.draft[":id"].accept.$post({ param: { id } });
   if (!res.ok) throw new Error(`Could not hand off the Charter (${res.status}).`);
-  const { charter } = await res.json();
-  return charter as CompanyCharter;
+  const { charter, sync } = await res.json();
+  return { charter: charter as CompanyCharter, sync };
 }
