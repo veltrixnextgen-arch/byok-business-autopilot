@@ -22,6 +22,7 @@ const MIGRATION_FILES = [
   "0009_router_task_prompt_tier.sql",
   "0010_tenant_tier_and_scheduler.sql",
   "0011_vault_durable_storage.sql",
+  "0012_audit_log_vault_source.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every

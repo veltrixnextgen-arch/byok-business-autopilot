@@ -44,8 +44,14 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
     };
   };
 
+  // #149/#150: one shared PostgresDurableAuditLog instance, written to by
+  // Vault's own audit trail, CostGate's own decision trail, AND the
+  // reservation-level/approval-level events PostgresReservationStore /
+  // PostgresDurableApprovalStore already logged — same table
+  // (migrations/0002_durable_storage.sql's audit_log), differentiated by
+  // the `source` column ("vault" / "cost-gate" / "approval-queue").
   const auditLog = new PostgresDurableAuditLog(pool);
-  const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), DEV_TIER_MODEL_MAP);
+  const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), DEV_TIER_MODEL_MAP, auditLog);
   // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
   // AutonomyEngine this used to be — this closes the accept-offer
   // split-brain (apps/api/src/routes/approvals.ts's own doc comment on
@@ -72,7 +78,7 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // durable/dekRecordStore.ts's own module comments.
   const vault = new Vault(
     createDevKms(),
-    undefined,
+    auditLog,
     undefined,
     handsCredentialRefreshers,
     undefined,

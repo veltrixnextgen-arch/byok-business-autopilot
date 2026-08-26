@@ -4,7 +4,8 @@ import { ReservationLedger, UnknownReservationError, type Reservation } from "./
 import type { DurableReservationStore } from "./durable/reservationStore.js";
 import type { PricingTable } from "./pricing.js";
 import type { TierModelMap } from "./tierRouter.js";
-import { InMemoryGateAuditLog, type GateAuditEvent, type GateAuditLog } from "./auditLog.js";
+import { isDevOrTestEnvironment } from "@byok/vault";
+import { InMemoryDurableAuditLog, type DurableAuditLog, type StoredAuditEvent } from "@byok/db";
 
 export type GateEvent = {
   type: "task.skipped";
@@ -25,6 +26,28 @@ export type GateEventListener = (event: GateEvent) => void;
 // @byok/db's TenantCeilingStore) supply one; callers that don't need
 // per-tenant overrides keep passing a plain CeilingConfig, unchanged.
 export type CeilingConfigResolver = (tenantId: string) => CeilingConfig | Promise<CeilingConfig>;
+
+// #150: CostGate's own decision trail (every evaluateAndReserve verdict —
+// distinct from the reservation-level events PostgresReservationStore
+// already writes to the shared audit_log table) used to be a bespoke,
+// always-in-memory GateAuditLog with no durable counterpart. It's now the
+// same shared, tenant-scoped DurableAuditLog every other trust-core audit
+// trail writes through (source="cost-gate") — durableTrustCore.ts passes a
+// real PostgresDurableAuditLog for any deployed environment. Same guard
+// reasoning as Vault's own (packages/vault/src/vault.ts) — an omitted
+// `audit` argument outside dev/test would otherwise silently default to an
+// in-memory instance whose trail vanishes on the next restart.
+export class DevOnlyCostGateAuditGuardError extends Error {}
+
+function defaultAuditLog(): DurableAuditLog {
+  if (!isDevOrTestEnvironment()) {
+    throw new DevOnlyCostGateAuditGuardError(
+      "CostGate cannot default its audit log to an in-memory store outside a dev or test environment — " +
+        "pass a real DurableAuditLog (e.g. PostgresDurableAuditLog) for any deployed environment.",
+    );
+  }
+  return new InMemoryDurableAuditLog();
+}
 
 // tenantId scopes every ceiling level (company/role/task-type) to ONE
 // tenant's own pool, per issue #47 — "one single shared $50/month pool, not
@@ -77,13 +100,17 @@ export class CostGate {
   // recovered here instead of being threaded through every call site.
   private readonly reservationMeta = new Map<string, { tenantId: string; localId: string }>();
 
+  private readonly audit: DurableAuditLog;
+
   constructor(
     private readonly pricingTable: PricingTable,
     private readonly ceilingConfig: CeilingConfig | CeilingConfigResolver,
     private readonly store: DurableReservationStore,
     private readonly modelMap: TierModelMap,
-    private readonly audit: GateAuditLog = new InMemoryGateAuditLog(),
-  ) {}
+    audit?: DurableAuditLog,
+  ) {
+    this.audit = audit ?? defaultAuditLog();
+  }
 
   onEvent(listener: GateEventListener): void {
     this.listeners.push(listener);
@@ -156,16 +183,19 @@ export class CostGate {
       }
     }
 
-    this.audit.append({
-      at: new Date().toISOString(),
-      taskId: input.taskId,
-      roleId: input.roleId,
-      taskType: input.taskType,
-      verdict: verdict.kind,
-      reason: verdict.reason,
-      model: verdict.model,
-      downgradedTo: verdict.kind === "DOWNGRADE" ? verdict.model : undefined,
-      estimatedUpperBoundUsd: verdict.estimate?.costUpperBoundUsd,
+    await this.audit.append({
+      tenantId: input.tenantId,
+      source: "cost-gate",
+      kind: verdict.kind,
+      refId: input.taskId,
+      detail: {
+        roleId: input.roleId,
+        taskType: input.taskType,
+        reason: verdict.reason,
+        model: verdict.model,
+        downgradedTo: verdict.kind === "DOWNGRADE" ? verdict.model : undefined,
+        estimatedUpperBoundUsd: verdict.estimate?.costUpperBoundUsd,
+      },
     });
 
     if (verdict.kind === "SKIP") {
@@ -202,7 +232,10 @@ export class CostGate {
     return meta;
   }
 
-  auditEvents(): readonly GateAuditEvent[] {
-    return this.audit.all();
+  /** tenantId-scoped, most-recent-first — mirrors DurableAuditLog.recentForTenant
+   *  exactly (no wider "every tenant" read exists, matching every other
+   *  durable store in this codebase, and RLS would refuse one anyway). */
+  async auditEvents(tenantId: string, limit?: number): Promise<readonly StoredAuditEvent[]> {
+    return this.audit.recentForTenant(tenantId, limit);
   }
 }
