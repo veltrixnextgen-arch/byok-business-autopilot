@@ -52,3 +52,25 @@ test("RLS: autonomy state is isolated per tenant even under concurrent writes", 
   assert.equal(stateA.consecutiveApprovals, 5);
   assert.equal(stateB.consecutiveApprovals, 3);
 });
+
+// The million-approval deny-list guarantee (autonomyStore.test.ts, ported
+// from the old AutonomyEngine suite) is proven cheaply in-memory — running
+// a literal million real Postgres round-trips here would be impractical
+// for CI. What actually needs proving against the real database is
+// different and smaller: the deny-list check (isDeniable) happens BEFORE
+// any query at all (recordApproval's `if (this.isDeniable(...)) return
+// ...` short-circuit), so a deny-listed approval must never even create a
+// row, let alone increment one.
+test("deny-list immunity holds against Postgres too: a deny-listed approval never creates or mutates a row", async () => {
+  const tenantId = randomUUID();
+  const store = new PostgresDurableAutonomyStore(pool, { offerThreshold: 1, spotCheckRate: 0 });
+
+  for (let i = 0; i < 5; i++) {
+    const result = await store.recordApproval(tenantId, "payments", ["money-movement"]);
+    assert.equal(result.offered, false);
+  }
+
+  const state = await store.stateFor(tenantId, "payments");
+  assert.equal(state.consecutiveApprovals, 0, "no row should have been created/incremented for a deny-listed task type");
+  assert.equal(state.active, false);
+});

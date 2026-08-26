@@ -1,6 +1,9 @@
 import { withTenantScope, type PoolLike } from "@byok/db";
+import { isDevOrTestEnvironment } from "@byok/vault";
 import { isDeniedFromAutonomy } from "../denyList.js";
 import { NoPendingOfferError, type AutonomyConfig, DEFAULT_AUTONOMY_CONFIG, type AutonomyState } from "../autonomyEngine.js";
+
+export class DevOnlyAutonomyStoreGuardError extends Error {}
 
 /**
  * Async, tenant-scoped counterpart to AutonomyEngine (autonomyEngine.ts).
@@ -8,15 +11,31 @@ import { NoPendingOfferError, type AutonomyConfig, DEFAULT_AUTONOMY_CONFIG, type
  * (increment + compare in one statement) so two concurrent approvals for
  * the same (tenant, taskType) can't both observe "count == threshold - 1"
  * and neither emit the offer, or both emit it twice.
+ *
+ * shouldSpotCheck() is on this interface even though it touches no store
+ * state at all — same reasoning as isDeniable() just below it: a pure,
+ * stateless decision (this.random() < spotCheckRate) with nothing to
+ * persist ("spot-checks run forever," not just during a probation period
+ * — there's no state whose durability would even mean anything here), so
+ * it stays synchronous. Putting it on this interface keeps ApprovalQueue's
+ * dependency surface at one object instead of two, matching isDeniable's
+ * existing precedent.
  */
 export interface DurableAutonomyStore {
   isActive(tenantId: string, taskType: string): Promise<boolean>;
   isDeniable(stakesTags: readonly string[]): boolean;
+  shouldSpotCheck(): boolean;
   recordApproval(tenantId: string, taskType: string, stakesTags: readonly string[]): Promise<{ offered: boolean; consecutiveApprovals: number }>;
   recordRejection(tenantId: string, taskType: string): Promise<void>;
   acceptOffer(tenantId: string, taskType: string): Promise<void>;
   recordSpotCheckRejection(tenantId: string, taskType: string): Promise<void>;
-  revoke(tenantId: string, taskType?: string): Promise<void>;
+  /** Returns the task types that were ACTUALLY revoked (i.e. were active
+   *  before this call) — revoking an already-inactive task type is a
+   *  no-op, same as AutonomyEngine.revoke's existing `if (!state.active)
+   *  continue`. Callers (ApprovalQueue) need this to emit the right
+   *  per-task-type autonomy.revoked events; the store has no event system
+   *  of its own to do that internally the way the sync engine did. */
+  revoke(tenantId: string, taskType?: string): Promise<{ revokedTaskTypes: string[] }>;
   stateFor(tenantId: string, taskType: string): Promise<AutonomyState>;
 }
 
@@ -27,7 +46,28 @@ function emptyState(tenantId: string, taskType: string): AutonomyState {
 export class InMemoryDurableAutonomyStore implements DurableAutonomyStore {
   private readonly states = new Map<string, AutonomyState>();
 
-  constructor(private readonly config: AutonomyConfig = DEFAULT_AUTONOMY_CONFIG) {}
+  constructor(
+    private readonly config: AutonomyConfig = DEFAULT_AUTONOMY_CONFIG,
+    /** Injectable RNG — tests pass a seeded/deterministic generator instead
+     *  of Math.random so the spot-check sampler is reproducible. Same
+     *  parameter AutonomyEngine took. */
+    private readonly random: () => number = Math.random,
+  ) {
+    // Same reasoning as InMemoryDurableApprovalStore's guard (ADR-026,
+    // mirrored here per ADR-028's principle: a construction guard lands
+    // with the fix, never added after the fact) — this class resets on
+    // every restart and nothing outside this process can ever see a
+    // tenant's autonomy state held in it. Refusing to construct outside
+    // dev/test means a deployed environment that forgets to wire
+    // PostgresDurableAutonomyStore fails loudly at boot, not silently
+    // loses every tenant's earned autonomy on the next restart.
+    if (!isDevOrTestEnvironment()) {
+      throw new DevOnlyAutonomyStoreGuardError(
+        "InMemoryDurableAutonomyStore cannot be constructed outside a dev or test environment — " +
+          "use PostgresDurableAutonomyStore for any deployed environment.",
+      );
+    }
+  }
 
   private key(tenantId: string, taskType: string): string {
     return `${tenantId}|${taskType}`;
@@ -45,6 +85,10 @@ export class InMemoryDurableAutonomyStore implements DurableAutonomyStore {
 
   isDeniable(stakesTags: readonly string[]): boolean {
     return isDeniedFromAutonomy(stakesTags);
+  }
+
+  shouldSpotCheck(): boolean {
+    return this.random() < this.config.spotCheckRate;
   }
 
   async isActive(tenantId: string, taskType: string): Promise<boolean> {
@@ -84,15 +128,20 @@ export class InMemoryDurableAutonomyStore implements DurableAutonomyStore {
     state.offeredAt = undefined;
   }
 
-  async revoke(tenantId: string, taskType?: string): Promise<void> {
+  async revoke(tenantId: string, taskType?: string): Promise<{ revokedTaskTypes: string[] }> {
     const targets = taskType
       ? [this.getOrCreate(tenantId, taskType)]
       : [...this.states.values()].filter((s) => s.tenantId === tenantId && s.active);
+
+    const revokedTaskTypes: string[] = [];
     for (const state of targets) {
+      if (!state.active) continue;
       state.active = false;
       state.consecutiveApprovals = 0;
       state.offeredAt = undefined;
+      revokedTaskTypes.push(state.taskType);
     }
+    return { revokedTaskTypes };
   }
 
   async stateFor(tenantId: string, taskType: string): Promise<AutonomyState> {
@@ -122,10 +171,18 @@ export class PostgresDurableAutonomyStore implements DurableAutonomyStore {
   constructor(
     private readonly pool: PoolLike,
     private readonly config: AutonomyConfig = DEFAULT_AUTONOMY_CONFIG,
+    /** Same injectable RNG as InMemoryDurableAutonomyStore, for the same
+     *  reason — shouldSpotCheck() touches no DB state, so there's nothing
+     *  Postgres-specific about it at all. */
+    private readonly random: () => number = Math.random,
   ) {}
 
   isDeniable(stakesTags: readonly string[]): boolean {
     return isDeniedFromAutonomy(stakesTags);
+  }
+
+  shouldSpotCheck(): boolean {
+    return this.random() < this.config.spotCheckRate;
   }
 
   async isActive(tenantId: string, taskType: string): Promise<boolean> {
@@ -207,21 +264,22 @@ export class PostgresDurableAutonomyStore implements DurableAutonomyStore {
     });
   }
 
-  async revoke(tenantId: string, taskType?: string): Promise<void> {
-    await withTenantScope(this.pool, tenantId, async (client) => {
-      if (taskType) {
-        await client.query(
-          `UPDATE autonomy_counters SET active=false, consecutive_approvals=0, offered_at=NULL, updated_at=now()
-           WHERE tenant_id=$1::uuid AND task_type=$2`,
-          [tenantId, taskType],
-        );
-      } else {
-        await client.query(
-          `UPDATE autonomy_counters SET active=false, consecutive_approvals=0, offered_at=NULL, updated_at=now()
-           WHERE tenant_id=$1::uuid AND active=true`,
-          [tenantId],
-        );
-      }
+  async revoke(tenantId: string, taskType?: string): Promise<{ revokedTaskTypes: string[] }> {
+    return withTenantScope(this.pool, tenantId, async (client) => {
+      const result = taskType
+        ? ((await client.query(
+            `UPDATE autonomy_counters SET active=false, consecutive_approvals=0, offered_at=NULL, updated_at=now()
+             WHERE tenant_id=$1::uuid AND task_type=$2 AND active=true
+             RETURNING task_type`,
+            [tenantId, taskType],
+          )) as unknown as { rows: { task_type: string }[] })
+        : ((await client.query(
+            `UPDATE autonomy_counters SET active=false, consecutive_approvals=0, offered_at=NULL, updated_at=now()
+             WHERE tenant_id=$1::uuid AND active=true
+             RETURNING task_type`,
+            [tenantId],
+          )) as unknown as { rows: { task_type: string }[] });
+      return { revokedTaskTypes: result.rows.map((r) => r.task_type) };
     });
   }
 

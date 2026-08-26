@@ -1,7 +1,8 @@
-import { AutonomyEngine, type AutonomyEvent } from "./autonomyEngine.js";
+import type { AutonomyEvent } from "./autonomyEngine.js";
 import type { EffectExecutor, EffectResult } from "./effectExecutor.js";
 import { InMemoryQueueAuditLog, type QueueAuditEvent, type QueueAuditLog } from "./auditLog.js";
 import { InMemoryDurableApprovalStore, type DurableApprovalStore } from "./durable/approvalStore.js";
+import type { DurableAutonomyStore } from "./durable/autonomyStore.js";
 import { EffectOnRecommendationError, type ProposedAction, type RecommendationItem, type Verdict } from "./types.js";
 
 export type QueueEvent =
@@ -33,7 +34,21 @@ export class ApprovalQueue {
   private readonly listeners: QueueEventListener[] = [];
 
   constructor(
-    public readonly autonomy: AutonomyEngine,
+    // Async DurableAutonomyStore, not the old synchronous AutonomyEngine —
+    // this is what closed the accept-offer split-brain: previously,
+    // accepting an autonomy offer (apps/api/src/routes/approvals.ts) wrote
+    // `active = true` to a real Postgres row that this class never read,
+    // because live dispatch gating (submitProposedAction below) checked a
+    // completely separate, in-memory AutonomyEngine that reset on every
+    // restart. Now there is exactly one autonomy store; whatever
+    // `approvals.ts` accepts, submitProposedAction sees.
+    //
+    // The durable store has no event-emission mechanism of its own (unlike
+    // AutonomyEngine, which called `this.emit(...)` internally from
+    // recordApproval/recordSpotCheckRejection/revoke) — every AutonomyEvent
+    // below is synthesized here, right after the awaited call that used to
+    // trigger it synchronously.
+    public readonly autonomy: DurableAutonomyStore,
     private readonly effectExecutor: EffectExecutor,
     private readonly audit: QueueAuditLog = new InMemoryQueueAuditLog(),
     // ADR-026: pending-item state used to live in two plain in-memory Maps
@@ -47,11 +62,7 @@ export class ApprovalQueue {
     // listeners, not the durable audit_log row PostgresDurableApprovalStore
     // writes internally.
     private readonly store: DurableApprovalStore = new InMemoryDurableApprovalStore(),
-  ) {
-    // Forward autonomy events through the same single subscription surface
-    // — callers don't need to know the autonomy engine exists separately.
-    this.autonomy.onEvent((event) => this.emit(event));
-  }
+  ) {}
 
   onEvent(listener: QueueEventListener): void {
     this.listeners.push(listener);
@@ -62,7 +73,7 @@ export class ApprovalQueue {
   }
 
   async submitProposedAction(action: ProposedAction): Promise<SubmitResult> {
-    const autonomyActive = this.autonomy.isActive(action.tenantId, action.taskType) && !this.autonomy.isDeniable(action.stakesTags);
+    const autonomyActive = (await this.autonomy.isActive(action.tenantId, action.taskType)) && !this.autonomy.isDeniable(action.stakesTags);
 
     if (autonomyActive && !this.autonomy.shouldSpotCheck()) {
       // Bypass: no human review. Still dispatches through the SAME
@@ -107,9 +118,19 @@ export class ApprovalQueue {
         at: at(),
       });
       if (isSpotCheck) {
-        this.autonomy.recordSpotCheckRejection(action.tenantId, action.taskType);
+        await this.autonomy.recordSpotCheckRejection(action.tenantId, action.taskType);
+        // AutonomyEngine.recordSpotCheckRejection used to emit this
+        // internally — synthesized here now, right after the store write
+        // it used to accompany atomically in-process.
+        this.emit({
+          type: "autonomy.revoked",
+          tenantId: action.tenantId,
+          taskType: action.taskType,
+          reason: "spot-check-rejected",
+          at: at(),
+        });
       } else {
-        this.autonomy.recordRejection(action.tenantId, action.taskType);
+        await this.autonomy.recordRejection(action.tenantId, action.taskType);
       }
       this.audit.append({
         at: at(),
@@ -128,7 +149,19 @@ export class ApprovalQueue {
 
     // Both APPROVE and MODIFY are the "approve-path" per spec — earned
     // autonomy progresses on either.
-    this.autonomy.recordApproval(action.tenantId, action.taskType, action.stakesTags);
+    const { offered, consecutiveApprovals } = await this.autonomy.recordApproval(action.tenantId, action.taskType, action.stakesTags);
+    // AutonomyEngine.recordApproval used to emit this internally the
+    // instant the threshold was crossed — synthesized here now, from the
+    // store's return value.
+    if (offered) {
+      this.emit({
+        type: "autonomy.offered",
+        tenantId: action.tenantId,
+        taskType: action.taskType,
+        consecutiveApprovals,
+        at: at(),
+      });
+    }
 
     this.audit.append({
       at: at(),
@@ -193,7 +226,27 @@ export class ApprovalQueue {
     return this.audit.all();
   }
 
-  revokeAutonomy(tenantId: string, taskType?: string): void {
-    this.autonomy.revoke(tenantId, taskType);
+  async revokeAutonomy(tenantId: string, taskType?: string): Promise<void> {
+    const { revokedTaskTypes } = await this.autonomy.revoke(tenantId, taskType);
+    const at = new Date().toISOString();
+    // AutonomyEngine.revoke used to emit one autonomy.revoked event per
+    // task type it actually flipped (skipping already-inactive ones) —
+    // revokedTaskTypes is exactly that list, reported back by the store
+    // since it has no event system of its own to emit these internally.
+    for (const revokedTaskType of revokedTaskTypes) {
+      this.emit({ type: "autonomy.revoked", tenantId, taskType: revokedTaskType, reason: "manual", at });
+    }
+  }
+
+  /** Thin passthrough — exists so a caller (apps/api's approvals route)
+   *  only needs one dependency (ApprovalQueue) instead of reaching past it
+   *  into `.autonomy` directly, and so this is the one place that would
+   *  ever emit autonomy.activated if that's added later. Previously,
+   *  accepting an offer bypassed ApprovalQueue entirely (called straight
+   *  against a SEPARATE PostgresDurableAutonomyStore instance) — which was
+   *  exactly the split-brain this whole change closes; now it's the same
+   *  store object submitProposedAction reads. */
+  async acceptOffer(tenantId: string, taskType: string): Promise<void> {
+    await this.autonomy.acceptOffer(tenantId, taskType);
   }
 }

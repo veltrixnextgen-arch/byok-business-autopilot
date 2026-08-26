@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { ApprovalQueue, AutonomyEngine, MockEffectExecutor } from "@byok/approval-queue";
+import { ApprovalQueue, MockEffectExecutor, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
 import { TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDedupStore, InMemoryTaskLedger, MockExecutor, Router } from "@byok/router";
@@ -88,7 +88,15 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
   };
 
   const costGate = new CostGate(pricingTable, ceilingResolver, new InMemoryDurableReservationStore(), DEV_TIER_MODEL_MAP);
-  const approvalQueue = new ApprovalQueue(new AutonomyEngine(), new MockEffectExecutor());
+  // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
+  // AutonomyEngine this used to be — `pool` is already required here
+  // (TenantCeilingStore above), so this follows the same direction the
+  // rest of this file already takes (real durable pieces wherever a pool
+  // is on hand), and it's what actually closes the accept-offer
+  // split-brain: apps/api/src/routes/approvals.ts's accept-offer route
+  // reads/writes this exact table, so `npm run dev` needs the same object
+  // identity staging/production have to exercise that path meaningfully.
+  const approvalQueue = new ApprovalQueue(new PostgresDurableAutonomyStore(pool), new MockEffectExecutor());
   const ledger = new InMemoryTaskLedger();
   const router = new Router(ledger, new InMemoryDedupStore(), new MockExecutor(), costGate, approvalQueue);
 

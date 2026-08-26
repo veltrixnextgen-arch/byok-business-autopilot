@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AutonomyEngine } from "./autonomyEngine.js";
+import { InMemoryDurableAutonomyStore } from "./durable/autonomyStore.js";
 import { ApprovalQueue } from "./queue.js";
 import type { EffectExecutor, EffectResult } from "./effectExecutor.js";
 import { EffectOnRecommendationError, UnknownActionError } from "./types.js";
@@ -36,7 +36,7 @@ function makeAction(overrides: Partial<ProposedAction> = {}): ProposedAction {
 
 test("a pure draft (no effect) queues and APPROVE resolves with no dispatch", async () => {
   const { executor, callCount } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   const submitResult = await queue.submitProposedAction(makeAction());
   assert.equal(submitResult.queued, true);
@@ -48,7 +48,7 @@ test("a pure draft (no effect) queues and APPROVE resolves with no dispatch", as
 
 test("an action WITH an effect dispatches only after APPROVE, never on intake", async () => {
   const { executor, callCount } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   await queue.submitProposedAction(makeAction({ effect: { kind: "send", description: "Email the invoice to the client" } }));
   assert.equal(callCount(), 0, "effect must not dispatch on intake");
@@ -60,7 +60,7 @@ test("an action WITH an effect dispatches only after APPROVE, never on intake", 
 
 test("REJECT requires feedback (type-enforced) and emits an agent.learning event", async () => {
   const { executor } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
   const events: string[] = [];
   queue.onEvent((e) => events.push(e.type));
 
@@ -73,18 +73,18 @@ test("REJECT requires feedback (type-enforced) and emits an agent.learning event
 
 test("REJECT resets the consecutive-approval counter for that task type", async () => {
   const { executor } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 5, spotCheckRate: 0 });
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 5, spotCheckRate: 0 });
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
   await queue.submitProposedAction(makeAction({ id: "a2" }));
   await queue.resolve(TENANT, "a2", { kind: "APPROVE" });
-  assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 2);
+  assert.equal((await autonomy.stateFor("tenant-a", "invoicing")).consecutiveApprovals, 2);
 
   await queue.submitProposedAction(makeAction({ id: "a3" }));
   await queue.resolve(TENANT, "a3", { kind: "REJECT", feedback: "not quite right" });
-  assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 0);
+  assert.equal((await autonomy.stateFor("tenant-a", "invoicing")).consecutiveApprovals, 0);
 });
 
 test("MODIFY substitutes the draft, then follows the approve-path (dispatches with edited content)", async () => {
@@ -95,7 +95,7 @@ test("MODIFY substitutes the draft, then follows the approve-path (dispatches wi
       return { success: true };
     },
   };
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   await queue.submitProposedAction(
     makeAction({ draft: "original text", effect: { kind: "send", description: "..." } }),
@@ -108,7 +108,7 @@ test("MODIFY substitutes the draft, then follows the approve-path (dispatches wi
 
 test("MODIFY counts toward the autonomy counter, same as APPROVE", async () => {
   const { executor } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 2, spotCheckRate: 0 });
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 2, spotCheckRate: 0 });
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
@@ -116,25 +116,47 @@ test("MODIFY counts toward the autonomy counter, same as APPROVE", async () => {
   await queue.submitProposedAction(makeAction({ id: "a2" }));
   await queue.resolve(TENANT, "a2", { kind: "MODIFY", editedOutput: "edited" });
 
-  assert.equal(autonomy.isActive("tenant-a", "invoicing"), false); // offered, not yet accepted
-  assert.equal(autonomy.stateFor("tenant-a", "invoicing").consecutiveApprovals, 2);
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), false); // offered, not yet accepted
+  assert.equal((await autonomy.stateFor("tenant-a", "invoicing")).consecutiveApprovals, 2);
 });
 
 test("resolving an unknown action id throws", async () => {
   const { executor } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
   await assert.rejects(() => queue.resolve(TENANT, "does-not-exist", { kind: "APPROVE" }), UnknownActionError);
+});
+
+test("resolve() emits autonomy.offered exactly on the approval that crosses the threshold, synthesized from the store's return value", async () => {
+  const { executor } = countingExecutor();
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore({ offerThreshold: 2, spotCheckRate: 0 }), executor);
+  const autonomyEvents: string[] = [];
+  queue.onEvent((e) => {
+    if (e.type.startsWith("autonomy.")) autonomyEvents.push(e.type);
+  });
+
+  await queue.submitProposedAction(makeAction({ id: "a1" }));
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
+  assert.deepEqual(autonomyEvents, [], "no offer before the threshold");
+
+  await queue.submitProposedAction(makeAction({ id: "a2" }));
+  await queue.resolve(TENANT, "a2", { kind: "APPROVE" });
+  assert.deepEqual(autonomyEvents, ["autonomy.offered"]);
+
+  // Further approvals (autonomy not yet accepted) must not re-offer.
+  await queue.submitProposedAction(makeAction({ id: "a3" }));
+  await queue.resolve(TENANT, "a3", { kind: "APPROVE" });
+  assert.deepEqual(autonomyEvents, ["autonomy.offered"]);
 });
 
 test("earned autonomy bypass: active + sampler skips -> dispatches without ever queuing", async () => {
   const { executor, callCount } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // 1 >= any rate -> never spot-check
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // 1 >= any rate -> never spot-check
   const queue = new ApprovalQueue(autonomy, executor);
 
   // Earn and accept autonomy first.
   await queue.submitProposedAction(makeAction({ id: "a1" }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
-  autonomy.acceptOffer("tenant-a", "invoicing");
+  await queue.acceptOffer("tenant-a", "invoicing");
 
   const events: string[] = [];
   queue.onEvent((e) => events.push(e.type));
@@ -150,12 +172,12 @@ test("earned autonomy bypass: active + sampler skips -> dispatches without ever 
 
 test("earned autonomy active but sampler selects spot-check -> still queues for human review", async () => {
   const { executor, callCount } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 1 }, () => 0); // 0 < 1 -> always spot-check
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 1 }, () => 0); // 0 < 1 -> always spot-check
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
-  autonomy.acceptOffer("tenant-a", "invoicing");
+  await queue.acceptOffer("tenant-a", "invoicing");
 
   const result = await queue.submitProposedAction(makeAction({ id: "a2", effect: { kind: "send", description: "..." } }));
   assert.equal(result.queued, true);
@@ -163,34 +185,39 @@ test("earned autonomy active but sampler selects spot-check -> still queues for 
   assert.equal((await queue.pendingActions(TENANT)).length, 1);
 });
 
-test("a spot-check REJECT auto-revokes autonomy for that task type", async () => {
+test("a spot-check REJECT auto-revokes autonomy for that task type, and emits autonomy.revoked", async () => {
   const { executor } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 1 }, () => 0); // always spot-check
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 1 }, () => 0); // always spot-check
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
-  autonomy.acceptOffer("tenant-a", "invoicing");
-  assert.equal(autonomy.isActive("tenant-a", "invoicing"), true);
+  await queue.acceptOffer("tenant-a", "invoicing");
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), true);
+
+  const events: Array<{ type: string; reason?: string }> = [];
+  queue.onEvent((e) => events.push(e as { type: string; reason?: string }));
 
   await queue.submitProposedAction(makeAction({ id: "a2" })); // gets spot-checked (queued)
   await queue.resolve(TENANT, "a2", { kind: "REJECT", feedback: "actually wrong this time" });
 
-  assert.equal(autonomy.isActive("tenant-a", "invoicing"), false);
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), false);
+  const revokedEvent = events.find((e) => e.type === "autonomy.revoked");
+  assert.equal(revokedEvent?.reason, "spot-check-rejected");
 });
 
 test("a deny-tagged action always queues, even when autonomy is active for that SAME task type via other non-deny-tagged actions", async () => {
   const { executor, callCount } = countingExecutor();
   // Sampler configured to always bypass if the queue let it — proves the
   // deny-list check is what's actually stopping this, not the sampler.
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 0 }, () => 1);
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1);
   const queue = new ApprovalQueue(autonomy, executor);
 
   // Earn + accept autonomy for "payments" using an ordinary, non-deny-tagged action.
   await queue.submitProposedAction(makeAction({ id: "a1", taskType: "payments", stakesTags: [] }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
-  autonomy.acceptOffer("tenant-a", "payments");
-  assert.equal(autonomy.isActive("tenant-a", "payments"), true);
+  await queue.acceptOffer("tenant-a", "payments");
+  assert.equal(await autonomy.isActive("tenant-a", "payments"), true);
 
   // A LATER action under the SAME task type, but deny-tagged, must still queue.
   const result = await queue.submitProposedAction(
@@ -219,7 +246,7 @@ function makeRecommendation(overrides: Partial<RecommendationItem> = {}): Recomm
 
 test("a RecommendationItem submitted normally never dispatches anything on any verdict", async () => {
   const { executor, callCount } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   await queue.submitRecommendation(makeRecommendation());
   await queue.resolveRecommendation(TENANT, "rec-1", { kind: "APPROVE" });
@@ -229,7 +256,7 @@ test("a RecommendationItem submitted normally never dispatches anything on any v
 
 test("smuggling an effect onto a recommendation via a cast is rejected at runtime (defense in depth)", async () => {
   const { executor } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   const tampered = { ...makeRecommendation(), effect: { kind: "pay", description: "sneaky" } } as unknown as RecommendationItem;
   await assert.rejects(() => queue.submitRecommendation(tampered), EffectOnRecommendationError);
@@ -237,7 +264,7 @@ test("smuggling an effect onto a recommendation via a cast is rejected at runtim
 
 test("recommendation verdicts emit guidance events only, never agent.learning or action.queued", async () => {
   const { executor } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
   const events: string[] = [];
   queue.onEvent((e) => events.push(e.type));
 
@@ -249,7 +276,7 @@ test("recommendation verdicts emit guidance events only, never agent.learning or
 
 test("audit log records every intake and resolution, with no effect payload leaked into it", async () => {
   const { executor } = countingExecutor();
-  const queue = new ApprovalQueue(new AutonomyEngine(), executor);
+  const queue = new ApprovalQueue(new InMemoryDurableAutonomyStore(), executor);
 
   await queue.submitProposedAction(makeAction({ effect: { kind: "send", description: "...", detail: { to: "client@example.com" } } }));
   await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
@@ -260,16 +287,50 @@ test("audit log records every intake and resolution, with no effect payload leak
   assert.ok(!serialized.includes("client@example.com"), "audit log must not carry effect detail payloads");
 });
 
-test("revokeAutonomy() delegates to the autonomy engine", async () => {
+test("revokeAutonomy() delegates to the durable autonomy store and emits autonomy.revoked", async () => {
   const { executor } = countingExecutor();
-  const autonomy = new AutonomyEngine({ offerThreshold: 1, spotCheckRate: 0 });
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 });
   const queue = new ApprovalQueue(autonomy, executor);
 
   await queue.submitProposedAction(makeAction());
   await queue.resolve(TENANT, "action-1", { kind: "APPROVE" });
-  autonomy.acceptOffer("tenant-a", "invoicing");
-  assert.equal(autonomy.isActive("tenant-a", "invoicing"), true);
+  await queue.acceptOffer("tenant-a", "invoicing");
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), true);
 
-  queue.revokeAutonomy("tenant-a", "invoicing");
-  assert.equal(autonomy.isActive("tenant-a", "invoicing"), false);
+  const events: Array<{ type: string; taskType?: string }> = [];
+  queue.onEvent((e) => events.push(e as { type: string; taskType?: string }));
+
+  await queue.revokeAutonomy("tenant-a", "invoicing");
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), false);
+  assert.deepEqual(
+    events.filter((e) => e.type === "autonomy.revoked").map((e) => e.taskType),
+    ["invoicing"],
+  );
+});
+
+// The whole point of this refactor (autonomy durability): accepting an
+// offer through ApprovalQueue.acceptOffer() must be visible to the SAME
+// object submitProposedAction reads — previously (apps/api/src/routes/
+// approvals.ts) these were two separate store instances, so accepting an
+// offer durably recorded active=true in Postgres but had zero effect on
+// live dispatch gating. This test is the structural proof that gap is
+// closed: one store, one call, immediately observed.
+test("acceptOffer() flips isActive on the SAME store submitProposedAction reads — the split-brain this change closes", async () => {
+  const { executor, callCount } = countingExecutor();
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // never spot-check
+  const queue = new ApprovalQueue(autonomy, executor);
+
+  await queue.submitProposedAction(makeAction({ id: "a1" }));
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
+
+  // Not yet accepted — must still queue, not bypass.
+  const beforeAccept = await queue.submitProposedAction(makeAction({ id: "a2", effect: { kind: "send", description: "..." } }));
+  assert.equal(beforeAccept.queued, true);
+
+  await queue.acceptOffer("tenant-a", "invoicing");
+
+  // Now accepted — the exact same queue/store must immediately bypass.
+  const afterAccept = await queue.submitProposedAction(makeAction({ id: "a3", effect: { kind: "send", description: "..." } }));
+  assert.equal(afterAccept.queued, false, "acceptOffer must be immediately visible to submitProposedAction's own isActive check");
+  assert.equal(callCount(), 1, "only a3 (the post-accept bypass) dispatches — a1/a2 had no effect or were queued");
 });

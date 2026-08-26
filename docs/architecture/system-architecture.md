@@ -137,7 +137,7 @@ flowchart TB
 | `@byok/router` | Dispatch, dedup, ledger, tool-use executor | `Router` · `OpenMultiAgentExecutor` · `handsTool.ts` · dedup/ledger stores |
 | `@byok/vault` | Envelope-encrypted key storage, JIT decryption | `Vault` · `SecretHandle` · `BrainKeyProvider` · `HandsKeyProvider` · `DekStore` |
 | `@byok/cost-gate` | Fail-closed pre-call spend gate, per-tenant + durable | `CostGate` · `evaluateGateVerdict` · `DurableReservationStore` · `PostgresReservationStore` |
-| `@byok/approval-queue` | Final human firewall before any effect fires | `ApprovalQueue` · `AutonomyEngine` · `EffectExecutor` · `denyList` |
+| `@byok/approval-queue` | Final human firewall before any effect fires | `ApprovalQueue` · `DurableAutonomyStore` · `EffectExecutor` · `denyList` |
 | `@byok/agents` | Extraction pipeline + contracts | `extraction/pipeline.ts` · `templateSelect` · contracts (`Charter`, `OrgChart`) |
 
 ---
