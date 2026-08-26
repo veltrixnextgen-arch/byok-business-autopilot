@@ -123,7 +123,7 @@ describe("DashboardScreen", () => {
 
     render(<DashboardScreen />);
 
-    expect(await screen.findByText("Approved")).toBeTruthy();
+    expect(await screen.findByText("Reviewed")).toBeTruthy();
   });
 
   it("shows a Connect a Brain CTA when no key is connected yet", async () => {

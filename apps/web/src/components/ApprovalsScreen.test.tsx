@@ -67,7 +67,7 @@ describe("ApprovalsScreen", () => {
   it("shows the honest fallback when an action has no effect to approve", async () => {
     getApprovals.mockResolvedValue({ items: [{ ...ACTION, effectDescription: null }], autonomyStatus: [] });
     render(<ApprovalsScreen />);
-    expect(await screen.findByText(/Nothing further happens/)).toBeTruthy();
+    expect(await screen.findByText(/only marks the work reviewed/)).toBeTruthy();
   });
 
   it("marks a deny-listed item as never earning autonomy", async () => {
@@ -82,7 +82,7 @@ describe("ApprovalsScreen", () => {
     render(<ApprovalsScreen />);
 
     await screen.findByText("Sam");
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark reviewed" }));
 
     await waitFor(() => expect(resolveApproval).toHaveBeenCalledWith("action-1", "action", { kind: "APPROVE" }));
     await waitFor(() => expect(screen.getByText("Nothing waiting on you")).toBeTruthy());
@@ -121,7 +121,7 @@ describe("ApprovalsScreen", () => {
     expect(textarea.value).toBe("Categorized 12 transactions.");
 
     fireEvent.change(textarea, { target: { value: "Categorized 13 transactions, one corrected." } });
-    fireEvent.click(screen.getByRole("button", { name: "Approve with edits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark reviewed with edits" }));
 
     await waitFor(() =>
       expect(resolveApproval).toHaveBeenCalledWith("action-1", "action", {
