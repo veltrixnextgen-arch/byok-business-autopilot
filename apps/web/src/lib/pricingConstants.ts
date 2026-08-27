@@ -1,15 +1,16 @@
 // Single source of truth for tier pricing on the marketing /pricing page.
-// No monthly price has been set by product yet — the reference itself
-// ships with "—/month" placeholders and an on-page "Pricing not finalised"
-// disclaimer (captured live 2026-08-08), so `priceLabel: "—"` here matches
-// that, not a guess of our own. Whoever sets real prices only has to edit
-// this file — PricingPage.tsx never hardcodes a number.
+// Real prices (ADR-044, docs/DECISIONS.md, 2026-08-26) — replaces the
+// "—/month" placeholder this file shipped with since 2026-08-08. Annual
+// is a flat 2 months free on every tier (10x the monthly rate, not a
+// separately negotiated discount) — see the ADR for the market
+// comparison behind the actual numbers. Whoever changes a price only
+// has to edit this file — PricingPage.tsx never hardcodes a number.
 export interface PricingTier {
   id: string;
   name: string;
   tagline: string;
-  // TODO(product): set the real monthly price once pricing is finalized.
-  priceLabel: string;
+  priceMonthlyUsd: number;
+  priceAnnualUsd: number;
   companies: string;
   agents: string;
   history: string;
@@ -24,7 +25,8 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "solo",
     name: "Solo",
     tagline: "One idea, one company, real structure.",
-    priceLabel: "—",
+    priceMonthlyUsd: 39,
+    priceAnnualUsd: 390,
     companies: "1",
     agents: "Up to 5",
     history: "30 days",
@@ -44,7 +46,8 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "company",
     name: "Company",
     tagline: "Run the whole operation with real controls.",
-    priceLabel: "—",
+    priceMonthlyUsd: 89,
+    priceAnnualUsd: 890,
     companies: "3",
     agents: "Up to 20",
     history: "12 months",
@@ -65,7 +68,8 @@ export const PRICING_TIERS: PricingTier[] = [
     id: "scale",
     name: "Scale",
     tagline: "Multiple companies, delegated oversight.",
-    priceLabel: "—",
+    priceMonthlyUsd: 249,
+    priceAnnualUsd: 2490,
     companies: "Unlimited",
     agents: "Unlimited",
     history: "Unlimited",

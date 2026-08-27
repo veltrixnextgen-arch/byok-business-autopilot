@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PRICING_TIERS } from "../../lib/pricingConstants";
 import { cx } from "../ui";
@@ -6,20 +7,20 @@ import { LandingFooter } from "./LandingFooter";
 import { LandingNav } from "./LandingNav";
 import { AccordionItem, Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useAccordion, useRevealOnScroll } from "./primitives";
 
-// Built from the Emergent reference's real /pricing page (captured live
-// 2026-08-08, full FAQ transcript in the PR body). One thing that made
-// this page unusually easy to build honestly: the reference itself has no
-// real prices either — every tier shows "—/month" and the page states
-// outright that "Pricing not finalised. Values below are placeholders."
-// So `priceLabel: "—"` (lib/pricingConstants.ts) isn't a guess dressed up
-// as a real number — it's what's actually there, TODO(product)-flagged
-// for whenever a real price is set.
+// Real prices as of ADR-044 (docs/DECISIONS.md, 2026-08-26) — this page
+// used to mirror the Emergent reference's own unfinished "—/month"
+// placeholders (captured live 2026-08-08); that's no longer true, and this
+// page no longer says otherwise. Annual is a flat 2 months free on every
+// tier — lib/pricingConstants.ts's priceAnnualUsd already bakes that in,
+// this file just formats it.
 const TIER_STAT_FIELDS = [
   { key: "companies" as const, label: "Companies" },
   { key: "agents" as const, label: "Agents" },
   { key: "history" as const, label: "History" },
   { key: "teamMembers" as const, label: "Team members" },
 ];
+
+type BillingPeriod = "monthly" | "annual";
 
 const FAQ = [
   {
@@ -35,6 +36,14 @@ const FAQ = [
     a: "No. Usage runs on your key at your provider's rates. Runwisely charges only for the platform.",
   },
   {
+    q: "Are there usage credits, or a cap I can run out of?",
+    a: "No. There's no credit balance to burn through and no metered usage tier to bump into — your agents run at whatever pace your own AI provider key and your own spending walls allow.",
+  },
+  {
+    q: "Does Runwisely act automatically, or do I review its work?",
+    a: "Every scheduled task produces a draft, not an action. It lands in your review queue derived from your actual business — approving marks it reviewed; nothing sends, posts, or executes on its own.",
+  },
+  {
     q: "Can I set spending limits?",
     a: "Yes — a company-wide daily wall, per-agent limits, and hard locks on money movement. Agents stop when a wall is reached.",
   },
@@ -48,11 +57,19 @@ const FAQ = [
   },
 ];
 
+function formatPrice(tier: (typeof PRICING_TIERS)[number], period: BillingPeriod): { amount: string; suffix: string } {
+  if (period === "annual") {
+    return { amount: `$${tier.priceAnnualUsd.toLocaleString()}`, suffix: "/year" };
+  }
+  return { amount: `$${tier.priceMonthlyUsd}`, suffix: "/month" };
+}
+
 export function PricingPage() {
   const [heroRef, heroRevealed] = useRevealOnScroll<HTMLElement>();
   const [costRef, costRevealed] = useRevealOnScroll<HTMLElement>();
   const [faqRef, faqRevealed] = useRevealOnScroll<HTMLElement>();
   const [openFaq, toggleFaq] = useAccordion(0);
+  const [period, setPeriod] = useState<BillingPeriod>("monthly");
 
   return (
     <>
@@ -70,69 +87,103 @@ export function PricingPage() {
           <p className="text-text-secondary">Two separate bills, both visible. Runwisely never marks up AI usage.</p>
         </Reveal>
 
-        <Reveal revealed={heroRevealed} delay={80} className="mx-auto mt-14 grid max-w-5xl gap-5 lg:grid-cols-3 lg:items-start">
-          {PRICING_TIERS.map((tier) => (
-            <div
-              key={tier.id}
-              className={cx(
-                "relative flex h-full flex-col rounded-[18px] border p-6",
-                tier.mostComplete ? "border-accent/40 bg-white/[0.05] lg:-translate-y-3" : "border-white/[0.08] bg-white/[0.035]",
-              )}
-            >
-              {tier.mostComplete && (
-                <span className="absolute -top-3 left-6 rounded-full border border-accent/50 bg-bg px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
-                  Most complete
-                </span>
-              )}
-              <h2 className="font-display text-xl font-semibold text-text">{tier.name}</h2>
-              <p className="mt-1.5 text-sm text-text-secondary">{tier.tagline}</p>
-
-              <p className="mt-6 font-display text-3xl font-semibold text-text">
-                <span aria-hidden="true">{tier.priceLabel}</span>
-                <span className="ml-1.5 text-sm font-normal text-text-muted">/month</span>
-                <span className="sr-only">Pricing not yet finalized</span>
-              </p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
-                Platform only · AI usage billed by your provider
-              </p>
-
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
-                {TIER_STAT_FIELDS.map((field) => (
-                  <div key={field.key} className="rounded-lg border border-border-subtle bg-bg-glass-subtle px-3 py-2.5">
-                    <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-text-muted">{field.label}</p>
-                    <p className="mt-1 text-sm font-semibold text-text">{tier[field.key]}</p>
-                  </div>
-                ))}
-              </div>
-
-              <ul className="mt-6 flex-1 space-y-2.5">
-                {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
-                    <span className="mt-0.5 text-accent" aria-hidden="true">
-                      ✓
-                    </span>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                to="/"
-                className={cx(
-                  "mt-6 inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 font-display text-sm font-medium transition-transform duration-landing-button ease-landing hover:-translate-y-px",
-                  tier.mostComplete
-                    ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22] shadow-glow-cta"
-                    : "border border-border bg-bg-glass text-text hover:border-border-strong",
-                )}
-              >
-                {tier.ctaLabel}
-              </Link>
-            </div>
-          ))}
+        <Reveal revealed={heroRevealed} delay={40} className="mx-auto mt-8 grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+          <div className="rounded-xl border border-border-subtle bg-bg-glass-subtle px-4 py-3.5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-accent">No credit caps</p>
+            <p className="mt-1.5 text-sm text-text-secondary">
+              No credit balance to run out of, no metered usage tier. Your agents run at your own AI provider's rates and your
+              own spending walls — never ours.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-glass-subtle px-4 py-3.5">
+            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-accent">Drafts, not actions</p>
+            <p className="mt-1.5 text-sm text-text-secondary">
+              Every scheduled task is contextual work derived from your business, put in front of you to review — not
+              executed automatically. Approving marks it reviewed.
+            </p>
+          </div>
         </Reveal>
 
-        <Reveal revealed={heroRevealed} delay={160} className="mx-auto mt-6 max-w-5xl text-center">
-          <p className="font-mono text-xs text-text-muted">Pricing not finalised. Values shown are placeholders.</p>
+        <Reveal revealed={heroRevealed} delay={80} className="mx-auto mt-10 flex justify-center">
+          <div className="inline-flex rounded-full border border-border-subtle bg-bg-glass-subtle p-1">
+            {(["monthly", "annual"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setPeriod(option)}
+                aria-pressed={period === option}
+                className={cx(
+                  "rounded-full px-4 py-1.5 font-display text-sm font-medium transition-colors",
+                  period === option ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22]" : "text-text-secondary",
+                )}
+              >
+                {option === "monthly" ? "Monthly" : "Annual — 2 months free"}
+              </button>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal revealed={heroRevealed} delay={120} className="mx-auto mt-8 grid max-w-5xl gap-5 lg:grid-cols-3 lg:items-start">
+          {PRICING_TIERS.map((tier) => {
+            const price = formatPrice(tier, period);
+            return (
+              <div
+                key={tier.id}
+                className={cx(
+                  "relative flex h-full flex-col rounded-[18px] border p-6",
+                  tier.mostComplete ? "border-accent/40 bg-white/[0.05] lg:-translate-y-3" : "border-white/[0.08] bg-white/[0.035]",
+                )}
+              >
+                {tier.mostComplete && (
+                  <span className="absolute -top-3 left-6 rounded-full border border-accent/50 bg-bg px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
+                    Most complete
+                  </span>
+                )}
+                <h2 className="font-display text-xl font-semibold text-text">{tier.name}</h2>
+                <p className="mt-1.5 text-sm text-text-secondary">{tier.tagline}</p>
+
+                <p className="mt-6 font-display text-3xl font-semibold text-text">
+                  {price.amount}
+                  <span className="ml-1.5 text-sm font-normal text-text-muted">{price.suffix}</span>
+                </p>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+                  Platform only · AI usage billed by your provider
+                </p>
+
+                <div className="mt-5 grid grid-cols-2 gap-2.5">
+                  {TIER_STAT_FIELDS.map((field) => (
+                    <div key={field.key} className="rounded-lg border border-border-subtle bg-bg-glass-subtle px-3 py-2.5">
+                      <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-text-muted">{field.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-text">{tier[field.key]}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <ul className="mt-6 flex-1 space-y-2.5">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
+                      <span className="mt-0.5 text-accent" aria-hidden="true">
+                        ✓
+                      </span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  to="/"
+                  className={cx(
+                    "mt-6 inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 font-display text-sm font-medium transition-transform duration-landing-button ease-landing hover:-translate-y-px",
+                    tier.mostComplete
+                      ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22] shadow-glow-cta"
+                      : "border border-border bg-bg-glass text-text hover:border-border-strong",
+                  )}
+                >
+                  {tier.ctaLabel}
+                </Link>
+              </div>
+            );
+          })}
         </Reveal>
       </SectionContainer>
 
