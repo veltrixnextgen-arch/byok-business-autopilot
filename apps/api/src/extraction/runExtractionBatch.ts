@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { InterviewAnswers, OrgChart } from "@byok/contracts";
 import type { CostGate } from "@byok/cost-gate";
-import { CUSTOMIZE_MODEL, extractOrgChart } from "@byok/extraction";
-import type { SignupExtractionBatchStore } from "@byok/db";
+import { CUSTOMIZE_MODEL, customizationLogToDeltas, extractOrgChart } from "@byok/extraction";
+import type { SignupExtractionBatchStore, TemplateTaskDeltaStore } from "@byok/db";
 
 // The Anthropic SDK's raw error text for a rejected key ("401
 // {"type":"error","error":{"type":"authentication_error",...}}") never
@@ -21,6 +21,11 @@ export interface RunExtractionBatchDeps {
   // field is private, which would otherwise force every test to construct
   // a real one.
   batchStore: Pick<SignupExtractionBatchStore, "start" | "complete" | "fail">;
+  /** Template-learning capture layer (docs/STATUS.md) — records what the
+   *  customize pass added/removed/adjusted vs. the template's own
+   *  proposal. Best-effort: a write failure here must never fail the
+   *  batch itself, since the org chart is already the real product. */
+  taskDeltaStore: Pick<TemplateTaskDeltaStore, "recordMany">;
   apiKey: string;
   /** Defaults to the real extractOrgChart — injectable so tests can
    *  exercise the gate/batchStore orchestration above without a
@@ -116,6 +121,14 @@ export async function runExtractionBatch(
     const chart = await extract(input.idea, input.answers, { apiKey: deps.apiKey });
     await deps.costGate.settle(reservation.id, chart.meta.costUsd);
     await deps.batchStore.complete(input.userId, batch.id, chart, chart.meta.costUsd);
+    try {
+      const deltas = customizationLogToDeltas(chart.customization, chart.tasks);
+      await deps.taskDeltaStore.recordMany(input.userId, batch.id, chart.meta.templateSelection.primary, deltas, "generation");
+    } catch (err) {
+      // Capture is a side-channel for future template learning — never let
+      // it fail a batch whose real product (the org chart) already saved.
+      console.error(`Template task delta capture failed for batch ${batch.id}:`, err);
+    }
     return { status: "completed", batchId: batch.id, chart, costUsd: chart.meta.costUsd };
   } catch (err) {
     await deps.costGate.release(reservation.id);

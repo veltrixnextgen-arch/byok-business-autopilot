@@ -108,6 +108,19 @@ export interface StoreHandsKeyInput {
   credentialKind?: "opaque" | "oauth";
 }
 
+/** Multi-provider AI (Phase 2 item 5): decryptBrainKey's caller needs to
+ *  know which provider this role's key actually belongs to — the vault
+ *  record has always stored it (StoreBrainKeyInput.provider, used for
+ *  AAD binding), it just never left this package. Without it,
+ *  OpenMultiAgentExecutor had no way to tell @open-multi-agent/core
+ *  which adapter to use, and agent.js:122 (`this.config.provider ??
+ *  'anthropic'`) silently defaulted to Anthropic regardless of which
+ *  provider's key was actually decrypted. */
+export interface DecryptedBrainKey {
+  handle: SecretHandle;
+  provider: string;
+}
+
 /** The narrow interface OpenMultiAgentExecutor depends on — mockable in
  *  router tests without pulling in the whole Vault. tenantId is required
  *  (not just roleId): role ids like "cfo" are short, human-chosen slugs
@@ -115,7 +128,7 @@ export interface StoreHandsKeyInput {
  *  tenant-then-role Map for why a bare roleId lookup would let one
  *  tenant's "cfo" key collide with another's. */
 export interface BrainKeyProvider {
-  decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle>;
+  decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<DecryptedBrainKey>;
 }
 
 /** The Hands-side counterpart to BrainKeyProvider — same purpose (a narrow,
@@ -369,7 +382,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     }
   }
 
-  async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<SecretHandle> {
+  async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<DecryptedBrainKey> {
     assertRouterServiceIdentity(requester);
     const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record || record.revoked || !record.material) {
@@ -383,7 +396,7 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     const dek = await this.dekStore.getOrCreateDek(record.tenantId);
     const plaintext = decrypt(record.material, dek, brainAad(record.roleId, record.provider));
     await this.logAudit("decrypt-granted", record.tenantId, record.id, { requester });
-    return new SecretHandle(plaintext, this.ttlMs);
+    return { handle: new SecretHandle(plaintext, this.ttlMs), provider: record.provider };
   }
 
   // ---- Hands keys (per-sub-agent + per-capability, ADR-002, T8) --------

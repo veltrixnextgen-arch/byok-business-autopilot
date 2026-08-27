@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import type { SignupExtractionBatchStore } from "@byok/db";
-import { assembleOrgChart, getInterviewQuestionsForSelection, guessAnswersFromIdea, selectTemplate } from "@byok/extraction";
+import { assembleOrgChart, diffTaskLists, getInterviewQuestionsForSelection, guessAnswersFromIdea, selectTemplate } from "@byok/extraction";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../context.js";
@@ -195,6 +195,14 @@ export function extractionRoute(deps: ExtractionRouteDeps) {
         batch.orgChart.meta.calls,
       );
       await deps.batchStore.updateOrgChart(userId, id, chart);
+      try {
+        const deltas = diffTaskLists(batch.orgChart.tasks, tasks);
+        await deps.taskDeltaStore.recordMany(userId, id, batch.orgChart.meta.templateSelection.primary, deltas, "reassemble");
+      } catch (err) {
+        // Same best-effort reasoning as the generation-time capture site
+        // (runExtractionBatch.ts) — never let this block the user's edit.
+        console.error(`Template task delta capture failed for batch ${id}:`, err);
+      }
       return c.json({ chart });
     })
     // Renaming doesn't need re-clustering (it's a leaf field, not derived

@@ -32,7 +32,7 @@ test("pulls the Brain key for the task's tenant + team (role), not a hardcoded o
   const fakeVault: BrainKeyProvider = {
     async decryptBrainKey(tenantId, roleId) {
       requestedKeys.push({ tenantId, roleId });
-      return new SecretHandle(Buffer.from("sk-ant-fake-key-0001"), 60_000);
+      return { handle: new SecretHandle(Buffer.from("sk-ant-fake-key-0001"), 60_000), provider: "anthropic" };
     },
   };
 
@@ -54,7 +54,7 @@ test("pulls the Brain key for the task's tenant + team (role), not a hardcoded o
 test("R2/ADR-024: task.systemPrompt reaches runAgent's config verbatim, composed by the router per dispatch", async () => {
   const fakeVault: BrainKeyProvider = {
     async decryptBrainKey() {
-      return new SecretHandle(Buffer.from("sk-ant-fake-key-0003"), 60_000);
+      return { handle: new SecretHandle(Buffer.from("sk-ant-fake-key-0003"), 60_000), provider: "anthropic" };
     },
   };
 
@@ -74,7 +74,7 @@ test("R2/ADR-024: task.systemPrompt reaches runAgent's config verbatim, composed
 test("omits systemPrompt entirely (not an empty string) when the task carries none — pre-R2 callers unaffected", async () => {
   const fakeVault: BrainKeyProvider = {
     async decryptBrainKey() {
-      return new SecretHandle(Buffer.from("sk-ant-fake-key-0004"), 60_000);
+      return { handle: new SecretHandle(Buffer.from("sk-ant-fake-key-0004"), 60_000), provider: "anthropic" };
     },
   };
 
@@ -94,7 +94,7 @@ test("omits systemPrompt entirely (not an empty string) when the task carries no
 test("uses task.model (the cost gate's own choice, possibly a DOWNGRADE) over the constructor's fixed model", async () => {
   const fakeVault: BrainKeyProvider = {
     async decryptBrainKey() {
-      return new SecretHandle(Buffer.from("sk-ant-fake-model-1"), 60_000);
+      return { handle: new SecretHandle(Buffer.from("sk-ant-fake-model-1"), 60_000), provider: "anthropic" };
     },
   };
 
@@ -114,7 +114,7 @@ test("uses task.model (the cost gate's own choice, possibly a DOWNGRADE) over th
 test("falls back to the constructor's fixed model when task.model is unset (no CostGate configured)", async () => {
   const fakeVault: BrainKeyProvider = {
     async decryptBrainKey() {
-      return new SecretHandle(Buffer.from("sk-ant-fake-model-2"), 60_000);
+      return { handle: new SecretHandle(Buffer.from("sk-ant-fake-model-2"), 60_000), provider: "anthropic" };
     },
   };
 
@@ -133,7 +133,7 @@ test("falls back to the constructor's fixed model when task.model is unset (no C
 
 test("zeroes the secret handle after the call completes", async () => {
   const handle = new SecretHandle(Buffer.from("sk-ant-fake-key-0002"), 60_000);
-  const fakeVault: BrainKeyProvider = { async decryptBrainKey() { return handle; } };
+  const fakeVault: BrainKeyProvider = { async decryptBrainKey() { return { handle, provider: "anthropic" }; } };
 
   const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => ({
     runAgent: async () => ({ output: "done" }) as never,
@@ -142,6 +142,59 @@ test("zeroes the secret handle after the call completes", async () => {
   assert.equal(handle.isZeroed, false);
   await executor.execute(makeTask());
   assert.equal(handle.isZeroed, true);
+});
+
+// Multi-provider AI (Phase 2 item 5): agent.js:122 in @open-multi-agent/core
+// defaults `provider` to 'anthropic' whenever the run config omits it — it
+// never infers a provider from the model string. Before this wiring, the
+// executor never set `provider` at all, so a role whose vault key was
+// actually OpenAI or Google would still silently dispatch through the
+// Anthropic adapter with that (wrong) model name. This is the regression
+// test: the vault's own stored provider must reach runAgent's config.
+test("a non-Anthropic provider stored in the vault reaches runAgent's config, not a silent Anthropic default", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return { handle: new SecretHandle(Buffer.from("sk-proj-fake-openai-key"), 60_000), provider: "openai" };
+    },
+  };
+
+  let seenProvider: string | undefined;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "gpt-4o", () => ({
+    runAgent: async (config: { provider?: string }) => {
+      seenProvider = config.provider;
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask());
+
+  assert.equal(seenProvider, "openai");
+});
+
+// Our own BrainProvider id ("google", matching the connect screen and
+// Google's own API — apps/api/src/brainKeys/providerValidation.ts) doesn't
+// match @open-multi-agent/core's SupportedProvider id for the same
+// provider ("gemini") — createAdapter() only recognizes "gemini" and
+// throws on any other string. This proves the executor translates rather
+// than passing our stored id straight through.
+test("vault's 'google' provider id is translated to @open-multi-agent/core's 'gemini' before reaching runAgent", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey() {
+      return { handle: new SecretHandle(Buffer.from("sk-fake-google-key"), 60_000), provider: "google" };
+    },
+  };
+
+  let seenProvider: string | undefined;
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "gemini-2.5-pro", () => ({
+    runAgent: async (config: { provider?: string }) => {
+      seenProvider = config.provider;
+      return { output: "ok" } as never;
+    },
+  }));
+
+  await executor.execute(makeTask());
+
+  assert.equal(seenProvider, "gemini");
 });
 
 test("gracefully returns an error outcome when no Brain key is configured for the role — never throws", async () => {
@@ -162,7 +215,7 @@ test("gracefully returns an error outcome when no Brain key is configured for th
 
 test("a provider/orchestrator error surfaces as {error}, not a hang or an unhandled rejection", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0005"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0005"), 60_000), provider: "anthropic" }; },
   };
 
   const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => ({
@@ -189,7 +242,7 @@ function makeHandsSpec(overrides: Partial<HandsToolSpec> = {}): HandsToolSpec {
 
 test("only registers Hands tools whose subAgentId matches the running task — a hijacked agent can't even see another sub-agent's tool", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0006"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0006"), 60_000), provider: "anthropic" }; },
   };
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0006"), 60_000); },
@@ -221,7 +274,7 @@ test("only registers Hands tools whose subAgentId matches the running task — a
 
 test("Hands key never leaves its SecretHandle across repeated tool calls within one run", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0007"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0007"), 60_000), provider: "anthropic" }; },
   };
 
   const issuedHandles: SecretHandle[] = [];
@@ -260,7 +313,7 @@ test("Hands key never leaves its SecretHandle across repeated tool calls within 
 
 test("omitting handsVault preserves the previous plain-text-only behavior exactly — no customTools sent at all", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0008"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0008"), 60_000), provider: "anthropic" }; },
   };
 
   let sawCustomToolsKey = true;
@@ -277,7 +330,7 @@ test("omitting handsVault preserves the previous plain-text-only behavior exactl
 
 test("issue #22: a Hands tool whose key isn't connected for this tenant is excluded from customTools, and its service is reported as missingHands", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0009"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0009"), 60_000), provider: "anthropic" }; },
   };
   const connectedScopes = new Set(["invoicing::stripe:invoices:write"]);
   const fakeHandsVault: HandsKeyProvider = {
@@ -313,7 +366,7 @@ test("issue #22: a Hands tool whose key isn't connected for this tenant is exclu
 
 test("issue #22: when every needed Hands tool IS connected, missingHands is absent from the outcome entirely", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0010"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0010"), 60_000), provider: "anthropic" }; },
   };
   const fakeHandsVault: HandsKeyProvider = {
     async decryptHandsKey() { return new SecretHandle(Buffer.from("sk-hands-fake-0010"), 60_000); },
@@ -346,7 +399,7 @@ test("issue #22: when every needed Hands tool IS connected, missingHands is abse
 // absence does.
 test("PR 2A: a Hands tool connected at pre-flight but failing on the actual call (e.g. an OAuth refresh failure) still lands in missingHands", async () => {
   const fakeVault: BrainKeyProvider = {
-    async decryptBrainKey() { return new SecretHandle(Buffer.from("sk-ant-fake-0011"), 60_000); },
+    async decryptBrainKey() { return { handle: new SecretHandle(Buffer.from("sk-ant-fake-0011"), 60_000), provider: "anthropic" }; },
   };
   const fakeHandsVault: HandsKeyProvider = {
     // Connected at pre-flight (a real key id comes back)...
