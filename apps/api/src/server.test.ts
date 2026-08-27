@@ -225,7 +225,7 @@ test("google is populated with a redirectUri derived from authBaseUrl once both 
   assert.deepEqual(config.google, {
     clientId: "client-1",
     clientSecret: "secret-1",
-    redirectUri: "https://api.example.com/hands-oauth/google-calendar/callback",
+    redirectUri: "https://api.example.com/api/hands-oauth/google-calendar/callback",
   });
 });
 
