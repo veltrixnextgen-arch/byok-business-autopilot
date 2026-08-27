@@ -72,7 +72,7 @@ test("round-trip through real Postgres storage: a stored Brain key decrypts back
   try {
     await vault.storeBrainKey({ tenantId, roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-real-secret") }, TENANT_USER);
 
-    const handle = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
+    const { handle } = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
     await handle.use(async (plaintext) => {
       assert.equal(plaintext.toString("utf8"), "sk-ant-real-secret");
     });
@@ -141,7 +141,7 @@ test("SecretHandle's TTL-zeroing is unchanged by the storage swap: use() zeroes 
   const tenantId = await seedTenant();
   try {
     await vault.storeBrainKey({ tenantId, roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-zero-me") }, TENANT_USER);
-    const handle = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
+    const { handle } = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
 
     assert.equal(handle.isZeroed, false);
     await handle.use(async (plaintext) => {
@@ -230,7 +230,7 @@ test("a process restart mid-write (DEK created, key record never written) leaves
     const vault = new Vault(kms, undefined, 60_000, undefined, undefined, new PostgresVaultKeyStore(pool), dekRecordStore);
     await vault.storeBrainKey({ tenantId, roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-after-restart") }, TENANT_USER);
 
-    const handle = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
+    const { handle } = await vault.decryptBrainKey(tenantId, "cfo", ROUTER);
     await handle.use(async (plaintext) => {
       assert.equal(plaintext.toString("utf8"), "sk-ant-after-restart");
     });
