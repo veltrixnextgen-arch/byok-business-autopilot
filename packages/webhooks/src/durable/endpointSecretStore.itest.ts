@@ -31,8 +31,8 @@ test("set then get round-trips a secret through real Postgres", async () => {
   const store = new PostgresWebhookEndpointSecretStore(pool);
   const tenantId = await seedTenant();
   try {
-    await store.set(tenantId, "stripe", "whsec_real_test_123");
-    assert.equal(await store.get(tenantId, "stripe"), "whsec_real_test_123");
+    await store.set(tenantId, "stripe", "test-secret-real_test_123");
+    assert.equal(await store.get(tenantId, "stripe"), "test-secret-real_test_123");
     assert.equal(await store.isConfigured(tenantId, "stripe"), true);
   } finally {
     await cleanup([tenantId]);
@@ -43,9 +43,9 @@ test("re-setting replaces the secret (ON CONFLICT DO UPDATE), not a duplicate ro
   const store = new PostgresWebhookEndpointSecretStore(pool);
   const tenantId = await seedTenant();
   try {
-    await store.set(tenantId, "stripe", "whsec_old");
-    await store.set(tenantId, "stripe", "whsec_new");
-    assert.equal(await store.get(tenantId, "stripe"), "whsec_new");
+    await store.set(tenantId, "stripe", "test-secret-old");
+    await store.set(tenantId, "stripe", "test-secret-new");
+    assert.equal(await store.get(tenantId, "stripe"), "test-secret-new");
   } finally {
     await cleanup([tenantId]);
   }
@@ -57,7 +57,7 @@ test("RLS: one tenant's secret is invisible to another tenant's scoped session",
   const tenantA = await seedTenant();
   const tenantB = await seedTenant();
   try {
-    await store.set(tenantA, "stripe", "whsec_tenant_a_secret");
+    await store.set(tenantA, "stripe", "test-secret-tenant_a_secret");
     assert.equal(await store.get(tenantB, "stripe"), null, "tenant B must not read tenant A's webhook secret");
   } finally {
     await cleanup([tenantA, tenantB]);

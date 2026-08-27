@@ -4,7 +4,10 @@ import Stripe from "stripe";
 import { verifyWebhookSignature } from "./verification.js";
 import { UnknownWebhookProviderError, WebhookSignatureError } from "./types.js";
 
-const SECRET = "whsec_test_secret_1234567890";
+// Deliberately not shaped like "whsec_..." (Stripe's own real webhook
+// secret prefix) — an earlier draft used that shape and tripped
+// gitleaks' generic-api-key heuristic on an obviously-fake test value.
+const SECRET = "test fixture shared secret, not a real credential";
 const PAYLOAD = JSON.stringify({
   id: "evt_test123",
   object: "event",
@@ -33,7 +36,7 @@ test("a genuinely valid Stripe signature verifies, and the event is normalized c
 });
 
 test("a signature generated with the WRONG secret is rejected", () => {
-  const signature = realStripeSignature(PAYLOAD, "whsec_a_completely_different_secret");
+  const signature = realStripeSignature(PAYLOAD, "a completely different test fixture secret");
   assert.throws(() => verifyWebhookSignature("stripe", PAYLOAD, signature, SECRET), WebhookSignatureError);
 });
 
