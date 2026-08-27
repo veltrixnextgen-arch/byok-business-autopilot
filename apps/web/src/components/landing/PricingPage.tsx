@@ -13,13 +13,6 @@ import { AccordionItem, Reveal, RwCard, SectionContainer, SectionEyebrow, Sectio
 // page no longer says otherwise. Annual is a flat 2 months free on every
 // tier — lib/pricingConstants.ts's priceAnnualUsd already bakes that in,
 // this file just formats it.
-const TIER_STAT_FIELDS = [
-  { key: "companies" as const, label: "Companies" },
-  { key: "agents" as const, label: "Agents" },
-  { key: "history" as const, label: "History" },
-  { key: "teamMembers" as const, label: "Team members" },
-];
-
 type BillingPeriod = "monthly" | "annual";
 
 const FAQ = [
@@ -57,11 +50,26 @@ const FAQ = [
   },
 ];
 
-function formatPrice(tier: (typeof PRICING_TIERS)[number], period: BillingPeriod): { amount: string; suffix: string } {
+// Annual is shown as its OWN discounted monthly rate (the big number),
+// with the real annual total in small text beneath — never as a lump
+// "$/year" figure. That's the number a buyer actually compares against
+// the monthly price, and it's what makes annual read as cheaper rather
+// than as a bigger up-front commitment. The effective rate is always
+// derived from priceAnnualUsd/12, never hand-typed, so it can't drift
+// from the annual total actually charged.
+function formatPrice(
+  tier: (typeof PRICING_TIERS)[number],
+  period: BillingPeriod,
+): { amount: string; suffix: string; annualNote: string | null } {
   if (period === "annual") {
-    return { amount: `$${tier.priceAnnualUsd.toLocaleString()}`, suffix: "/year" };
+    const effectiveMonthly = tier.priceAnnualUsd / 12;
+    return {
+      amount: `$${effectiveMonthly.toFixed(2)}`,
+      suffix: "/month",
+      annualNote: `$${tier.priceAnnualUsd.toLocaleString()} billed annually · 2 months free`,
+    };
   }
-  return { amount: `$${tier.priceMonthlyUsd}`, suffix: "/month" };
+  return { amount: `$${tier.priceMonthlyUsd}`, suffix: "/month", annualNote: null };
 }
 
 export function PricingPage() {
@@ -74,7 +82,7 @@ export function PricingPage() {
   return (
     <>
       <LandingNav />
-      <SectionContainer ref={heroRef} className="pb-8 pt-32 sm:pt-40">
+      <SectionContainer ref={heroRef} className="pb-8 pt-32 sm:pt-40 lg:pt-40">
         <Reveal revealed={heroRevealed} className="mx-auto max-w-3xl space-y-4 text-center">
           <SectionEyebrow>Pricing</SectionEyebrow>
           <h1 className="font-display text-3xl font-semibold leading-[1.08] tracking-tight sm:text-4xl lg:text-[52px]">
@@ -142,33 +150,36 @@ export function PricingPage() {
                 <h2 className="font-display text-xl font-semibold text-text">{tier.name}</h2>
                 <p className="mt-1.5 text-sm text-text-secondary">{tier.tagline}</p>
 
-                <p className="mt-6 font-display text-3xl font-semibold text-text">
+                {tier.leadWithCadence && (
+                  <p className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
+                    ⚡ {tier.cadenceLabel} cadence
+                  </p>
+                )}
+
+                <p className={cx("font-display text-3xl font-semibold text-text", tier.leadWithCadence ? "mt-3" : "mt-6")}>
                   {price.amount}
                   <span className="ml-1.5 text-sm font-normal text-text-muted">{price.suffix}</span>
                 </p>
+                {price.annualNote && <p className="mt-1 text-xs text-text-muted">{price.annualNote}</p>}
                 <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
                   Platform only · AI usage billed by your provider
                 </p>
 
-                <div className="mt-5 grid grid-cols-2 gap-2.5">
-                  {TIER_STAT_FIELDS.map((field) => (
-                    <div key={field.key} className="rounded-lg border border-border-subtle bg-bg-glass-subtle px-3 py-2.5">
-                      <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-text-muted">{field.label}</p>
-                      <p className="mt-1 text-sm font-semibold text-text">{tier[field.key]}</p>
-                    </div>
-                  ))}
-                </div>
+                <p className="mt-5 text-sm leading-relaxed text-text-secondary">{tier.stats.join(" · ")}</p>
 
-                <ul className="mt-6 flex-1 space-y-2.5">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
-                      <span className="mt-0.5 text-accent" aria-hidden="true">
-                        ✓
-                      </span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-5 flex-1 border-t border-border-subtle pt-5">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">{tier.featuresLabel}</p>
+                  <ul className="mt-2.5 space-y-2.5">
+                    {tier.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
+                        <span className="mt-0.5 text-accent" aria-hidden="true">
+                          ✓
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
                 <Link
                   to="/"
