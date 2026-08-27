@@ -12,14 +12,14 @@ import { hc } from "hono/client";
 // consent screen and back.
 // Cross-origin (Railway) by default — matches local dev, where apps/web
 // and apps/api genuinely run on different ports and vercel.json's rewrite
-// doesn't exist. In production with the same-origin proxy (ADR-052,
+// doesn't exist. In production with the same-origin proxy (ADR-053,
 // issue #144), set VITE_API_URL="" at build time instead: every request
 // this file makes is already a relative path against AppType's own
 // route tree, so an empty base resolves against the current page's own
 // origin, which is exactly what makes the session cookie first-party.
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-// ADR-052 (same-origin proxy, issue #144): apps/api's browser-facing
+// ADR-053 (same-origin proxy, issue #144): apps/api's browser-facing
 // routes are mounted under /api server-side now (index.ts's browserApi),
 // so AppType's own tree nests everything one level deeper than it used
 // to. Pre-scoping the exported client to `.api` here — once, in the one

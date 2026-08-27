@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createApp, type CreateAppOptions } from "./index.js";
 
-// ADR-052 (same-origin proxy, issue #144): a structural regression guard
+// ADR-053 (same-origin proxy, issue #144): a structural regression guard
 // for the /api wrapping itself — every existing route-level test file
 // (health.test.ts, dashboard.test.ts, ...) mounts its route directly at
 // its own path, bypassing createApp() entirely, so none of them would

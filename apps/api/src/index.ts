@@ -142,7 +142,7 @@ export function createApp(options: CreateAppOptions) {
   const instrumentation = new SchedulerInstrumentationStore(options.pool);
   const durableBatchStore = new PostgresDurableBatchStore(options.pool);
 
-  // ADR-052 (same-origin proxy, issue #144): every route below that a
+  // ADR-053 (same-origin proxy, issue #144): every route below that a
   // real BROWSER session calls lives under this sub-app, mounted at
   // /api on the final app further down — apps/web's own page routes
   // (dashboard.tsx, tasks.tsx, ...) already occupy the un-prefixed
