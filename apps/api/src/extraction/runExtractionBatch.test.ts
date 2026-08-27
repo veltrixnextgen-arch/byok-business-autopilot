@@ -68,12 +68,23 @@ function fakeBatchStore() {
   };
 }
 
+function fakeTaskDeltaStore() {
+  const recorded: Array<{ userId: string; batchId: string; templateId: string; deltas: unknown[]; source: string }> = [];
+  return {
+    recorded,
+    async recordMany(userId: string, batchId: string, templateId: string, deltas: readonly unknown[], source: string) {
+      recorded.push({ userId, batchId, templateId, deltas: [...deltas], source });
+    },
+  };
+}
+
 function buildDeps(overrides: {
   ceilingUsd: number;
   extract: RunExtractionBatchDeps["extract"];
   apiKey?: string;
   costGate?: CostGate;
-}): { deps: RunExtractionBatchDeps; batchStore: ReturnType<typeof fakeBatchStore> } {
+  taskDeltaStore?: ReturnType<typeof fakeTaskDeltaStore>;
+}) {
   const modelMap: TierModelMap = { T1: "cheap", T2: "claude-sonnet-4-6", T3: "frontier" };
   const pricingTable = new PricingTable({
     version: 1,
@@ -93,9 +104,11 @@ function buildDeps(overrides: {
       modelMap,
     );
   const batchStore = fakeBatchStore();
+  const taskDeltaStore = overrides.taskDeltaStore ?? fakeTaskDeltaStore();
   return {
-    deps: { costGate, batchStore, apiKey: overrides.apiKey ?? "test-key", extract: overrides.extract },
+    deps: { costGate, batchStore, taskDeltaStore, apiKey: overrides.apiKey ?? "test-key", extract: overrides.extract },
     batchStore,
+    taskDeltaStore,
   };
 }
 
@@ -103,6 +116,45 @@ test("a successful batch reserves, settles with the real cost, and persists it",
   const { deps, batchStore } = buildDeps({
     ceilingUsd: 1000,
     extract: async () => FAKE_CHART,
+  });
+
+  const result = await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });
+
+  assert.equal(result.status, "completed");
+  assert.deepEqual(batchStore.calls, ["start", "complete"]);
+});
+
+test("a successful batch records template-learning deltas derived from the chart's customization log", async () => {
+  const chartWithEdits: OrgChart = {
+    ...FAKE_CHART,
+    tasks: [
+      { id: "t-added", text: "added task", agentType: "x", agentLabel: "X", teamHint: "ops", frequency: "weekly", stakes: "low", tier: "T1", autonomy: "locked", handsTool: null, origin: "customize-added" },
+    ] as unknown as OrgChart["tasks"],
+    customization: { added: ["t-added"], removed: ["t-removed"], frequencyAdjustments: [{ taskId: "t-freq", from: "weekly", to: "daily" }], categoryCorrections: [] },
+  };
+  const { deps, taskDeltaStore } = buildDeps({ ceilingUsd: 1000, extract: async () => chartWithEdits });
+
+  await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });
+
+  assert.equal(taskDeltaStore.recorded.length, 1);
+  const [rec] = taskDeltaStore.recorded;
+  assert.equal(rec.userId, "user-1");
+  assert.equal(rec.batchId, "batch-1");
+  assert.equal(rec.templateId, "service");
+  assert.equal(rec.source, "generation");
+  assert.equal(rec.deltas.length, 3);
+});
+
+test("a template-learning capture failure never fails the batch itself", async () => {
+  const failingTaskDeltaStore = {
+    async recordMany() {
+      throw new Error("capture store unavailable");
+    },
+  };
+  const { deps, batchStore } = buildDeps({
+    ceilingUsd: 1000,
+    extract: async () => FAKE_CHART,
+    taskDeltaStore: failingTaskDeltaStore as unknown as ReturnType<typeof fakeTaskDeltaStore>,
   });
 
   const result = await runExtractionBatch(deps, { userId: "user-1", idea: "test idea", answers: ANSWERS });

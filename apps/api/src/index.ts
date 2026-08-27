@@ -11,6 +11,7 @@ import {
   type PoolLike,
   type SignupExtractionBatchStore,
   type SignupMetricsStore,
+  type TemplateTaskDeltaStore,
 } from "@byok/db";
 import { syncTenantSchedule, type ConnectionHealth, type QueueLike, type RepeatableQueueLike } from "@byok/jobs";
 import { PostgresCostActivityQueries } from "@byok/router";
@@ -65,6 +66,7 @@ export interface CreateAppOptions {
    *  key (ADR-003), neither of which the rest of trustCore needs. */
   extraction: {
     batchStore: SignupExtractionBatchStore;
+    taskDeltaStore: TemplateTaskDeltaStore;
     apiKey: string;
   };
   /** MVP-0 tester gate (Phase B Step 6C) — the write side (funnel events,
@@ -260,6 +262,7 @@ export function createApp(options: CreateAppOptions) {
       "/extraction",
       extractionRoute({
         batchStore: options.extraction.batchStore,
+        taskDeltaStore: options.extraction.taskDeltaStore,
         costGate: options.trustCore.costGate,
         apiKey: options.extraction.apiKey,
       }),
