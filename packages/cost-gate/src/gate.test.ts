@@ -30,7 +30,7 @@ function makeDeps(overrides: Partial<GateDependencies> = {}): GateDependencies {
     pricingTable: freshPricingTable(),
     ceilingConfig,
     ledger: new ReservationLedger(),
-    modelMap,
+    modelMaps: { anthropic: modelMap },
     ...overrides,
   };
 }
@@ -97,6 +97,49 @@ test("downgrade-then-skip cascade: even T1 doesn't fit and task is not batchable
   const verdict = evaluateGateVerdict(makeInput({ batchable: false }), deps);
   assert.equal(verdict.kind, "SKIP");
   assert.match(verdict.reason, /isn't batchable/);
+});
+
+// Multi-provider AI (ADR-048): a downgrade must stay within the SAME
+// provider as the requested model — the vault key already decrypted for
+// this task's role belongs to one provider, and there's no way to switch
+// mid-task to a cheaper model from a DIFFERENT provider without a
+// different Brain key the executor was never given.
+test("downgrade stays within the requested model's own provider, even when a cheaper tier exists for a different provider", () => {
+  const multiProviderTable = new PricingTable({
+    version: 1,
+    lastVerified: new Date().toISOString().slice(0, 10),
+    prices: {
+      "anthropic-mid": { provider: "anthropic", tier: "T2", inputPerMTok: 3, outputPerMTok: 15 },
+      "anthropic-cheap": { provider: "anthropic", tier: "T1", inputPerMTok: 0.8, outputPerMTok: 4 },
+      // Deliberately cheaper than anthropic-cheap — if the downgrade ever
+      // ignored provider, it would prefer this one, which would be wrong.
+      "openai-cheap": { provider: "openai", tier: "T1", inputPerMTok: 0.05, outputPerMTok: 0.4 },
+    },
+  });
+  const deps: GateDependencies = {
+    pricingTable: multiProviderTable,
+    ceilingConfig: { companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: { invoicing: 0.002 } },
+    ledger: new ReservationLedger(),
+    modelMaps: {
+      anthropic: { T1: "anthropic-cheap", T2: "anthropic-mid", T3: "anthropic-mid" },
+      openai: { T1: "openai-cheap", T2: "openai-cheap", T3: "openai-cheap" },
+    },
+  };
+
+  const verdict = evaluateGateVerdict(makeInput({ model: "anthropic-mid" }), deps);
+
+  assert.equal(verdict.kind, "DOWNGRADE");
+  assert.equal(verdict.model, "anthropic-cheap");
+});
+
+test("downgrade returns no path (not a crash) when the requested model's own provider has no configured tier map", () => {
+  const deps = makeDeps({ modelMaps: {} });
+  const result = evaluateGateVerdict(
+    makeInput({}),
+    { ...deps, ceilingConfig: { companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: { invoicing: 0.002 } } },
+  );
+  assert.notEqual(result.kind, "PROCEED");
+  assert.notEqual(result.kind, "DOWNGRADE");
 });
 
 test("already at cheapest tier and over ceiling -> no downgrade possible, goes straight to queue/skip", () => {
