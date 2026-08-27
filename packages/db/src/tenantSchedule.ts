@@ -47,6 +47,30 @@ export async function setTenantTier(pool: PoolLike, tenantId: string, tier: Tena
   });
 }
 
+export interface TenantStripeIds {
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+}
+
+/**
+ * Issue #18/ADR-045 (migration 0015). Stored for operational/support use
+ * (looking up a tenant's real Stripe customer record) and a future
+ * "manage billing" portal-link — NOT used to resolve which tenant a
+ * webhook event is about (every event this app handles carries tenantId
+ * in its own metadata already, see billing/stripeClient.ts). Called
+ * alongside applyTierChange, never in place of it — this only persists
+ * the Stripe-side identifiers, `tier` is a separate write.
+ */
+export async function setTenantStripeIds(pool: PoolLike, tenantId: string, ids: TenantStripeIds): Promise<void> {
+  await withTenantScope(pool, tenantId, async (client) => {
+    await client.query(`UPDATE tenants SET stripe_customer_id = $2, stripe_subscription_id = $3 WHERE id = $1::uuid`, [
+      tenantId,
+      ids.stripeCustomerId,
+      ids.stripeSubscriptionId,
+    ]);
+  });
+}
+
 export interface TenantScheduleState {
   tenantId: string;
   pausedAt: string | null;
