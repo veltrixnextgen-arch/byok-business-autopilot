@@ -33,3 +33,13 @@ d338bf33eb02fba4c2064950e83cfb400d89b21a:docs/design/tool-registry.md:generic-ap
 # still trips the rule, so its fingerprint is ignored here rather than
 # rewriting already-pushed history.
 08a66227de0072f52fe5e86276021b34e785a6af:apps/api/src/oauth/state.test.ts:generic-api-key:5
+
+# packages/webhooks/src/verification.test.ts line 7 (commit 67d50707a,
+# PR #195): a hand-authored Stripe-webhook-secret test fixture whose
+# placeholder value happened to match Stripe's real "whsec_..." prefix
+# shape — never a real secret. Renamed to a non-matching shape in the very
+# next commit, same pattern as the stripe-access-token and generic-api-key
+# entries above; this now-superseded commit's own diff (still part of the
+# PR's commit range) still trips the rule, so its fingerprint is ignored
+# here rather than rewriting already-pushed history.
+67d50707ad913037815b4e0568a4ecc1922ac7e9:packages/webhooks/src/verification.test.ts:generic-api-key:7
