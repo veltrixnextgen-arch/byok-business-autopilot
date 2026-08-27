@@ -7,7 +7,7 @@ import type { CeilingConfig } from "./ceilings.js";
 import type { TierModelMap } from "./tierRouter.js";
 import type { GateEvaluationRequest } from "./costGate.js";
 
-const modelMap: TierModelMap = { T1: "cheap-model", T2: "mid-model", T3: "frontier-model" };
+const modelMaps = { anthropic: { T1: "cheap-model", T2: "mid-model", T3: "frontier-model" } as TierModelMap };
 
 function freshPricingTable() {
   return new PricingTable({
@@ -22,7 +22,7 @@ function freshPricingTable() {
 }
 
 function makeGate(ceilingConfig: CeilingConfig, store = new InMemoryDurableReservationStore()) {
-  return new CostGate(freshPricingTable(), ceilingConfig, store, modelMap);
+  return new CostGate(freshPricingTable(), ceilingConfig, store, modelMaps);
 }
 
 function makeInput(overrides: Partial<GateEvaluationRequest> = {}): GateEvaluationRequest {
@@ -192,7 +192,7 @@ test("issue #15: a ceiling resolver function is called with the tenantId and its
       return { companyMonthlyUsd: 0.0001, perRoleUsd: {}, perTaskTypeUsd: {} };
     },
     new InMemoryDurableReservationStore(),
-    modelMap,
+    modelMaps,
   );
 
   const result = await gate.evaluateAndReserve(makeInput({ tenantId: "tenant-resolver", batchable: false }));
@@ -207,7 +207,7 @@ test("issue #15: two tenants get genuinely different ceilings from the same reso
     freshPricingTable(),
     (tenantId: string) => ({ companyMonthlyUsd: ceilingsByTenant[tenantId] ?? 50, perRoleUsd: {}, perTaskTypeUsd: {} }),
     new InMemoryDurableReservationStore(),
-    modelMap,
+    modelMaps,
   );
 
   const generous = await gate.evaluateAndReserve(makeInput({ taskId: "g-1", tenantId: "tenant-generous" }));

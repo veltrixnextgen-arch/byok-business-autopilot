@@ -8,7 +8,7 @@ import { InMemoryDurableTaskLedger } from "./durable/ledgerStore.js";
 import type { AgentExecutor, ExecutionOutcome } from "./executor.js";
 import type { RouterTask } from "./types.js";
 
-const modelMap: TierModelMap = { T1: "cheap-model", T2: "mid-model", T3: "frontier-model" };
+const modelMaps = { anthropic: { T1: "cheap-model", T2: "mid-model", T3: "frontier-model" } as TierModelMap };
 
 function freshPricingTable() {
   return new PricingTable({
@@ -23,7 +23,7 @@ function freshPricingTable() {
 }
 
 function makeGate(ceilingConfig: CeilingConfig) {
-  return new CostGate(freshPricingTable(), ceilingConfig, new InMemoryDurableReservationStore(), modelMap);
+  return new CostGate(freshPricingTable(), ceilingConfig, new InMemoryDurableReservationStore(), modelMaps);
 }
 
 function countingExecutor(): { executor: AgentExecutor; callCount: () => number } {

@@ -1,6 +1,13 @@
 import { join } from "node:path";
 import { ApprovalQueue, MockEffectExecutor, PostgresDurableAutonomyStore } from "@byok/approval-queue";
-import { CostGate, InMemoryDurableReservationStore, loadDefaultPricingTable, type PricingTable, type TierModelMap } from "@byok/cost-gate";
+import {
+  CostGate,
+  InMemoryDurableReservationStore,
+  loadDefaultPricingTable,
+  type PricingTable,
+  type TierModelMap,
+  type TierModelMapsByProvider,
+} from "@byok/cost-gate";
 import { TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDurableDedupStore, InMemoryDurableTaskLedger, MockExecutor, Router } from "@byok/router";
 import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
@@ -22,6 +29,31 @@ export const DEV_TIER_MODEL_MAP: TierModelMap = {
   T1: "claude-haiku-4-5-20251001",
   T2: "claude-sonnet-4-6",
   T3: "claude-opus-4-6",
+};
+
+// Multi-provider AI (Phase 2 item 5, ADR-048): one TierModelMap per
+// provider, keyed the same way pricing-table.json's own PricingEntry.provider
+// is (see pricing.ts) — CostGate picks the right one per task based on the
+// requested model's own provider, never a shared/ambiguous map. OpenAI and
+// Google tier bands do NOT line up dollar-for-dollar with Anthropic's own
+// T1/T2/T3 cutoffs (see ADR-048's research) — each provider's T1/T2/T3 here
+// is that PROVIDER's own relative cheap/balanced/frontier tier, not a shared
+// absolute price band. Google has no distinct frontier-tier model in its
+// current lineup (its own flagship, gemini-2.5-pro, IS both its T2 and T3) —
+// documented, not hidden: a "high-stakes" task on a Google-keyed role gets
+// the same model a normal task would, with nowhere further to escalate to.
+export const TIER_MODEL_MAPS_BY_PROVIDER: TierModelMapsByProvider = {
+  anthropic: DEV_TIER_MODEL_MAP,
+  openai: {
+    T1: "gpt-5-nano",
+    T2: "gpt-5",
+    T3: "gpt-5-pro",
+  },
+  google: {
+    T1: "gemini-2.5-flash-lite",
+    T2: "gemini-2.5-pro",
+    T3: "gemini-2.5-pro",
+  },
 };
 
 export function loadDevPricingTable(): PricingTable {
@@ -87,7 +119,7 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
     };
   };
 
-  const costGate = new CostGate(pricingTable, ceilingResolver, new InMemoryDurableReservationStore(), DEV_TIER_MODEL_MAP);
+  const costGate = new CostGate(pricingTable, ceilingResolver, new InMemoryDurableReservationStore(), TIER_MODEL_MAPS_BY_PROVIDER);
   // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
   // AutonomyEngine this used to be — `pool` is already required here
   // (TenantCeilingStore above), so this follows the same direction the

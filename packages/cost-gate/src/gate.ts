@@ -34,11 +34,20 @@ export interface GateEvaluationInput {
   batchable: boolean;
 }
 
+// Multi-provider AI (Phase 2 item 5, ADR-048): one TierModelMap per
+// provider, not one map shared across all of them — a T2 downgrade for an
+// OpenAI-keyed task must land on an OpenAI model, never silently jump to
+// a cheaper ANTHROPIC model just because it happened to be in the same
+// map. Keyed by the same provider string PricingEntry.provider already
+// carries (see pricing.ts) — never a subset union, since new providers
+// are pure data additions to pricing-table.json, not a type change here.
+export type TierModelMapsByProvider = Record<string, TierModelMap>;
+
 export interface GateDependencies {
   pricingTable: PricingTable;
   ceilingConfig: CeilingConfig;
   ledger: ReservationLedger;
-  modelMap: TierModelMap;
+  modelMaps: TierModelMapsByProvider;
 }
 
 export function evaluateGateVerdict(input: GateEvaluationInput, deps: GateDependencies): GateVerdict {
@@ -82,17 +91,24 @@ export function evaluateGateVerdict(input: GateEvaluationInput, deps: GateDepend
 }
 
 function tryDowngrade(input: GateEvaluationInput, deps: GateDependencies): GateVerdict | null {
-  let currentTier;
+  let currentEntry;
   try {
-    currentTier = deps.pricingTable.priceFor(input.model).tier;
+    currentEntry = deps.pricingTable.priceFor(input.model);
   } catch {
     return null; // can't even determine current tier — no safe downgrade path
   }
 
-  const lowerTier = tierOneStepDown(currentTier);
+  const lowerTier = tierOneStepDown(currentEntry.tier);
   if (!lowerTier) return null; // already cheapest tier, nowhere to downgrade to
 
-  const downgradedModel = selectModel(lowerTier, deps.modelMap);
+  // Same provider as the requested model, always — the vault key already
+  // decrypted for this task's role belongs to ONE provider; a downgrade
+  // that silently switched providers would need a different Brain key the
+  // executor was never given.
+  const modelMap = deps.modelMaps[currentEntry.provider];
+  if (!modelMap) return null; // no tier map configured for this provider — no safe downgrade path
+
+  const downgradedModel = selectModel(lowerTier, modelMap);
 
   let downgradedEstimate: CostEstimate;
   try {

@@ -1,9 +1,8 @@
-import { evaluateGateVerdict, type GateEvaluationInput, type GateVerdict } from "./gate.js";
+import { evaluateGateVerdict, type GateEvaluationInput, type GateVerdict, type TierModelMapsByProvider } from "./gate.js";
 import type { CeilingConfig } from "./ceilings.js";
 import { ReservationLedger, UnknownReservationError, type Reservation } from "./reservations.js";
 import type { DurableReservationStore } from "./durable/reservationStore.js";
 import type { PricingTable } from "./pricing.js";
-import type { TierModelMap } from "./tierRouter.js";
 import { isDevOrTestEnvironment } from "@byok/vault";
 import { InMemoryDurableAuditLog, type DurableAuditLog, type StoredAuditEvent } from "@byok/db";
 
@@ -106,7 +105,7 @@ export class CostGate {
     private readonly pricingTable: PricingTable,
     private readonly ceilingConfig: CeilingConfig | CeilingConfigResolver,
     private readonly store: DurableReservationStore,
-    private readonly modelMap: TierModelMap,
+    private readonly modelMaps: TierModelMapsByProvider,
     audit?: DurableAuditLog,
   ) {
     this.audit = audit ?? defaultAuditLog();
@@ -139,7 +138,7 @@ export class CostGate {
       pricingTable: this.pricingTable,
       ceilingConfig,
       ledger: this.ledgerFor(input.tenantId),
-      modelMap: this.modelMap,
+      modelMaps: this.modelMaps,
     });
 
     let verdict = preCheck;
