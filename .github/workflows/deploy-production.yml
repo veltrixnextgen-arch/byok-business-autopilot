@@ -338,14 +338,14 @@ jobs:
           RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
         run: |
           for i in $(seq 1 30); do
-            if curl -sf "$RAILWAY_URL/health" > /dev/null; then
-              echo "apps/api is healthy at $RAILWAY_URL/health"
+            if curl -sf "$RAILWAY_URL/api/health" > /dev/null; then
+              echo "apps/api is healthy at $RAILWAY_URL/api/health"
               exit 0
             fi
             echo "Waiting for apps/api to come up ($i/30)..."
             sleep 5
           done
-          echo "::error::apps/api never became healthy at $RAILWAY_URL/health"
+          echo "::error::apps/api never became healthy at $RAILWAY_URL/api/health"
           exit 1
 
       # 2026-08-14 incident (docs/TRACKING.md): every deploy attempt from
@@ -390,7 +390,7 @@ jobs:
           RAILWAY_URL: ${{ steps.railway_domain.outputs.url }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          node apps/api/scripts/verify-build-sha.mjs "$RAILWAY_URL/health" "${{ github.sha }}" 30 10000 || {
+          node apps/api/scripts/verify-build-sha.mjs "$RAILWAY_URL/api/health" "${{ github.sha }}" 30 10000 || {
             echo "::error::Dumping Railway logs for diagnosis."
             railway logs --deployment --latest -n 200 --environment "$RAILWAY_ENV" 2>&1 || true
             exit 1
