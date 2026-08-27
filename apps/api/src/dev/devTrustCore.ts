@@ -155,5 +155,5 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
     new PostgresDekRecordStore(pool),
   );
 
-  return { router, costGate, approvalQueue, vault, tierModelMap: DEV_TIER_MODEL_MAP };
+  return { router, costGate, approvalQueue, vault, tierModelMaps: TIER_MODEL_MAPS_BY_PROVIDER };
 }

@@ -336,7 +336,8 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     scheduleState: new TenantScheduleStateStore(pool),
     instrumentation: new SchedulerInstrumentationStore(pool),
     durableBatchStore: new PostgresDurableBatchStore(pool),
-    tierModelMap: trustCore.tierModelMap,
+    tierModelMaps: trustCore.tierModelMaps,
+    vault: trustCore.vault,
     notifications: scheduleNotifications,
   });
   const worker = createTenantWorker<ScheduledDispatchPayload>(

@@ -1,7 +1,8 @@
 import type { PromptTier, Router, RouterTask, RouterTaskInput } from "@byok/router";
-import type { DurableBatchStore } from "@byok/cost-gate";
-import { selectModel, type TierModelMap } from "@byok/cost-gate";
+import type { DurableBatchStore, TierModelMapsByProvider } from "@byok/cost-gate";
+import { selectModel } from "@byok/cost-gate";
 import type { CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
+import type { Vault } from "@byok/vault";
 import type { ScheduledDispatchPayload } from "./computeDesiredSchedule.js";
 import { notifySchedulePaused, type ScheduleNotificationDeps } from "./scheduleNotifications.js";
 
@@ -12,7 +13,18 @@ export interface ScheduledDispatchDeps {
   scheduleState: Pick<TenantScheduleStateStore, "get" | "pause">;
   instrumentation: Pick<SchedulerInstrumentationStore, "recordScheduledRun">;
   durableBatchStore: Pick<DurableBatchStore, "pause">;
-  tierModelMap: TierModelMap;
+  /** Multi-provider AI (Phase 2 item 5, ADR-047/048): a scheduled dispatch
+   *  picks its model BEFORE the task ever reaches CostGate, so it needs
+   *  the SAME provider awareness CostGate's own downgrade path already
+   *  has (ADR-047) — a role connected to OpenAI or Google must get an
+   *  OpenAI/Google model here, not silently fall back to whatever the
+   *  Anthropic map happens to contain. */
+  tierModelMaps: TierModelMapsByProvider;
+  /** Only used to look up which provider this role's Brain key actually
+   *  belongs to (getBrainKeyStatus — a metadata read, never decrypts).
+   *  Vault is the only source of truth for this; nothing about scheduled
+   *  dispatch tracks provider choice on its own. */
+  vault: Pick<Vault, "getBrainKeyStatus">;
   /** Issue #140: a schedule pausing must be visible, not silently
    *  discovered later (or never). notifySchedulePaused itself never
    *  throws, so wiring it in here can't turn a notification hiccup into a
@@ -78,13 +90,24 @@ export function createScheduledDispatchProcessor(deps: ScheduledDispatchDeps) {
     const systemPrompt =
       promptTier === "ceo" ? charter.cascade.ceo.text : charter.cascade.subAgents.find((p) => p.agentId === agent.id)?.text;
 
+    // Same (tenantId, roleId) pair OpenMultiAgentExecutor itself later
+    // decrypts with (task.tenantId + task.teamId, ADR-048) — a metadata
+    // read only, never touches key material. No key connected yet reads
+    // as "anthropic" (the historical default, matching this map's own
+    // fallback below), not an error: the dispatch still needs SOME model
+    // string to submit, and the real failure (no Brain key at all)
+    // surfaces later, inside the executor, exactly as it always has.
+    const brainKeyStatus = await deps.vault.getBrainKeyStatus(payload.tenantId, agent.teamId);
+    const provider = brainKeyStatus?.type === "brain" ? brainKeyStatus.provider : "anthropic";
+    const modelMap = deps.tierModelMaps[provider] ?? deps.tierModelMaps.anthropic;
+
     const input: RouterTaskInput = {
       subAgentId: agent.id,
       teamId: agent.teamId,
       title: task.text,
       payload: task.text,
       dedupKey: `${payload.taskId}:${new Date().toISOString()}`,
-      model: selectModel(agent.tier, deps.tierModelMap),
+      model: selectModel(agent.tier, modelMap),
       tenantId: payload.tenantId,
       agentName: agent.name,
       systemPrompt,
