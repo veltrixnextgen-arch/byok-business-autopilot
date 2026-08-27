@@ -151,7 +151,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const googleClientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET;
   const google =
     googleClientId && googleClientSecret
-      ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/hands-oauth/google-calendar/callback` }
+      ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/api/hands-oauth/google-calendar/callback` }
       : null;
 
   const resendApiKey = env.RESEND_API_KEY;

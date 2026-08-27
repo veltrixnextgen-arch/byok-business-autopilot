@@ -27,6 +27,7 @@ const MIGRATION_FILES = [
   "0014_revoke_supabase_api_roles.sql",
   "0015_tenant_billing.sql",
   "0016_template_task_deltas.sql",
+  "0017_task_chains.sql",
   "0018_webhook_endpoints.sql",
 ];
 

@@ -54,5 +54,5 @@ export async function connectHandsKey(subAgentId: string, tool: string, apiKey: 
  */
 export function handsOAuthStartUrl(subAgentId: string, tool: string, oauthService: string): string {
   const params = new URLSearchParams({ subAgentId, capabilityScope: capabilityScopeForTool(tool) });
-  return `${API_URL}/hands-oauth/${oauthService}/start?${params.toString()}`;
+  return `${API_URL}/api/hands-oauth/${oauthService}/start?${params.toString()}`;
 }
