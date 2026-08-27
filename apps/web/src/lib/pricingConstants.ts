@@ -1,20 +1,49 @@
 // Single source of truth for tier pricing on the marketing /pricing page.
-// Real prices (ADR-044, docs/DECISIONS.md, 2026-08-26) — replaces the
-// "—/month" placeholder this file shipped with since 2026-08-08. Annual
-// is a flat 2 months free on every tier (10x the monthly rate, not a
-// separately negotiated discount) — see the ADR for the market
-// comparison behind the actual numbers. Whoever changes a price only
-// has to edit this file — PricingPage.tsx never hardcodes a number.
+// Real prices unchanged since ADR-044 (docs/DECISIONS.md, 2026-08-26) —
+// this pass re-differentiates WHAT the tiers gate, not the dollar
+// amounts. Annual stays a flat 2 months free on every tier (10x the
+// monthly rate — priceAnnualUsd already bakes that in; the effective
+// monthly rate PricingPage shows for annual billing is derived as
+// priceAnnualUsd / 12, not hand-typed, so it can never drift from the
+// annual total actually charged.
+//
+// Differentiation is now on things that actually cost us or genuinely
+// scale — never on agent count (agents cost nothing to run; the whole
+// point of the org chart is showing everything the business needs) and
+// never on AI provider count (BYOK means the user pays their own
+// provider directly — gating that would undercut the "no markup"
+// positioning). Cadence — how often a company's agents actually run —
+// is the sharpest, most honest differentiator: it maps directly to real
+// infrastructure cost via each tier's cadence floor
+// (packages/jobs/src/cadenceFloors.ts: solo=daily, company=hourly,
+// scale=15min), and "how often your company works" is immediately
+// legible to a buyer in a way "20 agents vs. unlimited" never was.
 export interface PricingTier {
   id: string;
   name: string;
   tagline: string;
   priceMonthlyUsd: number;
   priceAnnualUsd: number;
-  companies: string;
-  agents: string;
-  history: string;
-  teamMembers: string;
+  /** Short cadence label for the lead badge (Company/Scale only —
+   *  leadWithCadence gates whether PricingPage renders it as a
+   *  standalone, emphasized badge above the stat line). Always also
+   *  appears inline in `stats` so every tier's card reads the same way
+   *  at a glance, badge or not. */
+  cadenceLabel: string;
+  leadWithCadence: boolean;
+  /** Ordered, dot-joined stat line — company count, agents (always
+   *  "Unlimited"), cadence, Hands connections, history, seats, support.
+   *  Deliberately flat strings, not per-field typed columns: these
+   *  differ enough in shape across tiers (e.g. "Up to 10 companies" vs
+   *  "3 companies") that a shared field-label grid would need as much
+   *  per-tier special-casing as just writing the line out. */
+  stats: string[];
+  /** "Everything" for Solo's full foundational list, "Adds" for
+   *  Company/Scale's incremental-over-the-previous-tier list — matches
+   *  how the actual product works (Company is Solo plus more, not a
+   *  separate feature set) and reads honestly instead of re-listing
+   *  every earlier tier's features again on every card. */
+  featuresLabel: "Everything" | "Adds";
   features: string[];
   mostComplete?: boolean;
   ctaLabel: string;
@@ -27,17 +56,25 @@ export const PRICING_TIERS: PricingTier[] = [
     tagline: "One idea, one company, real structure.",
     priceMonthlyUsd: 39,
     priceAnnualUsd: 390,
-    companies: "1",
-    agents: "Up to 5",
-    history: "30 days",
-    teamMembers: "Just you",
+    cadenceLabel: "Daily",
+    leadWithCadence: false,
+    stats: [
+      "1 company",
+      "Unlimited agents",
+      "Daily cadence",
+      "3 Hands connections",
+      "30-day history",
+      "1 seat",
+      "Email support",
+    ],
+    featuresLabel: "Everything",
     features: [
       "Guided business interview",
       "Task discovery",
       "Org structure",
-      "Approval system",
-      "Spending controls",
-      "Bring your own key",
+      "Approval queue",
+      "Spending walls",
+      "BYOK — any provider",
       "Dashboard",
     ],
     ctaLabel: "Describe your idea",
@@ -48,18 +85,25 @@ export const PRICING_TIERS: PricingTier[] = [
     tagline: "Run the whole operation with real controls.",
     priceMonthlyUsd: 89,
     priceAnnualUsd: 890,
-    companies: "3",
-    agents: "Up to 20",
-    history: "12 months",
-    teamMembers: "5",
+    cadenceLabel: "Hourly",
+    leadWithCadence: true,
+    stats: [
+      "3 companies",
+      "Unlimited agents",
+      "Hourly cadence",
+      "Unlimited Hands",
+      "12-month history",
+      "5 seats",
+      "Priority support",
+    ],
+    featuresLabel: "Adds",
     features: [
-      "Everything in Solo",
+      "Earned autonomy",
       "Per-agent spending walls",
       "Agent activity log",
       "Daily & weekly digest",
-      "Company charter",
+      "Company Charter",
       "Custom approval rules",
-      "Multiple AI providers",
     ],
     mostComplete: true,
     ctaLabel: "Describe your idea",
@@ -70,11 +114,19 @@ export const PRICING_TIERS: PricingTier[] = [
     tagline: "Multiple companies, delegated oversight.",
     priceMonthlyUsd: 249,
     priceAnnualUsd: 2490,
-    companies: "Unlimited",
-    agents: "Unlimited",
-    history: "Unlimited",
-    teamMembers: "Unlimited",
-    features: ["Everything in Company", "Team management & roles", "Delegated approvals", "Audit export", "Priority support"],
+    cadenceLabel: "Every 15 minutes",
+    leadWithCadence: true,
+    stats: [
+      "Up to 10 companies",
+      "Unlimited agents",
+      "15-minute cadence",
+      "Unlimited Hands",
+      "Unlimited history",
+      "Unlimited seats",
+      "Priority support + onboarding",
+    ],
+    featuresLabel: "Adds",
+    features: ["Team management & roles", "Delegated approvals", "Per-company cost export", "Audit export"],
     ctaLabel: "Talk to us",
   },
 ];

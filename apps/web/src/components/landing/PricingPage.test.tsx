@@ -38,14 +38,23 @@ describe("PricingPage — real prices (ADR-044)", () => {
     expect(screen.queryByText("Pricing not finalised. Values shown are placeholders.")).toBeNull();
   });
 
-  it("switches to the real annual prices (2 months free) when the toggle is clicked", () => {
+  it("switches to the discounted monthly rate (big number) with the real annual total shown small beneath, when the toggle is clicked", () => {
     render(<PricingPage />);
     fireEvent.click(screen.getByRole("button", { name: "Annual — 2 months free" }));
 
-    expect(screen.getByText("$390")).toBeTruthy();
-    expect(screen.getByText("$890")).toBeTruthy();
-    expect(screen.getByText("$2,490")).toBeTruthy();
+    // The big number is the effective monthly rate, derived from the real
+    // annual total — never a lump "$/year" figure.
+    expect(screen.getByText("$32.50")).toBeTruthy();
+    expect(screen.getByText("$74.17")).toBeTruthy();
+    expect(screen.getByText("$207.50")).toBeTruthy();
     expect(screen.queryByText("$39")).toBeNull();
+
+    // The real annual total (still $390/$890/$2,490 — unchanged since
+    // ADR-044) appears in small text beneath each price, not as the
+    // headline figure.
+    expect(screen.getByText(/\$390 billed annually/)).toBeTruthy();
+    expect(screen.getByText(/\$890 billed annually/)).toBeTruthy();
+    expect(screen.getByText(/\$2,490 billed annually/)).toBeTruthy();
   });
 
   it("leads with no credit caps and is honest that scheduled work is draft-only", () => {
