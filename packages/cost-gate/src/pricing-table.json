@@ -1,9 +1,14 @@
 {
-  "version": 1,
-  "lastVerified": "2026-08-01",
+  "version": 2,
+  "lastVerified": "2026-08-27",
   "prices": {
     "claude-opus-4-6": { "provider": "anthropic", "tier": "T3", "inputPerMTok": 15.0, "outputPerMTok": 75.0 },
     "claude-sonnet-4-6": { "provider": "anthropic", "tier": "T2", "inputPerMTok": 3.0, "outputPerMTok": 15.0 },
-    "claude-haiku-4-5-20251001": { "provider": "anthropic", "tier": "T1", "inputPerMTok": 0.8, "outputPerMTok": 4.0 }
+    "claude-haiku-4-5-20251001": { "provider": "anthropic", "tier": "T1", "inputPerMTok": 0.8, "outputPerMTok": 4.0 },
+    "gpt-5-pro": { "provider": "openai", "tier": "T3", "inputPerMTok": 15.0, "outputPerMTok": 120.0 },
+    "gpt-5": { "provider": "openai", "tier": "T2", "inputPerMTok": 1.25, "outputPerMTok": 10.0 },
+    "gpt-5-nano": { "provider": "openai", "tier": "T1", "inputPerMTok": 0.05, "outputPerMTok": 0.4 },
+    "gemini-2.5-pro": { "provider": "google", "tier": "T2", "inputPerMTok": 1.25, "outputPerMTok": 10.0 },
+    "gemini-2.5-flash-lite": { "provider": "google", "tier": "T1", "inputPerMTok": 0.1, "outputPerMTok": 0.4 }
   }
 }

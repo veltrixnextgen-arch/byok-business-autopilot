@@ -4,7 +4,7 @@ import { PostgresDurableAuditLog, TenantCeilingStore, type PoolLike } from "@byo
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
-import { DEV_TIER_MODEL_MAP, createDevKms } from "./dev/devTrustCore.js";
+import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, createDevKms } from "./dev/devTrustCore.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "./oauth/googleCalendar.js";
 import { DEFAULT_MONTHLY_CEILING_USD } from "./routes/ceiling.js";
 
@@ -51,7 +51,7 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // (migrations/0002_durable_storage.sql's audit_log), differentiated by
   // the `source` column ("vault" / "cost-gate" / "approval-queue").
   const auditLog = new PostgresDurableAuditLog(pool);
-  const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), DEV_TIER_MODEL_MAP, auditLog);
+  const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), TIER_MODEL_MAPS_BY_PROVIDER, auditLog);
   // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
   // AutonomyEngine this used to be — this closes the accept-offer
   // split-brain (apps/api/src/routes/approvals.ts's own doc comment on

@@ -85,7 +85,7 @@ function buildDeps(overrides: {
   costGate?: CostGate;
   taskDeltaStore?: ReturnType<typeof fakeTaskDeltaStore>;
 }) {
-  const modelMap: TierModelMap = { T1: "cheap", T2: "claude-sonnet-4-6", T3: "frontier" };
+  const modelMaps = { anthropic: { T1: "cheap", T2: "claude-sonnet-4-6", T3: "frontier" } as TierModelMap };
   const pricingTable = new PricingTable({
     version: 1,
     lastVerified: new Date().toISOString().slice(0, 10),
@@ -101,7 +101,7 @@ function buildDeps(overrides: {
       pricingTable,
       { companyMonthlyUsd: overrides.ceilingUsd, perRoleUsd: {}, perTaskTypeUsd: {} },
       new InMemoryDurableReservationStore(),
-      modelMap,
+      modelMaps,
     );
   const batchStore = fakeBatchStore();
   const taskDeltaStore = overrides.taskDeltaStore ?? fakeTaskDeltaStore();

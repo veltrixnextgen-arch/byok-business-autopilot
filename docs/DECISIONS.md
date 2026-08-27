@@ -719,7 +719,29 @@ The Hands *machinery* is further along than the "no handsVault/handsTools yet" c
 
 **Left as pre-existing, not this pass's job:** `docs/STATUS.md`'s broader staleness (still describes Redis as Upstash pay-as-you-go and the database as Neon, both superseded by ADR-041/042 this session) — only the one line this work directly resolves was touched; a full pass on that document is a separate, unscoped cleanup.
 
-## ADR-047 — Template-learning capture layer: every task-list edit now records a durable, per-task delta instead of being silently overwritten (2026-08-27)
+## ADR-047 — CostGate's pricing table becomes provider-scoped; real OpenAI and Google entries added, tier bands NOT forced to match Anthropic's (2026-08-27)
+
+**Context:** PR #188 (ADR-047 there, dispatch wiring) fixed the executor silently defaulting every dispatch to the Anthropic adapter — but CostGate's own pricing table still had only three Anthropic entries, and `TierModelMap` was a single flat `{T1,T2,T3} -> model` map shared across every tenant/role regardless of provider. A role connected to OpenAI or Google still couldn't get a task priced or reserved at all: `evaluateAndReserve` had no provider dimension anywhere in its path.
+
+**Research, not assumption — and the tier bands genuinely don't line up.** Current published pricing (independently cross-verified via two separate fetches per provider, 2026-08-27):
+
+| | T1 (cheap) | T2 (mid/flagship) | T3 (frontier) |
+|---|---|---|---|
+| Anthropic (existing) | haiku-4.5: $0.80 / $4.00 | sonnet-4.6: $3.00 / $15.00 | opus-4.6: $15.00 / $75.00 |
+| OpenAI | gpt-5-nano: $0.05 / $0.40 | gpt-5: $1.25 / $10.00 | gpt-5-pro: $15.00 / $120.00 |
+| Google | gemini-2.5-flash-lite: $0.10 / $0.40 | gemini-2.5-pro: $1.25 / $10.00 | *(none distinct — see below)* |
+
+OpenAI's and Google's own cheap tiers are meaningfully cheaper than Anthropic's T1, not equivalent (gpt-5-nano is ~16x cheaper on input than haiku). Their T2-equivalent flagships (gpt-5, gemini-2.5-pro) are priced identically to each other (~$1.25/$10) but well below Anthropic's sonnet. And **Google has no true frontier-tier model in this lineup at all** — its own flagship, gemini-2.5-pro, already IS its most capable and most expensive option; gpt-5-pro's input price matches opus exactly ($15) but its output price overshoots by 60% ($120 vs $75).
+
+**Decision: tier bands are per-provider, not a shared absolute price band.** Forcing OpenAI/Google models into Anthropic's exact dollar cutoffs would either misclassify a genuinely-cheap model as "T2" or leave no honest T3 option for Google at all. `T1`/`T2`/`T3` now mean "this provider's own relative cheap/balanced/frontier tier" — a business/capability judgment specific to each provider's lineup, not a cross-provider price-matching exercise. Google's `T3` entry points to the same model as its `T2` (`gemini-2.5-pro`) — documented, not hidden: a high-stakes task on a Google-keyed role gets the same model a normal task would, because there's nowhere further to escalate to today.
+
+**The mechanism:** `TierModelMap` itself is unchanged (still one provider's `{T1,T2,T3} -> model}` map) — `CostGate`'s constructor and `GateDependencies` now take `TierModelMapsByProvider` (`Record<provider, TierModelMap>`) instead of a single map. `tryDowngrade` (gate.ts) determines the CURRENT model's provider via `pricingTable.priceFor(model).provider` — already stored on every pricing entry — and downgrades within that same provider's map only. This matters concretely: a downgrade must never silently jump to a cheaper model from a DIFFERENT provider than the one whose vault key the executor already decrypted for this task; there's no way to actually dispatch to it without a different Brain key. Tested directly: a deliberately-cheaper OpenAI entry sitting in the same pricing table as an Anthropic one is never selected when downgrading an Anthropic task.
+
+**Deliberately scoped out:** `scheduledDispatchProcessor.ts`'s own separate `selectModel(agent.tier, deps.tierModelMap)` call (picking a scheduled dispatch's initial model, before it ever reaches CostGate) still uses the single Anthropic-only map — it has no way to know a role's actual provider without a Vault lookup this pass didn't add. Real follow-on, same root gap as the deferred connect-flow UX (issue #190): nothing yet threads "which provider does this role actually use" to every place a model gets chosen, only to CostGate's own downgrade path.
+
+**Trust-core note:** touches `packages/cost-gate` (CODEOWNERS-locked, ADR-005) — needs a human `TRUST-CORE REVIEWED` attestation before merge.
+
+## ADR-049 — Template-learning capture layer: every task-list edit now records a durable, per-task delta instead of being silently overwritten (2026-08-27)
 
 **Context:** `docs/STATUS.md`'s "template-learning" line has stood as scoping-only since the previous session — the mechanism itself (usage-data-driven template improvement) is explicitly far off and out of scope here. But every day the underlying signal isn't captured is a day it's gone for good: `/batches/:id/reassemble` calls `assembleOrgChart` and persists the result via `batchStore.updateOrgChart`, which **overwrites** the org chart with no history. What the template originally proposed vs. what the tenant actually kept — the one signal any future learning mechanism would need — was being thrown away the moment a user edited their chart. This PR builds only the capture layer: durable, structured, per-task deltas, written on every edit. No aggregation, no cross-tenant/cross-user reads, no redaction design — deliberately out of scope until there's an actual reason to build them.
 
