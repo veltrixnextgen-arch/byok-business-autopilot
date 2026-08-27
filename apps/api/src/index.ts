@@ -142,15 +142,29 @@ export function createApp(options: CreateAppOptions) {
   const instrumentation = new SchedulerInstrumentationStore(options.pool);
   const durableBatchStore = new PostgresDurableBatchStore(options.pool);
 
-  const app = new Hono<AppEnv>()
-    .use("*", cors({ origin: options.webOrigins, credentials: true }))
+  // ADR-052 (same-origin proxy, issue #144): every route below that a
+  // real BROWSER session calls lives under this sub-app, mounted at
+  // /api on the final app further down — apps/web's own page routes
+  // (dashboard.tsx, tasks.tsx, ...) already occupy the un-prefixed
+  // /dashboard and /tasks paths on the same origin once Vercel proxies
+  // /api/* here, so there is no way to keep this sub-app's routes at
+  // their un-prefixed paths without colliding with a real page.
+  // /billing (Stripe's own webhook target) and /internal/* (operator
+  // routes, token-gated, never called by a session-bearing browser) are
+  // deliberately NOT part of this sub-app — see their own mount below,
+  // unchanged at their current top-level paths so nothing external
+  // (Stripe's dashboard config, an operator's bookmarked URL) needs to
+  // change alongside this.
+  const browserApi = new Hono<AppEnv>()
     .route("/health", healthRoute({ redis: options.scheduler.health, buildSha: options.buildSha }))
-    // Better Auth's default basePath is /api/auth on both server and
-    // client (createBrowserAuthClient doesn't override it) — this mount
-    // must match, or the client's requests never reach a route Better
-    // Auth's own handler recognizes (a bare /auth/* mount 404s on every
-    // call, discovered only once a real signup was attempted here).
-    .all("/api/auth/*", (c) => options.auth.handler(c.req.raw))
+    // Better Auth's own basePath config (packages/auth) still names
+    // "/api/auth" — that's the path the CLIENT (authClient.ts) and every
+    // cookie Better Auth issues expect, and it's exactly what callers
+    // outside this origin still see once this sub-app is mounted at
+    // /api below (/api + /auth/* = /api/auth/*, unchanged from before
+    // the proxy). Only this mount's OWN path lost the /api prefix here,
+    // since the wrapping .route("/api", browserApi) call adds it back.
+    .all("/auth/*", (c) => options.auth.handler(c.req.raw))
     .use("/me/*", tenantMiddleware(options.pool, options.auth))
     .route("/me", meRoute({ batchStore: options.extraction.batchStore }))
     .route(
@@ -223,13 +237,36 @@ export function createApp(options: CreateAppOptions) {
         google: options.handsOAuth.google,
       }),
     )
-    // Deliberately NOT under tenantMiddleware or any session check —
-    // Stripe calls this directly with no user session at all, and
-    // authenticates itself via the request's own signature header
-    // (verified inside billingWebhookRoute against
-    // options.billing.stripe's webhook secret), the same trust model
-    // this app already uses for nothing else, since Stripe is the first
-    // external service allowed to write tenant state unattended.
+    .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
+    .route("/dashboard", dashboardRoute({ costActivity }))
+    .use("/tasks/*", tenantMiddleware(options.pool, options.auth))
+    .route("/tasks", tasksRoute(options.trustCore))
+    .use("/extraction/*", userMiddleware(options.auth))
+    .route(
+      "/extraction",
+      extractionRoute({
+        batchStore: options.extraction.batchStore,
+        taskDeltaStore: options.extraction.taskDeltaStore,
+        costGate: options.trustCore.costGate,
+        apiKey: options.extraction.apiKey,
+      }),
+    )
+    .use("/metrics/*", userMiddleware(options.auth))
+    .route("/metrics", signupMetricsRoute(options.metrics.metricsStore));
+
+  const app = new Hono<AppEnv>()
+    .use("*", cors({ origin: options.webOrigins, credentials: true }))
+    .route("/api", browserApi)
+    // Deliberately NOT under /api, and NOT under tenantMiddleware or any
+    // session check — Stripe calls this directly with no user session at
+    // all (still pointed at this exact path in Stripe's own dashboard
+    // config; moving it under /api would silently break that webhook
+    // until someone updates it there too), and authenticates itself via
+    // the request's own signature header (verified inside
+    // billingWebhookRoute against options.billing.stripe's webhook
+    // secret) — the same trust model this app already uses for nothing
+    // else, since Stripe is the first external service allowed to write
+    // tenant state unattended.
     .route(
       "/billing",
       billingWebhookRoute(
@@ -253,24 +290,11 @@ export function createApp(options: CreateAppOptions) {
           : null,
       ),
     )
-    .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
-    .route("/dashboard", dashboardRoute({ costActivity }))
-    .use("/tasks/*", tenantMiddleware(options.pool, options.auth))
-    .route("/tasks", tasksRoute(options.trustCore))
-    .use("/extraction/*", userMiddleware(options.auth))
-    .route(
-      "/extraction",
-      extractionRoute({
-        batchStore: options.extraction.batchStore,
-        taskDeltaStore: options.extraction.taskDeltaStore,
-        costGate: options.trustCore.costGate,
-        apiKey: options.extraction.apiKey,
-      }),
-    )
-    .use("/metrics/*", userMiddleware(options.auth))
-    .route("/metrics", signupMetricsRoute(options.metrics.metricsStore))
-    // Deliberately NOT userMiddleware — this is an operator view across
-    // every signup, gated by its own token instead (see internalMetrics.ts).
+    // Deliberately NOT under /api either — operator-only, token-gated,
+    // never reached by a session-bearing browser (see internalMetrics.ts),
+    // so none of the same-origin cookie reasoning above applies; keeping
+    // these at their current path means an operator's existing bookmark
+    // or script against the Railway origin keeps working unchanged too.
     .route(
       "/internal/metrics",
       internalMetricsRoute({

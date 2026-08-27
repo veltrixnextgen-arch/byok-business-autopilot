@@ -345,7 +345,7 @@ describe("OrgChartScreen — 'oauth-live' Hands tool is a real connect link (PR 
     render(<OrgChartScreen />);
 
     const link = await screen.findByRole("link", { name: "Calendar · connect" });
-    expect(link.getAttribute("href")).toBe("http://localhost:3000/hands-oauth/google-calendar/start?subAgentId=agent-1&capabilityScope=calendar");
+    expect(link.getAttribute("href")).toBe("http://localhost:3000/api/hands-oauth/google-calendar/start?subAgentId=agent-1&capabilityScope=calendar");
     expect(screen.queryByRole("button", { name: "Calendar · connect" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Calendar · draft only" })).toBeNull();
   });
