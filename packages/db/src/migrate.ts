@@ -25,6 +25,7 @@ const MIGRATION_FILES = [
   "0012_audit_log_vault_source.sql",
   "0013_disable_rls_on_unprotected_tables.sql",
   "0014_revoke_supabase_api_roles.sql",
+  "0015_tenant_billing.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every

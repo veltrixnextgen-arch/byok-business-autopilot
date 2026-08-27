@@ -228,3 +228,82 @@ test("google is populated with a redirectUri derived from authBaseUrl once both 
     redirectUri: "https://api.example.com/hands-oauth/google-calendar/callback",
   });
 });
+
+// Issue #18/ADR-045: stripe is optional, same reasoning as google above —
+// no real Stripe account exists yet anywhere this app runs, and the
+// server must still boot with it entirely unset.
+const STRIPE_PRICE_ENV = {
+  STRIPE_PRICE_SOLO_MONTHLY: "price_solo_m",
+  STRIPE_PRICE_SOLO_ANNUAL: "price_solo_a",
+  STRIPE_PRICE_COMPANY_MONTHLY: "price_company_m",
+  STRIPE_PRICE_COMPANY_ANNUAL: "price_company_a",
+  STRIPE_PRICE_SCALE_MONTHLY: "price_scale_m",
+  STRIPE_PRICE_SCALE_ANNUAL: "price_scale_a",
+};
+
+test("stripe is null when STRIPE_SECRET_KEY is unset — server still boots fine", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.stripe, null);
+});
+
+test("stripe is null when STRIPE_SECRET_KEY is set but STRIPE_WEBHOOK_SECRET is missing — never a half-configured account", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    STRIPE_SECRET_KEY: "sk_test_x",
+  } as NodeJS.ProcessEnv);
+  assert.equal(config.stripe, null);
+});
+
+test("throws when STRIPE_SECRET_KEY/WEBHOOK_SECRET are both set but a STRIPE_PRICE_* var is missing", () => {
+  assert.throws(
+    () =>
+      readServerConfigFromEnv({
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        ANTHROPIC_API_KEY: "k",
+        INTERNAL_METRICS_TOKEN: "t",
+        REDIS_URL: "redis://x",
+        STRIPE_SECRET_KEY: "sk_test_x",
+        STRIPE_WEBHOOK_SECRET: "whsec_x",
+        // STRIPE_PRICE_SOLO_MONTHLY deliberately omitted
+        STRIPE_PRICE_SOLO_ANNUAL: "price_solo_a",
+        STRIPE_PRICE_COMPANY_MONTHLY: "price_company_m",
+        STRIPE_PRICE_COMPANY_ANNUAL: "price_company_a",
+        STRIPE_PRICE_SCALE_MONTHLY: "price_scale_m",
+        STRIPE_PRICE_SCALE_ANNUAL: "price_scale_a",
+      } as NodeJS.ProcessEnv),
+    /STRIPE_PRICE_SOLO_MONTHLY/,
+  );
+});
+
+test("stripe is fully populated once the secret/webhook keys and all six price ids are set", () => {
+  const config = readServerConfigFromEnv({
+    DATABASE_URL: "postgres://x",
+    BETTER_AUTH_SECRET: "s",
+    ANTHROPIC_API_KEY: "k",
+    INTERNAL_METRICS_TOKEN: "t",
+    REDIS_URL: "redis://x",
+    STRIPE_SECRET_KEY: "sk_test_x",
+    STRIPE_WEBHOOK_SECRET: "whsec_x",
+    ...STRIPE_PRICE_ENV,
+  } as NodeJS.ProcessEnv);
+  assert.deepEqual(config.stripe, {
+    secretKey: "sk_test_x",
+    webhookSecret: "whsec_x",
+    priceMap: {
+      solo: { monthly: "price_solo_m", annual: "price_solo_a" },
+      company: { monthly: "price_company_m", annual: "price_company_a" },
+      scale: { monthly: "price_scale_m", annual: "price_scale_a" },
+    },
+  });
+});

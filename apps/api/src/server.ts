@@ -16,6 +16,8 @@ import {
 import { attachRedisErrorCircuitBreaker, createPlatformWorker, createRepeatableQueue, createTenantWorker, trackConnectionHealth } from "@byok/jobs";
 import { createEmailSender } from "@byok/notifications";
 import { PostgresCostActivityQueries } from "@byok/router";
+import { createStripeClient } from "./billing/stripeClient.js";
+import { createStripePriceMapFromEnv, type StripePriceMap } from "./billing/priceMap.js";
 import type { DigestDeps } from "./digest/buildDigestData.js";
 import { sendDailyDigests } from "./digest/sendDailyDigests.js";
 import type { TrustCoreDeps } from "./context.js";
@@ -103,6 +105,16 @@ export interface ServerConfig {
    *  real to compare against — see that workflow's "Verify the deployment
    *  actually succeeded" step. */
   buildSha: string;
+  /** Issue #18/ADR-045: Stripe billing. Same optionality pattern as
+   *  `google` above — a real Stripe account with all six real Prices
+   *  (ADR-044's prices) doesn't exist yet anywhere this app runs, and a
+   *  deploy missing it must still boot. `null` means /me/billing/checkout
+   *  and /billing/webhook 503 cleanly (routes/billing.ts) rather than the
+   *  whole server refusing to start. Setting STRIPE_SECRET_KEY,
+   *  STRIPE_WEBHOOK_SECRET, and the six STRIPE_PRICE_* env vars (see
+   *  billing/priceMap.ts) is the only remaining step once a real account
+   *  exists — no code changes required, same as Google's own comment. */
+  stripe: { secretKey: string; webhookSecret: string; priceMap: StripePriceMap } | null;
 }
 
 export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -145,6 +157,20 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const notificationsFromEmail = env.NOTIFICATIONS_FROM_EMAIL ?? "Runwisely <onboarding@resend.dev>";
   const buildSha = env.BUILD_SHA ?? "unknown";
 
+  // Issue #18/ADR-045. All-or-nothing: STRIPE_SECRET_KEY present means a
+  // real Stripe account exists, so the six STRIPE_PRICE_* env vars
+  // (createStripePriceMapFromEnv) are required too and this throws
+  // loudly on a half-configured deploy rather than booting with billing
+  // silently broken. STRIPE_SECRET_KEY absent means no Stripe account
+  // exists yet at all — stripe: null, same "feature wired, inert until
+  // configured" pattern as `google` above.
+  const stripeSecretKey = env.STRIPE_SECRET_KEY;
+  const stripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET;
+  const stripe =
+    stripeSecretKey && stripeWebhookSecret
+      ? { secretKey: stripeSecretKey, webhookSecret: stripeWebhookSecret, priceMap: createStripePriceMapFromEnv(env) }
+      : null;
+
   return {
     port,
     databaseUrl,
@@ -160,6 +186,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
     resendApiKey,
     notificationsFromEmail,
     buildSha,
+    stripe,
   };
 }
 
@@ -338,6 +365,9 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     },
     digest: digestDeps,
     buildSha: config.buildSha,
+    billing: config.stripe
+      ? { stripe: createStripeClient(config.stripe.secretKey, config.stripe.webhookSecret, config.stripe.priceMap) }
+      : null,
   });
 
   return serve({ fetch: app.fetch, port: config.port }, (info) => {

@@ -6,6 +6,7 @@ import {
   TenantCeilingStore,
   TenantScheduleStateStore,
   getTenantTier,
+  setTenantStripeIds,
   setTenantTier,
   type PoolLike,
   type SignupExtractionBatchStore,
@@ -15,6 +16,7 @@ import { syncTenantSchedule, type ConnectionHealth, type QueueLike, type Repeata
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type { StripeClient } from "./billing/stripeClient.js";
 import type { AppEnv, TrustCoreDeps } from "./context.js";
 import type { DigestDeps } from "./digest/buildDigestData.js";
 import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications.js";
@@ -22,6 +24,7 @@ import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
 import { approvalsRoute } from "./routes/approvals.js";
+import { billingCheckoutRoute, billingWebhookRoute } from "./routes/billing.js";
 import { brainKeyRoute } from "./routes/brainKeys.js";
 import { ceilingRoute } from "./routes/ceiling.js";
 import { charterRoute } from "./routes/charter.js";
@@ -38,6 +41,7 @@ import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
 import { tierRoute } from "./routes/tier.js";
+import { applyTierChange } from "./scheduler/applyTierChange.js";
 import { computeDesiredSchedule, type ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
 
 export interface CreateAppOptions {
@@ -101,6 +105,12 @@ export interface CreateAppOptions {
    *  scheduled daily-digest email job uses (server.ts's digestDeps) —
    *  one source of truth for "today's digest," not a second one. */
   digest: DigestDeps;
+  /** Issue #18/ADR-045: Stripe billing. `null` whenever no live Stripe
+   *  account is configured yet (no STRIPE_SECRET_KEY/price ids) — see
+   *  server.ts's readServerConfigFromEnv and routes/billing.ts's own
+   *  comment on why this is a runtime null-check inside the route
+   *  rather than the route being conditionally mounted. */
+  billing: { stripe: StripeClient } | null;
   /** ADR-029: self-reported build identity, surfaced on /health. See
    *  routes/health.ts's own doc comment. */
   buildSha: string;
@@ -189,12 +199,11 @@ export function createApp(options: CreateAppOptions) {
       "/me/tier",
       tierRoute({
         getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
-        setTenantTier: (tenantId, tier) => setTenantTier(options.pool, tenantId, tier),
-        charters,
-        batchStore: options.extraction.batchStore,
-        queue: options.scheduler.queue,
-        jobName: options.scheduler.jobName,
       }),
+    )
+    .route(
+      "/me/billing",
+      billingCheckoutRoute(options.billing ? { stripe: options.billing.stripe, webOrigin: options.webOrigin } : null),
     )
     .route("/me/hands-keys", handsKeyRoute({ vault: options.trustCore.vault }))
     // Deliberately NOT under tenantMiddleware — see handsOAuth.ts's own
@@ -211,6 +220,36 @@ export function createApp(options: CreateAppOptions) {
         stateSecret: options.handsOAuth.stateSecret,
         google: options.handsOAuth.google,
       }),
+    )
+    // Deliberately NOT under tenantMiddleware or any session check —
+    // Stripe calls this directly with no user session at all, and
+    // authenticates itself via the request's own signature header
+    // (verified inside billingWebhookRoute against
+    // options.billing.stripe's webhook secret), the same trust model
+    // this app already uses for nothing else, since Stripe is the first
+    // external service allowed to write tenant state unattended.
+    .route(
+      "/billing",
+      billingWebhookRoute(
+        options.billing
+          ? {
+              stripe: options.billing.stripe,
+              applyTierChange: (tenantId, tier) =>
+                applyTierChange(
+                  {
+                    setTenantTier: (id, t) => setTenantTier(options.pool, id, t),
+                    charters,
+                    batchStore: options.extraction.batchStore,
+                    queue: options.scheduler.queue,
+                    jobName: options.scheduler.jobName,
+                  },
+                  tenantId,
+                  tier,
+                ),
+              setTenantStripeIds: (tenantId, ids) => setTenantStripeIds(options.pool, tenantId, ids),
+            }
+          : null,
+      ),
     )
     .use("/dashboard/*", tenantMiddleware(options.pool, options.auth))
     .route("/dashboard", dashboardRoute({ costActivity }))
