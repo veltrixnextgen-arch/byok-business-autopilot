@@ -47,7 +47,8 @@
     "test": "npm run templates:test && npm run extraction:test && npm run db:test && npm run auth:test && npm run jobs:test && npm run notifications:test && npm run api:test && npm run router:test && npm run vault:test && npm run cost-gate:test && npm run approval-queue:test && npm run webhooks:test && npm run chains:test && npm run web:test",
     "test:integration": "npm run test:integration --workspace @byok/cost-gate && npm run test:integration --workspace @byok/approval-queue && npm run test:integration --workspace @byok/router && npm run test:integration --workspace @byok/vault",
     "lint": "eslint .",
-    "dev": "docker compose up -d --wait && concurrently -n api,web -c blue,green \"npm run dev --workspace @byok/api\" \"npm run dev --workspace @byok/web\""
+    "dev": "docker compose up -d --wait && concurrently -n api,web -c blue,green \"npm run dev --workspace @byok/api\" \"npm run dev --workspace @byok/web\"",
+    "docs:assign-adr": "node scripts/assign-adr-numbers.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "8.65.0",

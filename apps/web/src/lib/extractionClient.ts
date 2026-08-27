@@ -1,5 +1,5 @@
 import type { InterviewAnswers, InterviewQuestion, OrgChart, Task } from "@byok/contracts";
-import { apiClient } from "./apiClient";
+import { apiClient, directApiClient } from "./apiClient";
 
 // The idea text and in-progress interview answers need to survive the
 // idea-box -> signup -> interview navigation chain (a real page-to-page
@@ -55,8 +55,14 @@ export class ApiError extends Error {
   }
 }
 
+// Every call below hits /extraction/* directly against Railway, never
+// through the Vercel same-origin proxy (ADR-053's own exemption): real
+// measured extraction latency (77–114s) leaves too little headroom under
+// the proxy's ~120s CDN origin timeout for one slow upstream response not
+// to fail a real user's signup with no useful error. This path is never
+// SSR-read, so bypassing the proxy costs nothing.
 export async function fetchQuestions(idea: string, answers?: Partial<InterviewAnswers>): Promise<QuestionsResponse> {
-  const res = await apiClient.extraction.questions.$post({ json: { idea, answers } });
+  const res = await directApiClient.extraction.questions.$post({ json: { idea, answers } });
   if (!res.ok) throw new ApiError(res.status, `Could not load interview questions (${res.status}).`);
   return res.json();
 }
@@ -67,7 +73,7 @@ export type StartBatchResult =
   | { status: "failed"; batchId: string; error: string };
 
 export async function startBatch(idea: string, answers: InterviewAnswers): Promise<StartBatchResult> {
-  const res = await apiClient.extraction.batches.$post({ json: { idea, answers } });
+  const res = await directApiClient.extraction.batches.$post({ json: { idea, answers } });
   if (!res.ok) throw new Error(`Could not start extraction (${res.status}).`);
   const { result } = await res.json();
   return result as StartBatchResult;
@@ -83,7 +89,7 @@ export interface LatestBatch {
 }
 
 export async function getLatestBatch(): Promise<LatestBatch | null> {
-  const res = await apiClient.extraction.batches.latest.$get();
+  const res = await directApiClient.extraction.batches.latest.$get();
   if (!res.ok) throw new Error(`Could not load your extraction batch (${res.status}).`);
   const { batch } = await res.json();
   return batch as LatestBatch | null;
@@ -112,7 +118,7 @@ export async function getOrgChartForTenant(): Promise<LatestBatch | null> {
 }
 
 export async function reassemble(batchId: string, tasks: Task[]): Promise<OrgChart> {
-  const res = await apiClient.extraction.batches[":id"].reassemble.$post({
+  const res = await directApiClient.extraction.batches[":id"].reassemble.$post({
     param: { id: batchId },
     json: { tasks },
   });
@@ -122,7 +128,7 @@ export async function reassemble(batchId: string, tasks: Task[]): Promise<OrgCha
 }
 
 export async function renameAgent(batchId: string, agentId: string, name: string): Promise<OrgChart> {
-  const res = await apiClient.extraction.batches[":id"]["rename-agent"].$post({
+  const res = await directApiClient.extraction.batches[":id"]["rename-agent"].$post({
     param: { id: batchId },
     json: { agentId, name },
   });

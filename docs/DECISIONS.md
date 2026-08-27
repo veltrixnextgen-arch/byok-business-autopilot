@@ -1,5 +1,13 @@
 # Architecture Decision Log
 
+> **Adding a new entry?** Head it `## ADR-PENDING — <title> (<date>)`, not a
+> guessed number — parallel branches guessing the same next integer is
+> exactly the recurring merge-conflict cost this convention exists to kill.
+> Run `npm run docs:assign-adr` on `main` right after merging (or right
+> before, on the merge commit) to turn every `ADR-PENDING` in the file into
+> the next real sequential number, in file order. See
+> `scripts/assign-adr-numbers.mjs`.
+
 ## ADR-001 — Bottom-up assembly order
 **Date:** 2026-07-31
 **Context:** The org chart must be derivable consistently from any business idea.
@@ -850,3 +858,12 @@ OpenAI's and Google's own cheap tiers are meaningfully cheaper than Anthropic's 
 **Ponytail, named not hidden:** `webhook_endpoint_secrets.secret` is plaintext in an RLS-protected column, not Vault-encrypted like Brain/Hands keys. A leaked secret lets someone send FORGED events claiming to be that tenant's account — real, but bounded, since nothing dispatches automatically from a verified event yet. Upgrade path noted directly in the store's own module comment: route this through Vault's own encrypt/decrypt primitives once a real dispatch path exists downstream and the blast radius actually changes. Per-tenant webhook rate limiting (§7 rule 3: "Event triggers get their own ceiling... mandatory") is also deliberately deferred — it needs a real request-volume counter, which belongs with the actual receiving HTTP route (the next PR), not this foundational package.
 
 **Trust-core note:** adds two new tables + RLS policies (`packages/db/src/migrations/0018_webhook_endpoints.sql`) — needs a human `TRUST-CORE REVIEWED` attestation before merge. `@byok/webhooks` itself doesn't touch a CODEOWNERS-locked package's own source.
+
+## ADR-055 — Extraction stays cross-origin, exempted from the same-origin proxy (2026-08-27)
+
+**The question ADR-053 left open, answered.** ADR-053 flagged the Vercel Hobby-plan rewrite-timeout risk as real but unverified. Real measured extraction latency this session (77–114s, found in this session's own transcript) against the proxy's ~120s CDN origin timeout is not meaningful headroom — one slow upstream Anthropic response and a real user's signup fails with no useful error, on the one path in apps/api that's actually slow. `/extraction/*` is never SSR-read (confirmed by grep — no route loader calls it), so routing it through the proxy buys nothing there was ever a reason to pay this risk for.
+
+**The exemption lives in the client, not the rewrite rule.** A Vercel `rewrites` entry only fires for a request that's actually made to that path on the Vercel domain — so the real fix is `apps/web/src/lib/apiClient.ts`'s new `directApiClient`, a second `hc<AppType>()` instance that resolves against the real Railway origin even when `API_URL` is `""` (proxy mode). `extractionClient.ts`'s five extraction calls (`fetchQuestions`, `startBatch`, `getLatestBatch`, `reassemble`, `renameAgent`) use it; its own `me`/`metrics` calls stay on the ordinary same-origin `apiClient`, since only extraction carries the timeout risk. `vercel.json` also gets a defensive self-referential rule for `/api/extraction/:path*` ahead of the general catch-all, so a future regression that accidentally calls the relative path 404s loudly instead of silently succeeding-but-slowly through the proxy.
+
+**This changes what "cut over" means — `CROSS_SITE_COOKIES` does NOT get unset.** ADR-053's own cutover checklist said to unset it once the proxy replaces the cross-site-cookie workaround. That's no longer correct: extraction's direct cross-origin call still needs the session cookie to travel cross-site, which requires `SameSite=None` (`crossSiteCookies: true`, `packages/auth/src/config.ts`) — `SameSite=Lax` is never sent on a genuinely cross-origin `fetch()`. Left enabled permanently (not just "during the cutover window" as ADR-053 phrased it), and `apps/api/src/index.ts`'s `cors()` middleware stays load-bearing for the same reason — both are still doing real work for this one route, not dead weight. Every OTHER route still gets the full benefit (no CORS preflight, first-party cookie via the proxy, the 12 SSR routes issue #144 exists to fix) — `SameSite=None` cookies work same-origin too, so nothing is lost by leaving the flag on.
+
