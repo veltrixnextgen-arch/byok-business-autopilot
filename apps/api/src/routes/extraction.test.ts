@@ -25,9 +25,29 @@ function fakeDeps(overrides: Partial<ExtractionRouteDeps> = {}): ExtractionRoute
       fail: async () => {},
       latestForUser: async () => null,
     } as never,
+    taskDeltaStore: {
+      recordMany: async () => {},
+    } as never,
     ...overrides,
   };
 }
+
+const BASE_TASK = {
+  id: "t-1",
+  text: "existing task",
+  agentType: "x",
+  agentLabel: "X",
+  teamHint: "ops",
+  frequency: "weekly",
+  stakes: "low",
+  tier: "T1",
+  autonomy: "locked",
+  handsTool: null,
+  origin: "template",
+  cadence: null,
+  batchable: false,
+  triggerType: "cadence",
+} as const;
 
 test("/questions returns a growing question list as a template narrows, with zero UI-side logic", async () => {
   const app = appWithUser("user-1", fakeDeps());
@@ -82,4 +102,59 @@ test("/batches/latest reads through to the batch store for the session's userId"
   assert.equal(res.status, 200);
   assert.equal(seenUserId, "user-42");
   assert.deepEqual(await res.json(), { batch: null });
+});
+
+test("/batches/:id/reassemble records template-learning deltas for the task-list edit", async () => {
+  const recorded: Array<{ userId: string; batchId: string; templateId: string; deltas: unknown[]; source: string }> = [];
+  const orgChart = {
+    meta: {
+      idea: "test idea",
+      generatedAt: new Date().toISOString(),
+      templateSelection: {
+        primary: "service",
+        blendedWith: null,
+        scores: { ecommerce: 0, service: 5, saas: 0, content: 0, local: 0, "physical-space": 0, "food-hospitality": 0 },
+        tie: false,
+        confidence: "high",
+      },
+      calls: [],
+      costUsd: 0.03,
+    },
+    teams: [],
+    agents: [],
+    tasks: [BASE_TASK],
+    customization: { added: [], removed: [], frequencyAdjustments: [], categoryCorrections: [] },
+    onboardingBatch: null,
+  };
+  const app = appWithUser(
+    "user-1",
+    fakeDeps({
+      batchStore: {
+        get: async () => ({ id: "batch-1", userId: "user-1", tenantId: null, idea: "test idea", status: "completed", orgChart, costUsd: 0.03, error: null, createdAt: "", updatedAt: "" }),
+        updateOrgChart: async () => {},
+      } as never,
+      taskDeltaStore: {
+        recordMany: async (userId: string, batchId: string, templateId: string, deltas: readonly unknown[], source: string) => {
+          recorded.push({ userId, batchId, templateId, deltas: [...deltas], source });
+        },
+      } as never,
+    }),
+  );
+
+  const newTask = { ...BASE_TASK, id: "t-2", text: "new task" };
+  const res = await app.request("/extraction/batches/batch-1/reassemble", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tasks: [newTask] }),
+  });
+
+  assert.equal(res.status, 200);
+  assert.equal(recorded.length, 1);
+  const [rec] = recorded;
+  assert.equal(rec.userId, "user-1");
+  assert.equal(rec.batchId, "batch-1");
+  assert.equal(rec.templateId, "service");
+  assert.equal(rec.source, "reassemble");
+  // t-1 removed, t-2 added.
+  assert.equal(rec.deltas.length, 2);
 });

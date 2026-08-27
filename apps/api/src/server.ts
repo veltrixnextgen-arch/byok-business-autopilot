@@ -10,6 +10,7 @@ import {
   SchedulerInstrumentationStore,
   SignupExtractionBatchStore,
   SignupMetricsStore,
+  TemplateTaskDeltaStore,
   TenantCeilingStore,
   TenantScheduleStateStore,
 } from "@byok/db";
@@ -216,6 +217,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     crossSiteCookies: config.crossSiteCookies,
   });
   const batchStore = new SignupExtractionBatchStore(pool);
+  const taskDeltaStore = new TemplateTaskDeltaStore(pool);
   const metricsStore = new SignupMetricsStore(pool);
 
   // R3/ADR-025: the scheduler's own repeatable-job registry and worker.
@@ -351,7 +353,7 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     trustCore,
     webOrigin: config.webOrigin,
     webOrigins: config.webOrigins,
-    extraction: { batchStore, apiKey: config.anthropicApiKey },
+    extraction: { batchStore, taskDeltaStore, apiKey: config.anthropicApiKey },
     metrics: { metricsStore, internalMetricsToken: config.internalMetricsToken },
     // Reuses authSecret for state-token signing (ADR-021) — see
     // oauth/state.ts's own comment on why a second required secret isn't

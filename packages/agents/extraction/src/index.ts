@@ -9,6 +9,8 @@ export { assembleOrgChart, ComplianceMetadataError, HandsScopeViolationError } f
 export { guessAnswersFromIdea } from "./guessAnswers.js";
 export type { SpineGuess } from "./guessAnswers.js";
 export { generateCascade } from "./cascade.js";
+export { diffTaskLists, customizationLogToDeltas } from "./taskDeltas.js";
+export type { TaskDelta, TaskDeltaKind } from "./taskDeltas.js";
 
 // Model ids each internal call uses — aliased since customize.ts and
 // onboardingBatch.ts both name their own constant CLAUDE_MODEL (correct
