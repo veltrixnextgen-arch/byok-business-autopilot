@@ -82,6 +82,6 @@ Every issue currently open, in one place, so nothing is only "known" from scatte
 
 1. Confirm live sign-in on the real domain (ADR-036) — the one open verification loop.
 2. Issue #120 — Router ledger/dedup durability (queued immediately after autonomy durability, which shipped this session as ADR-037).
-3. Performance measurement — resolve the CI bundle-gate discrepancy (~127KB reported vs. ~194KB actually shipped) before measuring anything else against it.
+3. ~~Performance measurement — resolve the CI bundle-gate discrepancy~~ — resolved (ADR-046): `check-bundle-size.mjs` rewritten to read the real TanStack Start preload manifest instead of guessing "initial vs. lazy" from filenames, and to count CSS (previously invisible to the gate entirely). Reports the worst-case route's real payload now: 146.21 KB gzip (route `/org-chart`), under the 150KB budget but closer to it than the old, incomplete measurement implied.
 4. Template-learning scoping (usage-data-driven template improvement, human-reviewed, no cross-tenant leakage) — scoping only, no code yet.
 5. Stripe billing (#18), then MVP-2's remaining scope (multi-role handoffs, batching, Agency workspaces — #23).
