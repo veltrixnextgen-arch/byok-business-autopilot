@@ -1,4 +1,4 @@
-import { OpenMultiAgent } from "@open-multi-agent/core";
+import { OpenMultiAgent, type SupportedProvider } from "@open-multi-agent/core";
 import type { BrainKeyProvider, HandsKeyProvider, RequesterIdentity } from "@byok/vault";
 import type { AgentExecutor, ExecutionOutcome } from "./executor.js";
 import { createHandsTool, type HandsToolSpec } from "./handsTool.js";
@@ -32,6 +32,25 @@ export type OrchestratorFactory = (apiKey: string, defaultModel: string) => Pick
 const defaultOrchestratorFactory: OrchestratorFactory = (apiKey, defaultModel) =>
   new OpenMultiAgent({ defaultApiKey: apiKey, defaultModel });
 
+/** Vault stores providers under OUR ids (BrainProvider —
+ *  apps/api/src/brainKeys/providerValidation.ts: anthropic/openai/google/
+ *  deepseek, "google" matching how it's sold on the connect screen and
+ *  validated against Google's own API). @open-multi-agent/core's own
+ *  SupportedProvider union uses "gemini" for the same provider, and
+ *  createAdapter() throws on any string it doesn't recognize — passing
+ *  our stored "google" straight through would fail every Google-key task.
+ *  Anthropic/OpenAI/DeepSeek ids already match verbatim; only Google
+ *  needs translating. Unknown/future provider ids pass through
+ *  unchanged and let createAdapter's own error surface, rather than this
+ *  mapping silently swallowing a provider it doesn't know about. Cast,
+ *  not validated against SupportedProvider's own union: this function's
+ *  whole job is bridging our stored id space to the library's, and an
+ *  id it doesn't recognize is exactly the case that should reach
+ *  createAdapter's own runtime error, not be rejected earlier here. */
+function toSupportedProvider(provider: string): SupportedProvider {
+  return (provider === "google" ? "gemini" : provider) as SupportedProvider;
+}
+
 // Tool-use capable: `handsTools` is the FULL catalog this executor instance
 // was constructed with (every sub-agent's Hands, across every task it might
 // see) — each `execute()` call filters it down to only the specs whose
@@ -59,8 +78,9 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
 
   async execute(task: RouterTask): Promise<ExecutionOutcome> {
     let handle;
+    let provider;
     try {
-      handle = await this.vault.decryptBrainKey(task.tenantId, task.teamId, this.requester);
+      ({ handle, provider } = await this.vault.decryptBrainKey(task.tenantId, task.teamId, this.requester));
     } catch (err) {
       return { error: `Brain key unavailable for role "${task.teamId}": ${(err as Error).message}` };
     }
@@ -114,6 +134,7 @@ export class OpenMultiAgentExecutor implements AgentExecutor {
             // choice must never be silently overridden by one fixed
             // boot-time string.
             model: task.model ?? this.model,
+            provider: toSupportedProvider(provider),
             ...(task.systemPrompt ? { systemPrompt: task.systemPrompt } : {}),
             ...(customTools.length > 0 ? { customTools } : {}),
           },

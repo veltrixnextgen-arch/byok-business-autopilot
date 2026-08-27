@@ -96,7 +96,7 @@ test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a m
   assert.ok(!("plaintext" in record));
   assert.ok(!JSON.stringify(record).includes("super-secret"));
 
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const recovered = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(recovered, "sk-ant-super-secret-1234");
 });
@@ -179,7 +179,7 @@ test("storeBrainKey succeeds (discarding and recreating the DEK) even when the t
     ONBOARDING,
   );
 
-  const handle = await vaultAfterRotation.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vaultAfterRotation.decryptBrainKey("tenant-a", "cfo", ROUTER);
   await handle.use(async (plaintext) => {
     assert.equal(plaintext.toString("utf8"), "sk-ant-fresh");
   });
@@ -280,7 +280,7 @@ test("access control: only a router-service identity may decrypt", async () => {
   await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ONBOARDING), AccessDeniedError);
   await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" }), AccessDeniedError);
   // Router identity still works:
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   assert.equal(handle.isZeroed, false);
 });
 
@@ -326,7 +326,7 @@ test("TTL: a handle zeroes itself after the timeout even if use() is never calle
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   assert.equal(handle.isZeroed, false);
 
   await sleep(50);
@@ -342,7 +342,7 @@ test("TTL: a handle zeroes itself immediately after use(), before the timeout", 
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   await handle.use((buf) => buf.toString("utf8"));
   assert.equal(handle.isZeroed, true);
 
@@ -357,7 +357,7 @@ test("unserializable: JSON.stringify and String() on a live handle never expose 
     ONBOARDING,
   );
 
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const serialized = JSON.stringify({ someHandle: handle });
   const stringified = String(handle);
 
@@ -482,17 +482,17 @@ test("cross-tenant isolation: two tenants using the same role id get fully indep
     ONBOARDING,
   );
 
-  const handleA = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle: handleA } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   assert.equal(await handleA.use((buf) => buf.toString("utf8")), "sk-ant-tenant-a-key");
 
-  const handleB = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
+  const { handle: handleB } = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
   assert.equal(await handleB.use((buf) => buf.toString("utf8")), "sk-ant-tenant-b-key");
 
   // Revoking tenant-a's "cfo" key must not touch tenant-b's "cfo" key.
   await vault.revokeBrainKey("tenant-a", "cfo", { kind: "admin", serviceId: "x" });
   await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ROUTER), KeyNotFoundError);
 
-  const handleBAfter = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
+  const { handle: handleBAfter } = await vault.decryptBrainKey("tenant-b", "cfo", ROUTER);
   assert.equal(await handleBAfter.use((buf) => buf.toString("utf8")), "sk-ant-tenant-b-key");
 });
 
@@ -563,7 +563,7 @@ test("rotate: replaces the plaintext behind the same record, old plaintext no lo
   );
   assert.equal(rotated.maskedFingerprint, "sk-...0002");
 
-  const handle = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const value = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(value, "sk-ant-new-key-0002");
 });

@@ -12,6 +12,7 @@ export type {
   StoreBrainKeyInput,
   StoreHandsKeyInput,
   BrainKeyProvider,
+  DecryptedBrainKey,
   HandsKeyProvider,
   HandsCredentialRefresher,
 } from "./vault.js";
