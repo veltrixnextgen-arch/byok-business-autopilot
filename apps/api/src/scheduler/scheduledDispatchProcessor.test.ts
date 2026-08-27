@@ -72,7 +72,8 @@ function baseDeps(overrides: Partial<ScheduledDispatchDeps> = {}): ScheduledDisp
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), pause: async () => {} },
     instrumentation: { recordScheduledRun: async () => {} },
     durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [] }) as never },
-    tierModelMap: { T1: "model-t1", T2: "model-t2", T3: "model-t3" },
+    tierModelMaps: { anthropic: { T1: "model-t1", T2: "model-t2", T3: "model-t3" } },
+    vault: { getBrainKeyStatus: async () => null },
     notifications: {
       getOwnerEmails: async () => [],
       emailSender: { send: async () => {} },
@@ -111,6 +112,46 @@ test("composes RouterTaskInput from the tenant's active cascade and submits thro
     batchable: true,
   });
   assert.match(dedupKey, /^task-1:/); // per-firing, timestamp-based dedup — a fixed value would defeat its own purpose
+});
+
+// Multi-provider AI (ADR-047/048 follow-up): scheduled dispatch is the
+// actual path agents run through — it picks a model BEFORE the task ever
+// reaches CostGate, so it needs the same provider awareness CostGate's
+// own downgrade path already has. Without this, a role connected to a
+// non-Anthropic provider would still get an Anthropic model string here,
+// regardless of what CostGate or the executor do downstream.
+test("a role whose Brain key is on a non-Anthropic provider gets that provider's own model, not the Anthropic one", async () => {
+  let seenModel: string | undefined;
+  const deps = baseDeps({
+    vault: { getBrainKeyStatus: async () => ({ id: "k1", type: "brain", tenantId: "tenant-1", roleId: "cfo", provider: "openai", maskedFingerprint: "sk-...abcd", revoked: false, createdAt: "", updatedAt: "" }) },
+    tierModelMaps: {
+      anthropic: { T1: "model-t1", T2: "model-t2", T3: "model-t3" },
+      openai: { T1: "gpt-t1", T2: "gpt-t2", T3: "gpt-t3" },
+    },
+    router: {
+      submitTask: async (input) => {
+        seenModel = input.model;
+        return { status: "completed" } as RouterTask;
+      },
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(PAYLOAD);
+  assert.equal(seenModel, "gpt-t1");
+});
+
+test("a role with no Brain key connected yet falls back to the Anthropic map, not a crash", async () => {
+  let seenModel: string | undefined;
+  const deps = baseDeps({
+    vault: { getBrainKeyStatus: async () => null },
+    router: {
+      submitTask: async (input) => {
+        seenModel = input.model;
+        return { status: "completed" } as RouterTask;
+      },
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(PAYLOAD);
+  assert.equal(seenModel, "model-t1");
 });
 
 test("a founder-team agent's task dispatches with promptTier 'ceo' and the CEO's own cascade prompt", async () => {

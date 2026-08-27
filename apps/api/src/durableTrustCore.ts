@@ -103,5 +103,5 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   const executor = new OpenMultiAgentExecutor(vault, ROUTER_SERVICE_IDENTITY, DEV_TIER_MODEL_MAP.T1);
   const router = new Router(ledger, new PostgresDurableDedupStore(pool), executor, costGate, approvalQueue);
 
-  return { router, costGate, approvalQueue, vault, tierModelMap: DEV_TIER_MODEL_MAP };
+  return { router, costGate, approvalQueue, vault, tierModelMaps: TIER_MODEL_MAPS_BY_PROVIDER };
 }
