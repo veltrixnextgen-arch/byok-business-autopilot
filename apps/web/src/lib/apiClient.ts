@@ -30,3 +30,22 @@ export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 export const apiClient = hc<AppType>(API_URL, {
   init: { credentials: "include" },
 }).api;
+
+// Same Railway domain vercel.json's own rewrite destination hardcodes —
+// confirmed via the Railway API when the proxy was built (ADR-053), not
+// guessed. Duplicated here rather than read from vercel.json at build
+// time because there's no build-time channel from that file into this
+// one; if the Railway domain ever changes, both need updating together.
+const RAILWAY_API_ORIGIN = "https://byokapi-production-6a57.up.railway.app";
+
+// Extraction deliberately stays cross-origin even once the same-origin
+// proxy is live — see extractionClient.ts's own comment for why (the
+// Vercel edge rewrite's ~120s CDN origin timeout has too little headroom
+// over extraction's real measured latency). When API_URL is "" (proxy
+// mode — ADR-053), fall back to the real Railway origin instead of
+// resolving against the current page's own origin; in every other mode
+// (local dev, or a pre-cutover absolute VITE_API_URL) API_URL is already
+// the right direct origin, so this is identical to apiClient.
+export const directApiClient = hc<AppType>(API_URL === "" ? RAILWAY_API_ORIGIN : API_URL, {
+  init: { credentials: "include" },
+}).api;
