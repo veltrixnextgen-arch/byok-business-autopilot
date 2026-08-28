@@ -87,11 +87,14 @@ async function assertSafeToFetch(url: URL, dnsLookup: typeof dns.lookup): Promis
  *  aborts the in-flight fetch via AbortController on timeout — the
  *  underlying connection gets torn down, not just ignored. A promise
  *  from a genuinely un-abortable source would still dangle either way;
- *  fetch() honors the signal, which is the only caller here. */
+ *  fetch() honors the signal, which is the only caller here.
+ *  Deliberately NOT unref'd (unlike vault's) — this timer is the only
+ *  thing that will ever settle the request it's racing, so letting the
+ *  process consider exiting while it's still pending would leave that
+ *  request to dangle instead of aborting cleanly. */
 function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new WebsiteFetchTimeoutError(`Fetching the site took longer than ${ms}ms.`)), ms);
-  timer.unref?.();
   return run(controller.signal).finally(() => clearTimeout(timer));
 }
 
