@@ -1,4 +1,4 @@
-import type { TenantTier } from "@byok/jobs";
+import type { TenantTier } from "@byok/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../context.js";
 

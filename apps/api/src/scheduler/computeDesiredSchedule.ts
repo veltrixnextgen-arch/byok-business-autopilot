@@ -1,5 +1,5 @@
 import type { OrgChart } from "@byok/contracts";
-import { clampCadenceToTierFloor, type DesiredScheduledJob, type TenantTier } from "@byok/jobs";
+import { clampCadenceToFloor, type DesiredScheduledJob } from "@byok/jobs";
 
 export interface ClampNote {
   taskId: string;
@@ -32,7 +32,7 @@ export interface DesiredScheduleResult {
  * chart, but never assumed) is simply skipped, not scheduled with a
  * missing dispatch target.
  */
-export function computeDesiredSchedule(tenantId: string, tier: TenantTier, chart: OrgChart): DesiredScheduleResult {
+export function computeDesiredSchedule(tenantId: string, chart: OrgChart): DesiredScheduleResult {
   const desired: DesiredScheduledJob[] = [];
   const clampNotes: ClampNote[] = [];
 
@@ -46,7 +46,7 @@ export function computeDesiredSchedule(tenantId: string, tier: TenantTier, chart
     const agent = agentByTaskId.get(task.id);
     if (!agent) continue; // no owning agent — nothing to dispatch as
 
-    const clamp = clampCadenceToTierFloor(task.cadence, tier);
+    const clamp = clampCadenceToFloor(task.cadence);
     if (clamp.clamped && clamp.reason) clampNotes.push({ taskId: task.id, reason: clamp.reason });
 
     const payload: ScheduledDispatchPayload = { tenantId, agentId: agent.id, taskId: task.id };

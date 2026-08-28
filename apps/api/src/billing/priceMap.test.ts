@@ -1,43 +1,44 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createStripePriceMapFromEnv, MissingStripePriceIdError, tierForPriceId } from "./priceMap.js";
+import { assertKnownPriceId, createStripePriceMapFromEnv, MissingStripePriceIdError, UnknownStripePriceIdError } from "./priceMap.js";
 
 const FULL_ENV = {
-  STRIPE_PRICE_SOLO_MONTHLY: "price_solo_m",
-  STRIPE_PRICE_SOLO_ANNUAL: "price_solo_a",
-  STRIPE_PRICE_COMPANY_MONTHLY: "price_company_m",
-  STRIPE_PRICE_COMPANY_ANNUAL: "price_company_a",
-  STRIPE_PRICE_SCALE_MONTHLY: "price_scale_m",
-  STRIPE_PRICE_SCALE_ANNUAL: "price_scale_a",
+  STRIPE_PRICE_MONTHLY: "price_monthly",
+  STRIPE_PRICE_QUARTERLY: "price_quarterly",
+  STRIPE_PRICE_YEARLY: "price_yearly",
 };
 
-test("createStripePriceMapFromEnv builds the full six-entry map when every env var is set", () => {
+test("createStripePriceMapFromEnv builds the full three-entry map when every env var is set", () => {
   const map = createStripePriceMapFromEnv(FULL_ENV);
   assert.deepEqual(map, {
-    solo: { monthly: "price_solo_m", annual: "price_solo_a" },
-    company: { monthly: "price_company_m", annual: "price_company_a" },
-    scale: { monthly: "price_scale_m", annual: "price_scale_a" },
+    monthly: "price_monthly",
+    quarterly: "price_quarterly",
+    yearly: "price_yearly",
   });
 });
 
 test("createStripePriceMapFromEnv throws naming the specific missing env var, not a generic error", () => {
-  const { STRIPE_PRICE_SCALE_ANNUAL, ...partialEnv } = FULL_ENV;
-  void STRIPE_PRICE_SCALE_ANNUAL;
+  const { STRIPE_PRICE_YEARLY, ...partialEnv } = FULL_ENV;
+  void STRIPE_PRICE_YEARLY;
   assert.throws(() => createStripePriceMapFromEnv(partialEnv), (err: unknown) => {
     assert.ok(err instanceof MissingStripePriceIdError);
-    assert.match((err as Error).message, /STRIPE_PRICE_SCALE_ANNUAL/);
+    assert.match((err as Error).message, /STRIPE_PRICE_YEARLY/);
     return true;
   });
 });
 
-test("tierForPriceId resolves every configured price id back to its real tier", () => {
+test("assertKnownPriceId accepts every configured price id", () => {
   const map = createStripePriceMapFromEnv(FULL_ENV);
-  assert.equal(tierForPriceId(map, "price_solo_m"), "solo");
-  assert.equal(tierForPriceId(map, "price_company_a"), "company");
-  assert.equal(tierForPriceId(map, "price_scale_m"), "scale");
+  assert.doesNotThrow(() => assertKnownPriceId(map, "price_monthly"));
+  assert.doesNotThrow(() => assertKnownPriceId(map, "price_quarterly"));
+  assert.doesNotThrow(() => assertKnownPriceId(map, "price_yearly"));
 });
 
-test("tierForPriceId throws on an unrecognized price id rather than guessing a tier", () => {
+test("assertKnownPriceId throws on an unrecognized price id rather than silently trusting it", () => {
   const map = createStripePriceMapFromEnv(FULL_ENV);
-  assert.throws(() => tierForPriceId(map, "price_unknown"), /price_unknown/);
+  assert.throws(() => assertKnownPriceId(map, "price_unknown"), (err: unknown) => {
+    assert.ok(err instanceof UnknownStripePriceIdError);
+    assert.match((err as Error).message, /price_unknown/);
+    return true;
+  });
 });

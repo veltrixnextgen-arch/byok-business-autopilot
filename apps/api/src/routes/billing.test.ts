@@ -22,12 +22,12 @@ test("POST /checkout 503s cleanly when billing isn't configured, instead of the 
   const res = await app.request("/checkout", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tier: "solo", period: "monthly" }),
+    body: JSON.stringify({ period: "monthly" }),
   });
   assert.equal(res.status, 503);
 });
 
-test("POST /checkout 400s on a tier/period outside the real enums, before ever calling Stripe", async () => {
+test("POST /checkout 400s on a period outside the real enum, before ever calling Stripe", async () => {
   const app = checkoutAppWithSession("tenant-1", SESSION, {
     stripe: {
       createCheckoutSession: async () => {
@@ -39,12 +39,12 @@ test("POST /checkout 400s on a tier/period outside the real enums, before ever c
   const res = await app.request("/checkout", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tier: "founder", period: "monthly" }),
+    body: JSON.stringify({ period: "annual" }),
   });
   assert.equal(res.status, 400);
 });
 
-test("POST /checkout passes the tenant's real id/tier/period/email through and returns Stripe's own redirect url", async () => {
+test("POST /checkout passes the tenant's real id/period/email through and returns Stripe's own redirect url", async () => {
   let seenParams: unknown;
   const app = checkoutAppWithSession("tenant-1", SESSION, {
     stripe: {
@@ -58,14 +58,13 @@ test("POST /checkout passes the tenant's real id/tier/period/email through and r
   const res = await app.request("/checkout", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tier: "company", period: "annual" }),
+    body: JSON.stringify({ period: "yearly" }),
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { url: "https://checkout.stripe.com/session-abc" });
   assert.deepEqual(seenParams, {
     tenantId: "tenant-1",
-    tier: "company",
-    period: "annual",
+    period: "yearly",
     customerEmail: "founder@example.com",
     successUrl: "https://app.example.com/settings?billing=success",
     cancelUrl: "https://app.example.com/settings?billing=canceled",
@@ -77,7 +76,7 @@ function webhookApp(deps: BillingWebhookRouteDeps | null) {
 }
 
 function fakeWebhookDeps(overrides: Partial<BillingWebhookRouteDeps> & { outcome?: BillingWebhookOutcome } = {}) {
-  const applyTierChangeCalls: [string, string][] = [];
+  const applyTierChangeCalls: string[] = [];
   const setTenantStripeIdsCalls: [string, { stripeCustomerId: string | null; stripeSubscriptionId: string | null }][] = [];
   return {
     applyTierChangeCalls,
@@ -86,8 +85,8 @@ function fakeWebhookDeps(overrides: Partial<BillingWebhookRouteDeps> & { outcome
       stripe: {
         constructWebhookEvent: () => overrides.outcome ?? ({ kind: "ignored", type: "unhandled.event" } as BillingWebhookOutcome),
       },
-      applyTierChange: async (tenantId: string, tier: string) => {
-        applyTierChangeCalls.push([tenantId, tier]);
+      applyTierChange: async (tenantId: string) => {
+        applyTierChangeCalls.push(tenantId);
       },
       setTenantStripeIds: async (tenantId: string, ids: { stripeCustomerId: string | null; stripeSubscriptionId: string | null }) => {
         setTenantStripeIdsCalls.push([tenantId, ids]);
@@ -146,18 +145,18 @@ test("POST /webhook re-throws (500s) when a subscription event has no tenantId i
   assert.equal(res.status, 500);
 });
 
-test("POST /webhook on subscription-active persists the Stripe ids AND applies the real tier, in that order", async () => {
+test("POST /webhook on subscription-active persists the Stripe ids AND applies the tier change, in that order", async () => {
   const { deps, applyTierChangeCalls, setTenantStripeIdsCalls } = fakeWebhookDeps({
-    outcome: { kind: "subscription-active", tenantId: "tenant-1", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1", tier: "scale" },
+    outcome: { kind: "subscription-active", tenantId: "tenant-1", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" },
   });
   const app = webhookApp(deps);
   const res = await app.request("/webhook", { method: "POST", headers: { "stripe-signature": "sig" }, body: "{}" });
   assert.equal(res.status, 200);
   assert.deepEqual(setTenantStripeIdsCalls, [["tenant-1", { stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" }]]);
-  assert.deepEqual(applyTierChangeCalls, [["tenant-1", "scale"]]);
+  assert.deepEqual(applyTierChangeCalls, ["tenant-1"]);
 });
 
-test("POST /webhook on subscription-canceled clears the subscription id and reverts the tier to solo", async () => {
+test("POST /webhook on subscription-canceled clears the subscription id and still applies the tier change", async () => {
   const { deps, applyTierChangeCalls, setTenantStripeIdsCalls } = fakeWebhookDeps({
     outcome: { kind: "subscription-canceled", tenantId: "tenant-1", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" },
   });
@@ -165,7 +164,7 @@ test("POST /webhook on subscription-canceled clears the subscription id and reve
   const res = await app.request("/webhook", { method: "POST", headers: { "stripe-signature": "sig" }, body: "{}" });
   assert.equal(res.status, 200);
   assert.deepEqual(setTenantStripeIdsCalls, [["tenant-1", { stripeCustomerId: "cus_1", stripeSubscriptionId: null }]]);
-  assert.deepEqual(applyTierChangeCalls, [["tenant-1", "solo"]]);
+  assert.deepEqual(applyTierChangeCalls, ["tenant-1"]);
 });
 
 test("POST /webhook on an ignored event type does nothing but still acknowledges Stripe with 200", async () => {

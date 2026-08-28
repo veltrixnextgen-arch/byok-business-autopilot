@@ -1,11 +1,9 @@
 import Stripe from "stripe";
 import type { BillingPeriod, StripePriceMap } from "./priceMap.js";
-import { tierForPriceId } from "./priceMap.js";
-import type { TenantTier } from "@byok/jobs";
+import { assertKnownPriceId } from "./priceMap.js";
 
 export interface CreateCheckoutSessionParams {
   tenantId: string;
-  tier: TenantTier;
   period: BillingPeriod;
   customerEmail: string;
   successUrl: string;
@@ -26,9 +24,14 @@ export interface CreateCheckoutSessionParams {
  * metadata` at checkout-session creation, which Stripe copies onto the
  * resulting Subscription, so every later event about that subscription
  * carries it too without a DB lookup by customer/subscription id.
+ *
+ * ADR-057: one plan now, so "subscription-active" no longer carries a
+ * tier — the price id is still validated (assertKnownPriceId, below)
+ * against our three known Prices, it just no longer resolves to
+ * anything beyond "this is a real Runwisely subscription."
  */
 export type BillingWebhookOutcome =
-  | { kind: "subscription-active"; tenantId: string; stripeCustomerId: string; stripeSubscriptionId: string; tier: TenantTier }
+  | { kind: "subscription-active"; tenantId: string; stripeCustomerId: string; stripeSubscriptionId: string }
   | { kind: "subscription-canceled"; tenantId: string; stripeCustomerId: string; stripeSubscriptionId: string }
   | { kind: "ignored"; type: string };
 
@@ -61,7 +64,7 @@ export function createStripeClient(secretKey: string, webhookSecret: string, pri
       const session = await client.checkout.sessions.create({
         mode: "subscription",
         customer_email: params.customerEmail,
-        line_items: [{ price: priceMap[params.tier][params.period], quantity: 1 }],
+        line_items: [{ price: priceMap[params.period], quantity: 1 }],
         success_url: params.successUrl,
         cancel_url: params.cancelUrl,
         // Set on BOTH: session.metadata for anyone inspecting the
@@ -89,14 +92,14 @@ export function createStripeClient(secretKey: string, webhookSecret: string, pri
         const subscription = event.data.object as Stripe.Subscription;
         const priceId = subscription.items.data[0]?.price.id;
         if (!priceId) {
-          throw new Error(`Subscription ${subscription.id} has no line items — cannot determine its tier.`);
+          throw new Error(`Subscription ${subscription.id} has no line items — cannot verify its price.`);
         }
+        assertKnownPriceId(priceMap, priceId);
         return {
           kind: "subscription-active",
           tenantId: tenantIdFromMetadata(subscription.metadata),
           stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
           stripeSubscriptionId: subscription.id,
-          tier: tierForPriceId(priceMap, priceId),
         };
       }
 

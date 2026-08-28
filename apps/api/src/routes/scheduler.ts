@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import type { DurableBatchStore } from "@byok/cost-gate";
 import type { CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
 import type { Cadence, OrgChart } from "@byok/contracts";
-import { syncTenantSchedule, type QueueLike, type RepeatableQueueLike, type TenantTier } from "@byok/jobs";
+import { syncTenantSchedule, type QueueLike, type RepeatableQueueLike } from "@byok/jobs";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../context.js";
@@ -19,7 +19,6 @@ export interface SchedulerRouteDeps {
   scheduleState: Pick<TenantScheduleStateStore, "get" | "resume">;
   instrumentation: Pick<SchedulerInstrumentationStore, "getDaily">;
   durableBatchStore: Pick<DurableBatchStore, "complete" | "get">;
-  getTenantTier: (tenantId: string) => Promise<TenantTier>;
   // Issue #159: run-now needs .add() (a one-off job) alongside the
   // repeatable-schedule API /sync already uses — a real BullMQ Queue
   // satisfies both structurally (queue.ts's own comment), so this is
@@ -59,23 +58,19 @@ function todayIso(): string {
  * `POST /sync` is idempotent and safe to call any time the tenant's Charter
  * or org chart might have changed — it's also called automatically from
  * the Charter-accept handler (apps/api/src/routes/charter.ts), so a caller
- * only needs this route directly for a manual re-sync (e.g. after a tier
- * change moves the cadence floor).
+ * only needs this route directly for a manual re-sync (e.g. after an org
+ * chart edit changes what's schedulable).
  */
 export function schedulerRoute(deps: SchedulerRouteDeps) {
   return new Hono<AppEnv>()
     .post("/sync", async (c) => {
       const tenantId = c.get("tenantId");
-      const [charter, batch, tier] = await Promise.all([
-        deps.charters.getActive(tenantId),
-        deps.batchStore.latestForTenant(tenantId),
-        deps.getTenantTier(tenantId),
-      ]);
+      const [charter, batch] = await Promise.all([deps.charters.getActive(tenantId), deps.batchStore.latestForTenant(tenantId)]);
       if (!charter?.cascade || !batch?.orgChart) {
         return c.json({ error: "No active Charter with an installed cascade to schedule from." }, 409);
       }
 
-      const { desired, clampNotes } = computeDesiredSchedule(tenantId, tier, batch.orgChart);
+      const { desired, clampNotes } = computeDesiredSchedule(tenantId, batch.orgChart);
       const result = await syncTenantSchedule(deps.queue, deps.jobName, tenantId, desired);
       return c.json({ ...result, clampNotes });
     })
@@ -132,18 +127,16 @@ export function schedulerRoute(deps: SchedulerRouteDeps) {
     // Issue #141: the only prior way to change a task's cadence was a raw
     // SQL edit against signup_extraction_batches.org_chart — no product
     // surface existed at all. Stores the tenant's own DECLARED cadence
-    // (not pre-clamped) so a later tier upgrade can recompute a faster
-    // schedule without needing this edited again — computeDesiredSchedule
-    // (the same mechanism /sync and the tier-change route already use)
-    // applies the tier-floor clamp fresh at sync time regardless. UI is a
-    // separate, larger question (agents/tasks screen) — API-only here,
-    // same scoping call issue #141 itself makes.
+    // (not pre-clamped) — computeDesiredSchedule (the same mechanism
+    // /sync uses) applies the floor clamp fresh at sync time regardless.
+    // UI is a separate, larger question (agents/tasks screen) — API-only
+    // here, same scoping call issue #141 itself makes.
     .patch("/tasks/:taskId/cadence", zValidator("json", updateCadenceSchema), async (c) => {
       const tenantId = c.get("tenantId");
       const taskId = c.req.param("taskId");
       const { cadence } = c.req.valid("json");
 
-      const [batch, tier] = await Promise.all([deps.batchStore.latestForTenant(tenantId), deps.getTenantTier(tenantId)]);
+      const batch = await deps.batchStore.latestForTenant(tenantId);
       if (!batch?.orgChart) {
         return c.json({ error: "No claimed org chart to edit." }, 409);
       }
@@ -162,7 +155,7 @@ export function schedulerRoute(deps: SchedulerRouteDeps) {
       };
       await deps.batchStore.updateOrgChartForTenant(tenantId, batch.id, updatedChart);
 
-      const { desired, clampNotes } = computeDesiredSchedule(tenantId, tier, updatedChart);
+      const { desired, clampNotes } = computeDesiredSchedule(tenantId, updatedChart);
       const result = await syncTenantSchedule(deps.queue, deps.jobName, tenantId, desired);
 
       return c.json({ cadence, ...result, clampNotes });
