@@ -20,6 +20,12 @@ export type { TaskDelta, TaskDeltaKind } from "./taskDeltas.js";
 export { CLAUDE_MODEL as CUSTOMIZE_MODEL } from "./customize.js";
 export { HAIKU_MODEL as VALIDATE_MODEL } from "./categoryValidator.js";
 export { CLAUDE_MODEL as ONBOARDING_MODEL } from "./onboardingBatch.js";
+export { WEBSITE_SUMMARY_MODEL } from "./websiteSummary.js";
+
+export { summarizeWebsite } from "./websiteSummary.js";
+export type { WebsiteSummaryResult } from "./websiteSummary.js";
+export { fetchWebsiteText, UnsafeWebsiteUrlError, WebsiteFetchTimeoutError, WebsiteFetchFailedError } from "./websiteFetch.js";
+export type { FetchWebsiteTextResult } from "./websiteFetch.js";
 
 export type {
   Agent,

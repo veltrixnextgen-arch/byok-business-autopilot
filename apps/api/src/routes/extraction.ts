@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../context.js";
 import { runExtractionBatch, type RunExtractionBatchDeps } from "../extraction/runExtractionBatch.js";
+import { runWebsiteSummary, type RunWebsiteSummaryDeps } from "../extraction/runWebsiteSummary.js";
 
 const jurisdictionSchema = z.object({
   country: z.string().min(1),
@@ -51,6 +52,8 @@ const questionsSchema = z.object({
   idea: z.string().min(1),
   answers: partialAnswersSchema.optional(),
 });
+
+const websiteSummarySchema = z.object({ url: z.string().url() });
 
 const startBatchSchema = z.object({
   idea: z.string().min(1),
@@ -108,6 +111,7 @@ export interface ExtractionRouteDeps extends RunExtractionBatchDeps {
   // Pick — the read/edit routes need more of the store's surface.
   batchStore: RunExtractionBatchDeps["batchStore"] &
     Pick<SignupExtractionBatchStore, "latestForUser" | "get" | "updateOrgChart">;
+  websiteSummary: RunWebsiteSummaryDeps;
 }
 
 /**
@@ -148,6 +152,18 @@ export function extractionRoute(deps: ExtractionRouteDeps) {
         needsDisambiguation ? { needed: true, candidates: [selection.primary, selection.blendedWith!] } : null,
       );
       return c.json({ questions, templateHint, guess });
+    })
+    // ADR-058: website-as-input. Runs BEFORE any extraction batch starts,
+    // gated by its own CostGate reservation (runWebsiteSummary.ts) — a
+    // failed fetch never touches the extraction batch's own budget.
+    // Every failure mode maps to a 200 with a `status` the client falls
+    // back on, never a dead end: apps/web switches back to the plain-text
+    // idea box on anything but "completed".
+    .post("/website-summary", zValidator("json", websiteSummarySchema), async (c) => {
+      const { url } = c.req.valid("json");
+      const userId = c.get("userId");
+      const result = await runWebsiteSummary(deps.websiteSummary, userId, url);
+      return c.json({ result });
     })
     // Blocks until the batch finishes (or fails/queues/skips) — extraction
     // is a handful of sequential Claude calls, seconds not minutes, so a
