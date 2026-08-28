@@ -67,6 +67,26 @@ export async function fetchQuestions(idea: string, answers?: Partial<InterviewAn
   return res.json();
 }
 
+export type WebsiteSummaryResult =
+  | { status: "completed"; summary: string }
+  | { status: "insufficient-content" }
+  | { status: "unsafe-url"; error: string }
+  | { status: "unreachable"; error: string }
+  | { status: "queued" | "skipped"; reason: string }
+  | { status: "failed"; error: string };
+
+/** ADR-058: website-as-input. Never throws on a content/reachability
+ *  failure — every one of those is a real `status` the caller falls back
+ *  on (IdeaForm.tsx switches back to the plain-text box), never a dead
+ *  end. Only a genuine network/server error throws, same as every other
+ *  call in this file. */
+export async function summarizeWebsite(url: string): Promise<WebsiteSummaryResult> {
+  const res = await directApiClient.extraction["website-summary"].$post({ json: { url } });
+  if (!res.ok) throw new ApiError(res.status, `Could not read that site (${res.status}).`);
+  const { result } = await res.json();
+  return result as WebsiteSummaryResult;
+}
+
 export type StartBatchResult =
   | { status: "completed"; batchId: string; chart: OrgChart; costUsd: number }
   | { status: "queued" | "skipped"; batchId: string; reason: string }

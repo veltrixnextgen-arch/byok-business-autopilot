@@ -28,6 +28,13 @@ function fakeDeps(overrides: Partial<ExtractionRouteDeps> = {}): ExtractionRoute
     taskDeltaStore: {
       recordMany: async () => {},
     } as never,
+    websiteSummary: {
+      costGate: { evaluateAndReserve: () => ({ verdict: { kind: "SKIP", reason: "unused in this test", model: "x" } }) } as never,
+      apiKey: "test-key",
+      fetchText: async () => {
+        throw new Error("unused in this test");
+      },
+    },
     ...overrides,
   };
 }
@@ -157,4 +164,46 @@ test("/batches/:id/reassemble records template-learning deltas for the task-list
   assert.equal(rec.source, "reassemble");
   // t-1 removed, t-2 added.
   assert.equal(rec.deltas.length, 2);
+});
+
+test("/website-summary 400s on a malformed URL, before ever reaching runWebsiteSummary", async () => {
+  const app = appWithUser("user-1", fakeDeps());
+
+  const res = await app.request("/extraction/website-summary", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url: "not a url" }),
+  });
+
+  assert.equal(res.status, 400);
+});
+
+test("/website-summary returns the real runWebsiteSummary result under { result }", async () => {
+  const app = appWithUser(
+    "user-1",
+    fakeDeps({
+      websiteSummary: {
+        costGate: {
+          evaluateAndReserve: () => ({
+            verdict: { kind: "PROCEED", model: "claude-haiku-4-5-20251001" },
+            reservation: { id: "r-1", roleId: "onboarding", taskType: "website-summary", amountUsd: 0.01, createdAt: "", status: "reserved" },
+          }),
+          settle: async () => {},
+          release: async () => {},
+        } as never,
+        apiKey: "test-key",
+        fetchText: async () => ({ text: "Acme sells handmade candles online, worldwide, direct to consumers.".repeat(3), finalUrl: "https://acme.example/" }),
+        summarize: async () => ({ sufficientContent: true, summary: "Acme sells handmade candles.", costUsd: 0.003 }),
+      },
+    }),
+  );
+
+  const res = await app.request("/extraction/website-summary", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url: "https://acme.example/" }),
+  });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { result: { status: "completed", summary: "Acme sells handmade candles." } });
 });

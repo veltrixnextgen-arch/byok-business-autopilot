@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CUSTOMIZE_MODEL, ONBOARDING_MODEL, VALIDATE_MODEL } from "@byok/extraction";
+import { CUSTOMIZE_MODEL, ONBOARDING_MODEL, VALIDATE_MODEL, WEBSITE_SUMMARY_MODEL } from "@byok/extraction";
 import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, loadDevPricingTable } from "./devTrustCore.js";
 
 // Regression test for a real bug: DEV_TIER_MODEL_MAP's T1 entry once read
@@ -12,7 +12,7 @@ import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, loadDevPricingTable } 
 // model swap instead of silently at request time.
 test("every model referenced by the tier router or extraction has a pricing entry", () => {
   const pricingTable = loadDevPricingTable();
-  const modelIds = [...Object.values(DEV_TIER_MODEL_MAP), CUSTOMIZE_MODEL, VALIDATE_MODEL, ONBOARDING_MODEL];
+  const modelIds = [...Object.values(DEV_TIER_MODEL_MAP), CUSTOMIZE_MODEL, VALIDATE_MODEL, ONBOARDING_MODEL, WEBSITE_SUMMARY_MODEL];
 
   for (const id of modelIds) {
     assert.doesNotThrow(() => pricingTable.priceFor(id), `missing pricing entry for model "${id}"`);

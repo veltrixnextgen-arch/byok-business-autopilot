@@ -245,6 +245,7 @@ export function createApp(options: CreateAppOptions) {
         taskDeltaStore: options.extraction.taskDeltaStore,
         costGate: options.trustCore.costGate,
         apiKey: options.extraction.apiKey,
+        websiteSummary: { costGate: options.trustCore.costGate, apiKey: options.extraction.apiKey },
       }),
     )
     .use("/metrics/*", userMiddleware(options.auth))
