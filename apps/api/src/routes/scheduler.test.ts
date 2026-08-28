@@ -114,7 +114,7 @@ function fakeNotifications(overrides: Partial<import("./scheduler.js").Scheduler
   };
 }
 
-test("POST /sync clamps a Scale-only 15min task down to Solo's daily floor and syncs BullMQ", async () => {
+test("POST /sync clamps a 15min task down to the plan's daily floor and syncs BullMQ", async () => {
   const queue = fakeQueue();
   const app = appWithSession("tenant-1", SESSION, {
     charters: { getActive: async () => makeCharter() },
@@ -122,7 +122,6 @@ test("POST /sync clamps a Scale-only 15min task down to Solo's daily floor and s
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
     instrumentation: { getDaily: async () => null },
     durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
-    getTenantTier: async () => "solo",
     queue,
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),
@@ -133,7 +132,7 @@ test("POST /sync clamps a Scale-only 15min task down to Solo's daily floor and s
   const body = (await res.json()) as { added: string[]; clampNotes: { taskId: string; reason: string }[] };
   assert.deepEqual(body.added, ["tenant-1:agent-1:task-1"]);
   assert.equal(body.clampNotes.length, 1);
-  assert.match(body.clampNotes[0].reason, /Runs daily on Solo/);
+  assert.match(body.clampNotes[0].reason, /Runs daily./);
   assert.equal(queue.jobs.get("tenant-1:agent-1:task-1")?.every, 24 * 60 * 60 * 1000);
 });
 
@@ -144,7 +143,6 @@ test("POST /sync 409s when there's no active Charter+cascade to schedule from", 
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
     instrumentation: { getDaily: async () => null },
     durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),
@@ -165,7 +163,6 @@ function runNowDeps(tenantId: string, overrides: Partial<SchedulerRouteDeps> = {
     scheduleState: { get: async () => ({ tenantId, pausedAt: null, pausedReason: null, pausedBatchId: null }), resume: async () => {} },
     instrumentation: { getDaily: async () => null },
     durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),
@@ -262,7 +259,7 @@ test("POST /run-now 429s a second call for the same task within the cooldown win
 });
 
 // Issue #141 — PATCH /tasks/:taskId/cadence.
-test("PATCH /tasks/:taskId/cadence stores the declared cadence, then resyncs clamped to the tier floor", async () => {
+test("PATCH /tasks/:taskId/cadence stores the declared cadence, then resyncs clamped to the plan's floor", async () => {
   const queue = fakeQueue();
   let savedChart: OrgChart | undefined;
   const app = appWithSession(
@@ -294,7 +291,7 @@ test("PATCH /tasks/:taskId/cadence stores the declared cadence, then resyncs cla
   // solo's floor is daily — the sync response reflects the clamp even
   // though what got SAVED is what the tenant actually asked for.
   assert.equal(body.clampNotes.length, 1);
-  assert.match(body.clampNotes[0].reason, /Runs daily on Solo/);
+  assert.match(body.clampNotes[0].reason, /Runs daily./);
   assert.equal(queue.jobs.get("tenant-cadence-1:agent-1:task-1")?.every, 24 * 60 * 60 * 1000);
 });
 
@@ -346,7 +343,6 @@ test("GET /status reports paused state and today's instrumentation, zeroed when 
     },
     instrumentation: { getDaily: async () => null },
     durableBatchStore: { complete: async () => {}, get: async () => ({ id: "p-1", remainingTasks: [{ id: "task-1" }, { id: "task-2" }] }) as never },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications({ ceilings: { get: async () => 25 }, reservationTotals: { totals: async () => ({ totalUsd: 26.5, ceilingUsd: 25 }) } }),
@@ -386,7 +382,6 @@ test("GET /status reports null cost fields when not paused — never fetches the
         throw new Error("must not be called when not paused");
       },
     },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),
@@ -420,7 +415,6 @@ test("POST /resume completes the paused batch record and clears the pause flag",
       },
       get: async () => ({ id: "p-1", remainingTasks: [] }) as never,
     },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),
@@ -444,7 +438,6 @@ test("POST /resume fires the resume notification", async () => {
     },
     instrumentation: { getDaily: async () => null },
     durableBatchStore: { complete: async () => {}, get: async () => ({ id: "unused", remainingTasks: [] }) as never },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications({
@@ -477,7 +470,6 @@ test("POST /resume never calls durableBatchStore.complete when there was no paus
       },
       get: async () => ({ id: "unused", remainingTasks: [] }) as never,
     },
-    getTenantTier: async () => "solo",
     queue: fakeQueue(),
     jobName: "scheduled-dispatch",
     notifications: fakeNotifications(),

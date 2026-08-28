@@ -29,32 +29,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("PricingPage — real prices (ADR-044)", () => {
-  it("shows the real monthly prices by default, not a placeholder", () => {
+describe("PricingPage — one plan, three billing periods (ADR-057)", () => {
+  it("shows the real monthly price by default, not a placeholder", () => {
     render(<PricingPage />);
     expect(screen.getByText("$39")).toBeTruthy();
-    expect(screen.getByText("$89")).toBeTruthy();
-    expect(screen.getByText("$249")).toBeTruthy();
     expect(screen.queryByText("Pricing not finalised. Values shown are placeholders.")).toBeNull();
   });
 
-  it("switches to the discounted monthly rate (big number) with the real annual total shown small beneath, when the toggle is clicked", () => {
+  it("switches to the quarterly effective monthly rate with the real billed total shown small beneath", () => {
     render(<PricingPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Annual — 2 months free" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quarterly — save 10%" }));
 
     // The big number is the effective monthly rate, derived from the real
-    // annual total — never a lump "$/year" figure.
-    expect(screen.getByText("$32.50")).toBeTruthy();
-    expect(screen.getByText("$74.17")).toBeTruthy();
-    expect(screen.getByText("$207.50")).toBeTruthy();
+    // billed total — never a lump "$/quarter" figure.
+    expect(screen.getByText("$35.00")).toBeTruthy();
     expect(screen.queryByText("$39")).toBeNull();
+    expect(screen.getByText(/\$105 billed quarterly · save 10%/)).toBeTruthy();
+  });
 
-    // The real annual total (still $390/$890/$2,490 — unchanged since
-    // ADR-044) appears in small text beneath each price, not as the
-    // headline figure.
-    expect(screen.getByText(/\$390 billed annually/)).toBeTruthy();
-    expect(screen.getByText(/\$890 billed annually/)).toBeTruthy();
-    expect(screen.getByText(/\$2,490 billed annually/)).toBeTruthy();
+  it("switches to the yearly effective monthly rate with the real billed total shown small beneath", () => {
+    render(<PricingPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Yearly — save 20%" }));
+
+    expect(screen.getByText("$31.17")).toBeTruthy();
+    expect(screen.queryByText("$39")).toBeNull();
+    expect(screen.getByText(/\$374 billed yearly · save 20%/)).toBeTruthy();
   });
 
   it("leads with no credit caps and is honest that scheduled work is draft-only", () => {

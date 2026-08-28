@@ -1,5 +1,4 @@
 import { zValidator } from "@hono/zod-validator";
-import type { TenantTier } from "@byok/jobs";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { StripeClient } from "../billing/stripeClient.js";
@@ -7,8 +6,7 @@ import { StripeEventMissingTenantIdError, StripeSignatureError } from "../billin
 import type { AppEnv } from "../context.js";
 
 const checkoutSchema = z.object({
-  tier: z.enum(["solo", "company", "scale"]),
-  period: z.enum(["monthly", "annual"]),
+  period: z.enum(["monthly", "quarterly", "yearly"]),
 });
 
 export interface BillingCheckoutRouteDeps {
@@ -41,11 +39,10 @@ export function billingCheckoutRoute(deps: BillingCheckoutRouteDeps | null) {
 
     const tenantId = c.get("tenantId");
     const session = c.get("session");
-    const { tier, period } = c.req.valid("json");
+    const { period } = c.req.valid("json");
 
     const { url } = await deps.stripe.createCheckoutSession({
       tenantId,
-      tier,
       period,
       customerEmail: session.user.email,
       successUrl: `${deps.webOrigin}/settings?billing=success`,
@@ -58,7 +55,7 @@ export function billingCheckoutRoute(deps: BillingCheckoutRouteDeps | null) {
 
 export interface BillingWebhookRouteDeps {
   stripe: Pick<StripeClient, "constructWebhookEvent">;
-  applyTierChange: (tenantId: string, tier: TenantTier) => Promise<unknown>;
+  applyTierChange: (tenantId: string) => Promise<unknown>;
   setTenantStripeIds: (tenantId: string, ids: { stripeCustomerId: string | null; stripeSubscriptionId: string | null }) => Promise<void>;
 }
 
@@ -72,15 +69,14 @@ export interface BillingWebhookRouteDeps {
  * signature would no longer match — this route deliberately never calls
  * `c.req.json()`.
  *
- * `tenants.tier` reverts to 'solo' (the column's own default, migration
- * 0010) on cancellation — directionally correct (losing a paid
- * subscription drops back to the baseline tier), but this does NOT mean
- * 'solo' itself is free: nothing in this codebase enforces the
- * per-tier company/agent/history/team-member limits pricingConstants.ts
- * advertises (confirmed nowhere in code — cadence floor is the only
- * tier-driven enforcement that exists). That's a real, separate,
- * pre-existing gap this route does not create and does not close — see
- * ADR-045's own closing note.
+ * ADR-057: one plan now, so `tenants.tier` is always 'solo' whether the
+ * subscription is active or canceled — the only real signal of paid
+ * status is `stripe_subscription_id` being set or null. Nothing in this
+ * codebase currently gates access on that either way (confirmed nowhere
+ * in code — cadence floor was the only tier-driven enforcement that ever
+ * existed, and it's uniform across all tenants now too). Whether an
+ * unsubscribed tenant should be blocked from using the product at all is
+ * a real, separate question this route does not answer.
  */
 export function billingWebhookRoute(deps: BillingWebhookRouteDeps | null) {
   return new Hono<AppEnv>().post("/webhook", async (c) => {
@@ -116,11 +112,11 @@ export function billingWebhookRoute(deps: BillingWebhookRouteDeps | null) {
           stripeCustomerId: outcome.stripeCustomerId,
           stripeSubscriptionId: outcome.stripeSubscriptionId,
         });
-        await deps.applyTierChange(outcome.tenantId, outcome.tier);
+        await deps.applyTierChange(outcome.tenantId);
         break;
       case "subscription-canceled":
         await deps.setTenantStripeIds(outcome.tenantId, { stripeCustomerId: outcome.stripeCustomerId, stripeSubscriptionId: null });
-        await deps.applyTierChange(outcome.tenantId, "solo");
+        await deps.applyTierChange(outcome.tenantId);
         break;
       case "ignored":
         break;

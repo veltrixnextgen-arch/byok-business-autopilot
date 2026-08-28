@@ -79,7 +79,7 @@ function fakeQueue() {
   };
 }
 
-test("persists the new tier and re-syncs an already-installed schedule to the new floor", async () => {
+test("persists 'solo' and re-syncs an already-installed schedule, clamping to the one floor", async () => {
   const queue = fakeQueue();
   let persistedTier: string | undefined;
   const result = await applyTierChange(
@@ -93,38 +93,18 @@ test("persists the new tier and re-syncs an already-installed schedule to the ne
       jobName: "scheduled-dispatch",
     },
     "tenant-1",
-    "scale",
   );
 
-  assert.equal(persistedTier, "scale");
-  assert.equal(result.tier, "scale");
+  assert.equal(persistedTier, "solo");
   assert.equal(result.resynced, true);
-  // Scale's floor is 15min, matching the task's own declared cadence —
-  // no clamp needed, unlike Solo's default floor.
-  assert.equal(result.clampNotes.length, 0);
-  assert.equal(queue.jobs.get("tenant-1:agent-1:task-1")?.every, 15 * 60 * 1000);
-});
-
-test("downgrading re-clamps an existing faster-than-floor schedule down, not just up", async () => {
-  const queue = fakeQueue();
-  const result = await applyTierChange(
-    {
-      setTenantTier: async () => {},
-      charters: { getActive: async () => makeCharter() },
-      batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
-      queue,
-      jobName: "scheduled-dispatch",
-    },
-    "tenant-1",
-    "solo",
-  );
-
+  // The task declares 15min; the one plan's floor is daily, so this
+  // always clamps now — there's no faster tier left to be on.
   assert.equal(result.clampNotes.length, 1);
-  assert.match(result.clampNotes[0].reason, /Runs daily on Solo/);
+  assert.match(result.clampNotes[0].reason, /Runs daily/);
   assert.equal(queue.jobs.get("tenant-1:agent-1:task-1")?.every, 24 * 60 * 60 * 1000);
 });
 
-test("with no active Charter/claimed org chart yet still persists the tier, just doesn't resync", async () => {
+test("with no active Charter/claimed org chart yet still persists 'solo', just doesn't resync", async () => {
   let persistedTier: string | undefined;
   const result = await applyTierChange(
     {
@@ -137,10 +117,9 @@ test("with no active Charter/claimed org chart yet still persists the tier, just
       jobName: "scheduled-dispatch",
     },
     "tenant-1",
-    "company",
   );
 
-  assert.equal(persistedTier, "company");
+  assert.equal(persistedTier, "solo");
   assert.equal(result.resynced, false);
   assert.deepEqual(result.added, []);
 });

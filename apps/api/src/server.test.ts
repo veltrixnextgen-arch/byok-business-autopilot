@@ -233,12 +233,9 @@ test("google is populated with a redirectUri derived from authBaseUrl once both 
 // no real Stripe account exists yet anywhere this app runs, and the
 // server must still boot with it entirely unset.
 const STRIPE_PRICE_ENV = {
-  STRIPE_PRICE_SOLO_MONTHLY: "price_solo_m",
-  STRIPE_PRICE_SOLO_ANNUAL: "price_solo_a",
-  STRIPE_PRICE_COMPANY_MONTHLY: "price_company_m",
-  STRIPE_PRICE_COMPANY_ANNUAL: "price_company_a",
-  STRIPE_PRICE_SCALE_MONTHLY: "price_scale_m",
-  STRIPE_PRICE_SCALE_ANNUAL: "price_scale_a",
+  STRIPE_PRICE_MONTHLY: "price_monthly",
+  STRIPE_PRICE_QUARTERLY: "price_quarterly",
+  STRIPE_PRICE_YEARLY: "price_yearly",
 };
 
 test("stripe is null when STRIPE_SECRET_KEY is unset — server still boots fine", () => {
@@ -275,18 +272,15 @@ test("throws when STRIPE_SECRET_KEY/WEBHOOK_SECRET are both set but a STRIPE_PRI
         REDIS_URL: "redis://x",
         STRIPE_SECRET_KEY: "sk_test_x",
         STRIPE_WEBHOOK_SECRET: "whsec_x",
-        // STRIPE_PRICE_SOLO_MONTHLY deliberately omitted
-        STRIPE_PRICE_SOLO_ANNUAL: "price_solo_a",
-        STRIPE_PRICE_COMPANY_MONTHLY: "price_company_m",
-        STRIPE_PRICE_COMPANY_ANNUAL: "price_company_a",
-        STRIPE_PRICE_SCALE_MONTHLY: "price_scale_m",
-        STRIPE_PRICE_SCALE_ANNUAL: "price_scale_a",
+        // STRIPE_PRICE_MONTHLY deliberately omitted
+        STRIPE_PRICE_QUARTERLY: "price_quarterly",
+        STRIPE_PRICE_YEARLY: "price_yearly",
       } as NodeJS.ProcessEnv),
-    /STRIPE_PRICE_SOLO_MONTHLY/,
+    /STRIPE_PRICE_MONTHLY/,
   );
 });
 
-test("stripe is fully populated once the secret/webhook keys and all six price ids are set", () => {
+test("stripe is fully populated once the secret/webhook keys and all three price ids are set", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
     BETTER_AUTH_SECRET: "s",
@@ -301,9 +295,9 @@ test("stripe is fully populated once the secret/webhook keys and all six price i
     secretKey: "sk_test_x",
     webhookSecret: "whsec_x",
     priceMap: {
-      solo: { monthly: "price_solo_m", annual: "price_solo_a" },
-      company: { monthly: "price_company_m", annual: "price_company_a" },
-      scale: { monthly: "price_scale_m", annual: "price_scale_a" },
+      monthly: "price_monthly",
+      quarterly: "price_quarterly",
+      yearly: "price_yearly",
     },
   });
 });

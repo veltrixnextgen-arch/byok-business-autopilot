@@ -178,12 +178,9 @@ export function createApp(options: CreateAppOptions) {
         charters,
         batchStore: options.extraction.batchStore,
         onAccepted: async (tenantId) => {
-          const [batch, tier] = await Promise.all([
-            options.extraction.batchStore.latestForTenant(tenantId),
-            getTenantTier(options.pool, tenantId),
-          ]);
+          const batch = await options.extraction.batchStore.latestForTenant(tenantId);
           if (!batch?.orgChart) return null; // shouldn't happen post-accept; nothing to schedule if it did
-          const { desired, clampNotes } = computeDesiredSchedule(tenantId, tier, batch.orgChart);
+          const { desired, clampNotes } = computeDesiredSchedule(tenantId, batch.orgChart);
           const result = await syncTenantSchedule(options.scheduler.queue, options.scheduler.jobName, tenantId, desired);
           return { ...result, clampNotes };
         },
@@ -197,7 +194,6 @@ export function createApp(options: CreateAppOptions) {
         scheduleState,
         instrumentation,
         durableBatchStore,
-        getTenantTier: (tenantId) => getTenantTier(options.pool, tenantId),
         queue: options.scheduler.queue,
         jobName: options.scheduler.jobName,
         notifications: options.scheduler.notifications,
@@ -273,7 +269,7 @@ export function createApp(options: CreateAppOptions) {
         options.billing
           ? {
               stripe: options.billing.stripe,
-              applyTierChange: (tenantId, tier) =>
+              applyTierChange: (tenantId) =>
                 applyTierChange(
                   {
                     setTenantTier: (id, t) => setTenantTier(options.pool, id, t),
@@ -283,7 +279,6 @@ export function createApp(options: CreateAppOptions) {
                     jobName: options.scheduler.jobName,
                   },
                   tenantId,
-                  tier,
                 ),
               setTenantStripeIds: (tenantId, ids) => setTenantStripeIds(options.pool, tenantId, ids),
             }

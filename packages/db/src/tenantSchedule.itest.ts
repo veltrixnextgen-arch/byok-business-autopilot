@@ -74,9 +74,18 @@ test("stripe_subscription_id must be unique across tenants — the real DB const
 test("setTenantTier + getTenantTier round-trip for real, alongside a Stripe id write", async () => {
   const tenantId = await seedTenant();
   try {
-    await setTenantTier(pool, tenantId, "scale");
+    await setTenantTier(pool, tenantId, "solo");
     await setTenantStripeIds(pool, tenantId, { stripeCustomerId: "cus_live_3", stripeSubscriptionId: "sub_live_3" });
-    assert.equal(await getTenantTier(pool, tenantId), "scale");
+    assert.equal(await getTenantTier(pool, tenantId), "solo");
+  } finally {
+    await cleanup([tenantId]);
+  }
+});
+
+test("the DB's own CHECK constraint rejects a tier other than 'solo' — the real backstop, not just the type", async () => {
+  const tenantId = await seedTenant();
+  try {
+    await assert.rejects(() => pool.query("UPDATE tenants SET tier = 'scale' WHERE id = $1::uuid", [tenantId]));
   } finally {
     await cleanup([tenantId]);
   }

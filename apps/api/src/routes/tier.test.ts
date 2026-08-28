@@ -17,11 +17,11 @@ function appWithSession(tenantId: string, session: AppSession, deps: TierRouteDe
 const SESSION = { user: { id: "user-1", email: "founder@example.com" }, session: {} } as never;
 
 test("GET / reports the tenant's current tier", async () => {
-  const app = appWithSession("tenant-1", SESSION, { getTenantTier: async () => "company" });
+  const app = appWithSession("tenant-1", SESSION, { getTenantTier: async () => "solo" });
 
   const res = await app.request("/");
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { tier: "company" });
+  assert.deepEqual(await res.json(), { tier: "solo" });
 });
 
 test("GET / has no mutation path — POST is not a route on this app at all", async () => {

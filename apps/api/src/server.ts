@@ -112,7 +112,7 @@ export interface ServerConfig {
    *  deploy missing it must still boot. `null` means /me/billing/checkout
    *  and /billing/webhook 503 cleanly (routes/billing.ts) rather than the
    *  whole server refusing to start. Setting STRIPE_SECRET_KEY,
-   *  STRIPE_WEBHOOK_SECRET, and the six STRIPE_PRICE_* env vars (see
+   *  STRIPE_WEBHOOK_SECRET, and the three STRIPE_PRICE_* env vars (see
    *  billing/priceMap.ts) is the only remaining step once a real account
    *  exists — no code changes required, same as Google's own comment. */
   stripe: { secretKey: string; webhookSecret: string; priceMap: StripePriceMap } | null;
@@ -159,7 +159,7 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
   const buildSha = env.BUILD_SHA ?? "unknown";
 
   // Issue #18/ADR-045. All-or-nothing: STRIPE_SECRET_KEY present means a
-  // real Stripe account exists, so the six STRIPE_PRICE_* env vars
+  // real Stripe account exists, so the three STRIPE_PRICE_* env vars
   // (createStripePriceMapFromEnv) are required too and this throws
   // loudly on a half-configured deploy rather than booting with billing
   // silently broken. STRIPE_SECRET_KEY absent means no Stripe account

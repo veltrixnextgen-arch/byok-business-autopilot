@@ -1,11 +1,10 @@
 import { withTenantScope, type PoolLike } from "./tenantContext.js";
 
-// R3 (ADR-025): the real, shipped subscription tiers
-// (apps/web/src/lib/pricingConstants.ts's PRICING_TIERS) — not the plan
-// doc's "Founder/Operator/Agency" naming, which doesn't exist anywhere in
-// this codebase's actual pricing surface. See migrations/0010's header and
-// ADR-025 for the full reconciliation.
-export type TenantTier = "solo" | "company" | "scale";
+// ADR-057: collapsed from three tiers (solo/company/scale) to one plan.
+// The column and this type stay rather than being deleted outright — see
+// migrations/0019's own header and ADR-057 for why — but 'solo' is now
+// the only value the DB's own CHECK constraint allows.
+export type TenantTier = "solo";
 
 /**
  * Tier is read the same way monthly_ceiling_usd is (TenantCeilingStore):

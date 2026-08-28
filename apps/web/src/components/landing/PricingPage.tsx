@@ -1,19 +1,11 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { PRICING_TIERS } from "../../lib/pricingConstants";
+import { useState } from "react";
+import { BILLING_PERIODS, PLAN, type BillingPeriodOption } from "../../lib/pricingConstants";
 import { cx } from "../ui";
 import { FinalCta } from "./FinalCta";
 import { LandingFooter } from "./LandingFooter";
 import { LandingNav } from "./LandingNav";
 import { AccordionItem, Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useAccordion, useRevealOnScroll } from "./primitives";
-
-// Real prices as of ADR-044 (docs/DECISIONS.md, 2026-08-26) — this page
-// used to mirror the Emergent reference's own unfinished "—/month"
-// placeholders (captured live 2026-08-08); that's no longer true, and this
-// page no longer says otherwise. Annual is a flat 2 months free on every
-// tier — lib/pricingConstants.ts's priceAnnualUsd already bakes that in,
-// this file just formats it.
-type BillingPeriod = "monthly" | "annual";
 
 const FAQ = [
   {
@@ -50,26 +42,20 @@ const FAQ = [
   },
 ];
 
-// Annual is shown as its OWN discounted monthly rate (the big number),
-// with the real annual total in small text beneath — never as a lump
-// "$/year" figure. That's the number a buyer actually compares against
-// the monthly price, and it's what makes annual read as cheaper rather
-// than as a bigger up-front commitment. The effective rate is always
-// derived from priceAnnualUsd/12, never hand-typed, so it can't drift
-// from the annual total actually charged.
-function formatPrice(
-  tier: (typeof PRICING_TIERS)[number],
-  period: BillingPeriod,
-): { amount: string; suffix: string; annualNote: string | null } {
-  if (period === "annual") {
-    const effectiveMonthly = tier.priceAnnualUsd / 12;
-    return {
-      amount: `$${effectiveMonthly.toFixed(2)}`,
-      suffix: "/month",
-      annualNote: `$${tier.priceAnnualUsd.toLocaleString()} billed annually · 2 months free`,
-    };
+// The effective monthly rate is the big number (the figure a buyer
+// actually compares against the plain monthly price), with the real
+// billed total in small text beneath — never a lump "$/quarter" or
+// "$/year" figure. Always derived from BILLING_PERIODS' own billedUsd,
+// never hand-typed, so it can't drift from what Stripe actually charges.
+function formatPrice(option: BillingPeriodOption): { amount: string; suffix: string; billedNote: string | null } {
+  if (option.id === "monthly") {
+    return { amount: `$${option.billedUsd}`, suffix: "/month", billedNote: null };
   }
-  return { amount: `$${tier.priceMonthlyUsd}`, suffix: "/month", annualNote: null };
+  return {
+    amount: `$${option.effectiveMonthlyUsd.toFixed(2)}`,
+    suffix: "/month",
+    billedNote: `$${option.billedUsd.toLocaleString()} billed ${option.label.toLowerCase()} · save ${option.savePercent}%`,
+  };
 }
 
 export function PricingPage() {
@@ -77,7 +63,9 @@ export function PricingPage() {
   const [costRef, costRevealed] = useRevealOnScroll<HTMLElement>();
   const [faqRef, faqRevealed] = useRevealOnScroll<HTMLElement>();
   const [openFaq, toggleFaq] = useAccordion(0);
-  const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  const [periodId, setPeriodId] = useState<BillingPeriodOption["id"]>("monthly");
+  const period = BILLING_PERIODS.find((p) => p.id === periodId) ?? BILLING_PERIODS[0];
+  const price = formatPrice(period);
 
   return (
     <>
@@ -114,87 +102,61 @@ export function PricingPage() {
 
         <Reveal revealed={heroRevealed} delay={80} className="mx-auto mt-10 flex justify-center">
           <div className="inline-flex rounded-full border border-border-subtle bg-bg-glass-subtle p-1">
-            {(["monthly", "annual"] as const).map((option) => (
+            {BILLING_PERIODS.map((option) => (
               <button
-                key={option}
+                key={option.id}
                 type="button"
-                onClick={() => setPeriod(option)}
-                aria-pressed={period === option}
+                onClick={() => setPeriodId(option.id)}
+                aria-pressed={periodId === option.id}
                 className={cx(
                   "rounded-full px-4 py-1.5 font-display text-sm font-medium transition-colors",
-                  period === option ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22]" : "text-text-secondary",
+                  periodId === option.id ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22]" : "text-text-secondary",
                 )}
               >
-                {option === "monthly" ? "Monthly" : "Annual — 2 months free"}
+                {option.label}
+                {option.savePercent ? ` — save ${option.savePercent}%` : ""}
               </button>
             ))}
           </div>
         </Reveal>
 
-        <Reveal revealed={heroRevealed} delay={120} className="mx-auto mt-8 grid max-w-5xl gap-5 lg:grid-cols-3 lg:items-start">
-          {PRICING_TIERS.map((tier) => {
-            const price = formatPrice(tier, period);
-            return (
-              <div
-                key={tier.id}
-                className={cx(
-                  "relative flex h-full flex-col rounded-[18px] border p-6",
-                  tier.mostComplete ? "border-accent/40 bg-white/[0.05] lg:-translate-y-3" : "border-white/[0.08] bg-white/[0.035]",
-                )}
-              >
-                {tier.mostComplete && (
-                  <span className="absolute -top-3 left-6 rounded-full border border-accent/50 bg-bg px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
-                    Most complete
-                  </span>
-                )}
-                <h2 className="font-display text-xl font-semibold text-text">{tier.name}</h2>
-                <p className="mt-1.5 text-sm text-text-secondary">{tier.tagline}</p>
+        <Reveal revealed={heroRevealed} delay={120} className="mx-auto mt-8 max-w-2xl">
+          <div className="relative flex flex-col rounded-[18px] border border-accent/40 bg-white/[0.05] p-8">
+            <h2 className="font-display text-xl font-semibold text-text">{PLAN.name}</h2>
+            <p className="mt-1.5 text-sm text-text-secondary">{PLAN.tagline}</p>
 
-                {tier.leadWithCadence && (
-                  <p className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-accent">
-                    ⚡ {tier.cadenceLabel} cadence
-                  </p>
-                )}
+            <p className="mt-6 font-display text-4xl font-semibold text-text">
+              {price.amount}
+              <span className="ml-1.5 text-base font-normal text-text-muted">{price.suffix}</span>
+            </p>
+            {price.billedNote && <p className="mt-1 text-xs text-text-muted">{price.billedNote}</p>}
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
+              Platform only · AI usage billed by your provider
+            </p>
 
-                <p className={cx("font-display text-3xl font-semibold text-text", tier.leadWithCadence ? "mt-3" : "mt-6")}>
-                  {price.amount}
-                  <span className="ml-1.5 text-sm font-normal text-text-muted">{price.suffix}</span>
-                </p>
-                {price.annualNote && <p className="mt-1 text-xs text-text-muted">{price.annualNote}</p>}
-                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-muted">
-                  Platform only · AI usage billed by your provider
-                </p>
+            <p className="mt-5 text-sm leading-relaxed text-text-secondary">{PLAN.stats.join(" · ")}</p>
 
-                <p className="mt-5 text-sm leading-relaxed text-text-secondary">{tier.stats.join(" · ")}</p>
+            <div className="mt-5 flex-1 border-t border-border-subtle pt-5">
+              <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">Everything</p>
+              <ul className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                {PLAN.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
+                    <span className="mt-0.5 text-accent" aria-hidden="true">
+                      ✓
+                    </span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-                <div className="mt-5 flex-1 border-t border-border-subtle pt-5">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">{tier.featuresLabel}</p>
-                  <ul className="mt-2.5 space-y-2.5">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm text-text-secondary">
-                        <span className="mt-0.5 text-accent" aria-hidden="true">
-                          ✓
-                        </span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <Link
-                  to="/"
-                  className={cx(
-                    "mt-6 inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 font-display text-sm font-medium transition-transform duration-landing-button ease-landing hover:-translate-y-px",
-                    tier.mostComplete
-                      ? "bg-gradient-to-br from-accent-strong to-cta-warm text-[#120c22] shadow-glow-cta"
-                      : "border border-border bg-bg-glass text-text hover:border-border-strong",
-                  )}
-                >
-                  {tier.ctaLabel}
-                </Link>
-              </div>
-            );
-          })}
+            <Link
+              to="/"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-gradient-to-br from-accent-strong to-cta-warm px-5 py-2.5 font-display text-sm font-medium text-[#120c22] shadow-glow-cta transition-transform duration-landing-button ease-landing hover:-translate-y-px"
+            >
+              {PLAN.ctaLabel}
+            </Link>
+          </div>
         </Reveal>
       </SectionContainer>
 
