@@ -82,42 +82,42 @@ async function assertSafeToFetch(url: URL, dnsLookup: typeof dns.lookup): Promis
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new WebsiteFetchTimeoutError(`Fetching the site took longer than ${ms}ms.`)), ms);
-    timer.unref?.();
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
+/** Unlike packages/vault's own withTimeout (which races a promise it
+ *  cannot cancel, leaving the original hung forever), this actually
+ *  aborts the in-flight fetch via AbortController on timeout — the
+ *  underlying connection gets torn down, not just ignored. A promise
+ *  from a genuinely un-abortable source would still dangle either way;
+ *  fetch() honors the signal, which is the only caller here. */
+function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new WebsiteFetchTimeoutError(`Fetching the site took longer than ${ms}ms.`)), ms);
+  timer.unref?.();
+  return run(controller.signal).finally(() => clearTimeout(timer));
 }
 
 /** Single bounded attempt, no retry loop — matches packages/vault's own
- *  withTimeout convention (vault.ts), not the untimed fetch() calls
- *  elsewhere in this codebase (apps/api/src/brainKeys/providerValidation.ts,
- *  oauth/googleCalendar.ts) — those are a real gap, not precedent to copy.
- *  Manually follows redirects (fetch's own `redirect: "follow"` would
- *  connect to each hop before this code ever saw the URL) so every hop
- *  gets the same scheme/private-IP check the original URL did. */
+ *  withTimeout convention in spirit (vault.ts), not the untimed fetch()
+ *  calls elsewhere in this codebase (apps/api/src/brainKeys/
+ *  providerValidation.ts, oauth/googleCalendar.ts) — those are a real
+ *  gap, not precedent to copy. Manually follows redirects (fetch's own
+ *  `redirect: "follow"` would connect to each hop before this code ever
+ *  saw the URL) so every hop gets the same scheme/private-IP check the
+ *  original URL did. */
 async function fetchFollowingRedirectsSafely(
   startUrl: URL,
   timeoutMs: number,
   fetchImpl: typeof fetch,
   dnsLookup: typeof dns.lookup,
 ): Promise<Response> {
-  return withTimeout(
-    (async () => {
+  return withTimeout(async (signal) => {
       let current = startUrl;
       for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
         await assertSafeToFetch(current, dnsLookup);
-        const res = await fetchImpl(current, { redirect: "manual", headers: { "user-agent": "RunwiselyBot/1.0 (+https://www.runwisely.cc)" } });
+        const res = await fetchImpl(current, {
+          redirect: "manual",
+          signal,
+          headers: { "user-agent": "RunwiselyBot/1.0 (+https://www.runwisely.cc)" },
+        });
         if (res.status >= 300 && res.status < 400) {
           const location = res.headers.get("location");
           if (!location) throw new WebsiteFetchFailedError(`Redirect (${res.status}) with no Location header.`);
@@ -127,7 +127,7 @@ async function fetchFollowingRedirectsSafely(
         return res;
       }
       throw new WebsiteFetchFailedError(`Too many redirects (over ${MAX_REDIRECTS}).`);
-    })(),
+    },
     timeoutMs,
   );
 }

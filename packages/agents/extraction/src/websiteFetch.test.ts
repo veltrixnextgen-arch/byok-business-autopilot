@@ -169,7 +169,13 @@ test("fetchWebsiteText: rejects a response whose content-type isn't a readable p
 });
 
 test("fetchWebsiteText: times out rather than hanging on a fetch that never resolves", async () => {
-  const fetchImpl = (() => new Promise(() => {})) as never; // never resolves
+  // A real fetch() rejects when its signal aborts — this fake does the same,
+  // so the promise genuinely settles instead of leaking past the test (the
+  // underlying bug this test itself used to trigger).
+  const fetchImpl = ((_url: URL, init: { signal: AbortSignal }) =>
+    new Promise((_resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason));
+    })) as never;
   await assert.rejects(
     () =>
       fetchWebsiteText("http://public.example.invalid/", {
