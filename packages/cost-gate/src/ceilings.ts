@@ -10,17 +10,24 @@ export interface CeilingConfig {
   companyMonthlyUsd: number;
   perRoleUsd: Record<string, number>;
   perTaskTypeUsd: Record<string, number>;
-  /** Flat cap applied to every taskType's spend for the current UTC day
-   *  (durable/reservationStore.ts scopes the counter by `${taskType}:${day}`,
-   *  so it resets on its own each day — no cron job needed). At the real
+  /** Per-taskType cap on spend for the current UTC day (durable/
+   *  reservationStore.ts scopes the counter by `${taskType}:${day}`, so it
+   *  resets on its own each day — no cron job needed). At the real
    *  scheduler dispatch call site (apps/router/src/router.ts) taskType IS
-   *  the individual agent's id, so this is what "per-agent per-day" cashes
-   *  out to today. Flat rather than per-key: no per-agent budget value
-   *  exists anywhere in the codebase yet (Agent has no `budget` field —
-   *  see docs/strategy/runwisely-master-vision.md §9) to seed a map from.
-   *  `null`/undefined means no day-level cap, matching how an absent key in
-   *  perRoleUsd/perTaskTypeUsd already means "uncapped at that level." */
-  perTaskTypePerDayUsd?: number | null;
+   *  the individual agent's id, so a populated entry here is a genuine
+   *  per-agent-per-day ceiling — apps/api's trust-core wiring populates
+   *  this from each agent's own `budget.perDayUsd` (Agent, @byok/contracts),
+   *  itself a tier-derived default, not an informed per-agent value (see
+   *  TIER_DEFAULT_BUDGET_PER_DAY_USD's own comment). Keyed the same way
+   *  perTaskTypeUsd is; an absent key falls back to
+   *  perTaskTypePerDayDefaultUsd below. */
+  perTaskTypePerDayUsd?: Record<string, number>;
+  /** Applied to any taskType with no entry in perTaskTypePerDayUsd above —
+   *  onboarding-time task types (extraction-batch, website-summary) never
+   *  have a per-agent entry, since they run before any org chart exists to
+   *  draw one from. `null`/undefined means no day-level cap at all for
+   *  those, matching how an absent key elsewhere means "uncapped." */
+  perTaskTypePerDayDefaultUsd?: number | null;
 }
 
 export type CeilingLevel = "company" | "role" | "task-type" | "task-type-day";

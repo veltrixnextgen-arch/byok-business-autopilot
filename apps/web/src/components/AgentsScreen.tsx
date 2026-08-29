@@ -62,8 +62,12 @@ export function AgentsScreen() {
                     </div>
                     <Badge tone={tone}>{agent.tier}</Badge>
                   </div>
+                  <p className="mt-3 text-sm text-text-secondary">{agent.objective}</p>
+                  <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                    Reports into {agent.reportingStructure.teamRoleTitle} · Up to ${agent.budget.perDayUsd}/day
+                  </p>
                   {agent.hands.length > 0 && (
-                    <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                    <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">
                       Tools: {agent.hands.join(", ")}
                     </p>
                   )}

@@ -1,4 +1,5 @@
 import type { AutonomyDefault, TeamHint, Tier } from "@byok/templates";
+import { TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
 import type { Agent, ApiCallUsage, CustomizationLog, OrgChart, Task, Team, TemplateSelection } from "./types.js";
 
 // ADR-001: assembly order is strict — tasks -> agents -> teams -> roles.
@@ -83,6 +84,12 @@ function assignAgentNames(agentTypes: string[]): Map<string, string> {
   return names;
 }
 
+/** Derived, not authored or LLM-generated — see Agent.objective's own doc
+ *  comment (@byok/contracts) for why. */
+function deriveObjective(tasks: Task[]): string {
+  return tasks.map((t) => t.text).join(" ");
+}
+
 export class HandsScopeViolationError extends Error {}
 export class ComplianceMetadataError extends Error {}
 
@@ -159,19 +166,23 @@ export function assembleOrgChart(
     const teamId = rawTeamHint === "compliance" ? complianceAttachesTo : rawTeamHint;
     const requiresProfessionalVerification = agentTasks.some((t) => t.requiresProfessionalVerification === true);
     const autonomyDefault = mostRestrictiveAutonomy(agentTasks);
+    const tier = mostRestrictiveTier(agentTasks);
 
     agents.push({
       id: agentType,
       name: agentNames.get(agentType)!,
       title: agentTasks[0].agentLabel,
+      objective: deriveObjective(agentTasks),
       teamId,
       taskIds: agentTasks.map((t) => t.id),
-      tier: mostRestrictiveTier(agentTasks),
+      tier,
       // No real per-role Brain recommendation exists yet (which provider,
       // and why, is a product decision nobody has made) — null is the
       // honest value, not a stand-in for one that hasn't been computed.
       brain: null,
       hands: [...new Set(agentTasks.map((t) => t.handsTool).filter((h): h is string => h !== null))],
+      budget: { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[tier], source: "tier-default" },
+      reportingStructure: { teamId, teamRoleTitle: ROLE_TITLES[teamId] },
       autonomyDefault,
       // NOT autonomyDefault === "locked": plenty of tasks are locked for
       // caution unrelated to compliance (deploy-coordinator: "the human

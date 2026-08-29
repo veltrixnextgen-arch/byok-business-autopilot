@@ -52,7 +52,11 @@ function levelsFor(
     { level: "company", scopeKey: "company", ceilingUsd: ceilings.companyMonthlyUsd },
     { level: "role", scopeKey: input.roleId, ceilingUsd: ceilings.perRoleUsd[input.roleId] ?? null },
     { level: "task-type", scopeKey: input.taskType, ceilingUsd: ceilings.perTaskTypeUsd[input.taskType] ?? null },
-    { level: "task-type-day", scopeKey: `${input.taskType}:${day}`, ceilingUsd: ceilings.perTaskTypePerDayUsd ?? null },
+    {
+      level: "task-type-day",
+      scopeKey: `${input.taskType}:${day}`,
+      ceilingUsd: ceilings.perTaskTypePerDayUsd?.[input.taskType] ?? ceilings.perTaskTypePerDayDefaultUsd ?? null,
+    },
   ];
 }
 

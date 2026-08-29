@@ -1,12 +1,12 @@
 import { ApprovalQueue, MockEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
-import { PostgresDurableAuditLog, TenantCeilingStore, type PoolLike } from "@byok/db";
+import { PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
 import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, createDevKms } from "./dev/devTrustCore.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "./oauth/googleCalendar.js";
-import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD } from "./routes/ceiling.js";
+import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD, perAgentDailyCeilingsFromOrgChart } from "./routes/ceiling.js";
 
 // Every Router.submitTask caller in this trust core (scheduled dispatch,
 // and apps/api/src/routes/tasks.ts's manual submit route) shares this one
@@ -35,13 +35,16 @@ const ROUTER_SERVICE_IDENTITY: RequesterIdentity = { kind: "router-service", ser
 export function createDurableTrustCore(pool: PoolLike, options: { google?: { clientId: string; clientSecret: string } } = {}): TrustCoreDeps {
   const pricingTable: PricingTable = loadDefaultPricingTable();
   const tenantCeilings = new TenantCeilingStore(pool);
+  const signupExtractionBatches = new SignupExtractionBatchStore(pool);
   const ceilingResolver = async (tenantId: string) => {
     const override = await tenantCeilings.get(tenantId);
+    const batch = await signupExtractionBatches.latestForTenant(tenantId);
     return {
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
-      perTaskTypePerDayUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
+      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart),
+      perTaskTypePerDayDefaultUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };
 

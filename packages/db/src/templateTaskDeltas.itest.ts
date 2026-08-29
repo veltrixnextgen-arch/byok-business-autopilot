@@ -112,3 +112,100 @@ test("RLS: one user's deltas are invisible to another user's scoped session", as
     await cleanup([userA, userB]);
   }
 });
+
+test("aggregatedPatterns: a removed task surfaces once it clears the distinct-user threshold, not before", async () => {
+  const store = new TemplateTaskDeltaStore(pool);
+  const templateId = `service-${randomUUID()}`; // unique per run so counts from other test runs never leak in
+  const users = await Promise.all(Array.from({ length: 5 }, () => seedUser()));
+  try {
+    for (const [i, userId] of users.entries()) {
+      const batchId = await seedCompletedBatch(userId, `business ${i}`);
+      await store.recordMany(userId, batchId, templateId, [{ taskId: "vendor-management", kind: "removed", detail: null }], "generation");
+    }
+
+    const belowThreshold = await store.aggregatedPatterns(6);
+    assert.deepEqual(
+      belowThreshold.removed.filter((p) => p.templateId === templateId),
+      [],
+      "5 distinct users must not clear a threshold of 6",
+    );
+
+    const atThreshold = await store.aggregatedPatterns(5);
+    const match = atThreshold.removed.find((p) => p.templateId === templateId);
+    assert.deepEqual(match, { templateId, taskId: "vendor-management", userCount: 5 });
+  } finally {
+    await cleanup(users);
+  }
+});
+
+test("aggregatedPatterns: 'added' groups by structural fields only — detail.text never appears in the output", async () => {
+  const store = new TemplateTaskDeltaStore(pool);
+  const templateId = `saas-${randomUUID()}`;
+  const users = await Promise.all(Array.from({ length: 3 }, () => seedUser()));
+  try {
+    for (const [i, userId] of users.entries()) {
+      const batchId = await seedCompletedBatch(userId, `business ${i}`);
+      await store.recordMany(
+        userId,
+        batchId,
+        templateId,
+        [
+          {
+            taskId: `sales-followup-${i}`,
+            kind: "added",
+            detail: {
+              text: `a literal business-specific sentence unique to user ${i}`, // must never surface
+              agentType: "sales-followup",
+              teamHint: "sales",
+              frequency: "weekly",
+              tier: "T1",
+              autonomy: "earnable",
+              handsTool: null,
+              origin: "customize-added",
+            },
+          },
+        ],
+        "generation",
+      );
+    }
+
+    const patterns = await store.aggregatedPatterns(3);
+    const match = patterns.added.find((p) => p.templateId === templateId);
+    assert.deepEqual(match, {
+      templateId,
+      agentType: "sales-followup",
+      teamHint: "sales",
+      frequency: "weekly",
+      tier: "T1",
+      autonomy: "earnable",
+      origin: "customize-added",
+      userCount: 3,
+    });
+    assert.ok(!JSON.stringify(patterns).includes("business-specific sentence"), "no literal task text may ever appear in the aggregated output");
+  } finally {
+    await cleanup(users);
+  }
+});
+
+test("aggregatedPatterns: RLS's internal_metrics exception is the only way this cross-user read works", async () => {
+  const store = new TemplateTaskDeltaStore(pool);
+  const userId = await seedUser();
+  try {
+    const batchId = await seedCompletedBatch(userId, "a bakery");
+    await store.recordMany(userId, batchId, "service", [{ taskId: "t-1", kind: "removed", detail: null }], "generation");
+
+    // A plain user-scoped session (not internal_metrics) must never see
+    // this via a naive cross-user aggregate query — proving the exception
+    // this migration carved is what makes aggregatedPatterns possible at
+    // all, not an RLS gap.
+    const asUser = await withUserScope(pool, userId, async (client) => {
+      const result = (await client.query(
+        `SELECT count(DISTINCT user_id) AS user_count FROM template_task_deltas WHERE task_id = 't-1'`,
+      )) as unknown as { rows: Array<{ user_count: string }> };
+      return Number(result.rows[0]?.user_count ?? 0);
+    });
+    assert.equal(asUser, 1, "a user-scoped session only ever sees its own rows, by design");
+  } finally {
+    await cleanup([userId]);
+  }
+});
