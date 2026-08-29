@@ -78,14 +78,14 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 ## 12. Phased plan
 **Phase A — Close the credibility gaps (now)**
 1. ~~Website-as-input, with SSRF validation as a hard prerequisite, T2 content-as-data handling, and its own cost gate ahead of the extraction batch.~~ **Done** — [PR #202](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/202) (ADR-058).
-2. ~~Per-agent and per-day spend limits, to make the Spend Protocol match its description.~~ **Done** — `Agent.budget` (tier-derived), real per-agent daily ceilings wired into both trust cores, read-only visibility in `AgentsScreen.tsx`. Still open, and deliberately not this PR: an *informed* (not tier-default) per-agent value, and a surface to edit one.
+2. ~~Per-agent and per-day spend limits, to make the Spend Protocol match its description.~~ **Done** — `Agent.budget` (tier-derived), real per-agent daily ceilings wired into both trust cores, read-only visibility in `AgentsScreen.tsx`. [PR #205](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/205). Still open, and deliberately not this PR: an *informed* (not tier-default) per-agent value, and a surface to edit one.
 3. Measured hourly-cadence COGS against real instrumentation, deciding whether continuous operation can be faster than daily at $39.
 4. Google OAuth verification submitted — the shortest route to real execution.
 **Phase B — Validation (should not wait for Phase A)**
 5. The twenty-tester pilot. ≥70% saying the chart taught them something; ≥35% connecting a key. Ready for weeks.
 6. Stripe Checkout proven end to end, then live-mode mirroring.
 **Phase C — Close the loop**
-7. ~~Learning: aggregation and redaction over captured deltas~~, **then human-reviewed template proposals.** Aggregation/redaction done — structural-only patterns, ≥5-distinct-user threshold, `/internal/template-learning`. Human-reviewed proposals (turning a surfaced pattern into an actual template change) remains fully open — a separate workflow question, not scoped by this pass.
+7. ~~Learning: aggregation and redaction over captured deltas~~, **then human-reviewed template proposals.** Aggregation/redaction done — structural-only patterns, ≥5-distinct-user threshold, `/internal/template-learning` ([PR #205](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/205)). Human-reviewed proposals (turning a surfaced pattern into an actual template change) remains fully open — a separate workflow question, not scoped by this pass.
 8. Blueprint framing — present the org chart as a Company Blueprint including automation opportunities and, where relevant, architecture recommendations.
 9. R5 task chains and R6 event triggers wired into dispatch (both shipped as foundations, neither consumed yet).
 **Phase D — Execution**
