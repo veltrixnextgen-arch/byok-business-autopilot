@@ -22,8 +22,8 @@ if (!DATABASE_URL) {
 
 const pool = createPool({ connectionString: DATABASE_URL, max: 20 });
 
-function ceilings(companyMonthlyUsd: number, perTaskTypePerDayUsd: number | null = null): CeilingConfig {
-  return { companyMonthlyUsd, perRoleUsd: {}, perTaskTypeUsd: {}, perTaskTypePerDayUsd };
+function ceilings(companyMonthlyUsd: number, perTaskTypePerDayDefaultUsd: number | null = null): CeilingConfig {
+  return { companyMonthlyUsd, perRoleUsd: {}, perTaskTypeUsd: {}, perTaskTypePerDayDefaultUsd };
 }
 
 test("THE atomicity fix: two genuinely concurrent Postgres connections racing a nearly-exhausted budget — exactly one wins", async () => {

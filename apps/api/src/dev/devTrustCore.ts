@@ -8,12 +8,12 @@ import {
   type TierModelMap,
   type TierModelMapsByProvider,
 } from "@byok/cost-gate";
-import { TenantCeilingStore, type PoolLike } from "@byok/db";
+import { SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDurableDedupStore, InMemoryDurableTaskLedger, MockExecutor, Router } from "@byok/router";
 import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "../oauth/googleCalendar.js";
-import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD } from "../routes/ceiling.js";
+import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD, perAgentDailyCeilingsFromOrgChart } from "../routes/ceiling.js";
 
 // Model ids here must exactly match packages/cost-gate/src/pricing-table.json
 // (loaded below, not hand-duplicated — see loadDefaultPricingTable's own
@@ -110,13 +110,16 @@ export function createDevKms(): Kms {
 export function createDevTrustCore(pool: PoolLike, options: { google?: { clientId: string; clientSecret: string } } = {}): TrustCoreDeps {
   const pricingTable = loadDevPricingTable();
   const tenantCeilings = new TenantCeilingStore(pool);
+  const signupExtractionBatches = new SignupExtractionBatchStore(pool);
   const ceilingResolver = async (tenantId: string) => {
     const override = await tenantCeilings.get(tenantId);
+    const batch = await signupExtractionBatches.latestForTenant(tenantId);
     return {
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
-      perTaskTypePerDayUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
+      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart),
+      perTaskTypePerDayDefaultUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };
 

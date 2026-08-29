@@ -26,6 +26,45 @@ export interface BrainRecommendation {
 }
 
 /**
+ * Runwisely master vision §12 Phase A item 1: this platform-wide default,
+ * derived from `tier`, populates CostGate's real per-agent daily ceiling
+ * (apps/api's trust-core wiring reads it off each agent — see
+ * DEFAULT_PER_AGENT_PER_DAY_USD, apps/api/src/routes/ceiling.ts, for the
+ * flat fallback used where no agent entry applies). These are NOT informed
+ * per-agent values — nothing has ever measured what a real agent at a given
+ * tier actually costs per day — they're a tier-aware refinement of the same
+ * "generous safety net, not a tight budget" backstop, roughly proportional
+ * to the real per-token cost ratio between tiers in
+ * packages/cost-gate/src/pricing-table.json's Anthropic entries (T2 is
+ * ~3.75x T1, T3 is ~5x T2). A genuinely per-agent-authored value would
+ * replace this lookup entirely; until one exists, every agent at a given
+ * tier shares the same number.
+ */
+export const TIER_DEFAULT_BUDGET_PER_DAY_USD: Record<Tier, number> = {
+  T1: 2,
+  T2: 5,
+  T3: 15,
+};
+
+export interface AgentBudget {
+  perDayUsd: number;
+  /** Always "tier-default" today — see TIER_DEFAULT_BUDGET_PER_DAY_USD's
+   *  own comment. Named explicitly so nothing downstream (a UI label, a
+   *  future export) can present this as a number anyone actually chose. */
+  source: "tier-default";
+}
+
+/** Team LEAD roles are not modeled as Agents yet (see this file's own
+ *  Agent doc comment) — for now this is just the agent's own team plus
+ *  that team's roleTitle from the role catalog, not a link to a real
+ *  managing Agent. Upgrade this to reference a real lead Agent if/when
+ *  team leads themselves become Agents. */
+export interface ReportingStructure {
+  teamId: TeamHint;
+  teamRoleTitle: string;
+}
+
+/**
  * The atomic AI worker in the org chart (userflow-v2.md Stage 2's "Priya ·
  * Invoicing", "Sam · Expenses") — one per distinct task cluster. Team LEAD
  * roles (e.g. "Alex · CFO") are not modeled as Agents yet; today they're
@@ -43,6 +82,14 @@ export interface Agent {
   /** The agent's specific function, permanently pinned beneath its name
    *  everywhere downstream ("Priya · Invoicing"). */
   title: string;
+  /** Derived, not authored or LLM-generated — the plain-language join of
+   *  this agent's own task descriptions (assemble.ts's deriveObjective).
+   *  Honest rather than fabricated: no per-role description exists
+   *  anywhere in the template catalog to draw from (only the short
+   *  `title`/agentLabel), and authoring one for every agentType across six
+   *  templates plus every customize-added invention is real content work,
+   *  not something this contract should invent unilaterally. */
+  objective: string;
   teamId: TeamHint;
   taskIds: string[];
   tier: Tier;
@@ -50,6 +97,10 @@ export interface Agent {
   /** Service-tool names this agent's tasks will need, connected later,
    *  just-in-time (Stage 3, BYOK). Informational only until then. */
   hands: string[];
+  /** See AgentBudget's own comment — a tier-derived default, not a value
+   *  anyone chose for this specific agent. */
+  budget: AgentBudget;
+  reportingStructure: ReportingStructure;
   autonomyDefault: AutonomyDefault;
   /** True when this agent cannot be granted autonomy without a licensed
    *  professional's sign-off — always equal to requiresProfessionalVerification

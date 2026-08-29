@@ -91,7 +91,7 @@ test("settling or releasing an unknown or already-resolved reservation throws", 
 
 test("task-type-day ceiling rejects a reservation that would exceed the daily per-agent cap", async () => {
   const store = new InMemoryDurableReservationStore();
-  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: { "agent-priya": 5 } });
 
   const first = await store.reserveAtomic(
     { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
@@ -109,7 +109,7 @@ test("task-type-day ceiling rejects a reservation that would exceed the daily pe
 
 test("task-type-day ceiling doesn't leak across different agents (taskType)", async () => {
   const store = new InMemoryDurableReservationStore();
-  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: { "agent-priya": 5 } });
 
   const priya = await store.reserveAtomic(
     { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
@@ -126,7 +126,7 @@ test("task-type-day ceiling doesn't leak across different agents (taskType)", as
 
 test("settling a task-type-day reservation for less than reserved frees the difference back up", async () => {
   const store = new InMemoryDurableReservationStore();
-  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: { "agent-priya": 5 } });
 
   const reserved = await store.reserveAtomic(
     { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
@@ -143,7 +143,7 @@ test("settling a task-type-day reservation for less than reserved frees the diff
 
 test("releasing a task-type-day reservation frees the full amount back up", async () => {
   const store = new InMemoryDurableReservationStore();
-  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: { "agent-priya": 5 } });
 
   const reserved = await store.reserveAtomic(
     { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 5 },
@@ -167,6 +167,43 @@ test("perTaskTypePerDayUsd left unset means no day-level cap, matching the other
     config,
   );
   assert.equal(result.withinCeiling, true);
+});
+
+test("a taskType with no entry in perTaskTypePerDayUsd falls back to perTaskTypePerDayDefaultUsd", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({
+    companyMonthlyUsd: 1000,
+    perTaskTypePerDayUsd: { "agent-priya": 50 }, // a real per-agent entry, but for a different agent
+    perTaskTypePerDayDefaultUsd: 5,
+  });
+
+  const first = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "onboarding", taskType: "website-summary", amountUsd: 4 },
+    config,
+  );
+  assert.equal(first.withinCeiling, true);
+
+  const second = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-2", roleId: "onboarding", taskType: "website-summary", amountUsd: 2 },
+    config,
+  );
+  assert.equal(second.withinCeiling, false, "website-summary has no per-agent entry, so it's capped by the flat $5 default");
+  assert.equal(second.exceededLevel, "task-type-day");
+});
+
+test("a per-agent entry in perTaskTypePerDayUsd wins over perTaskTypePerDayDefaultUsd for that taskType", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({
+    companyMonthlyUsd: 1000,
+    perTaskTypePerDayUsd: { "agent-priya": 50 },
+    perTaskTypePerDayDefaultUsd: 5,
+  });
+
+  const result = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 20 },
+    config,
+  );
+  assert.equal(result.withinCeiling, true, "agent-priya's own $50 entry applies, not the $5 flat default");
 });
 
 test("tenants are fully isolated from each other's ceilings and totals", async () => {

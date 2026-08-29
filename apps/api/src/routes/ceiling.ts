@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { OrgChart } from "@byok/contracts";
 import { InvalidCeilingError, type TenantCeilingStore } from "@byok/db";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -30,6 +31,22 @@ export const DEFAULT_MONTHLY_CEILING_USD = 50;
 // constant, same as this file's other default, until a real per-agent
 // value exists to seed it from.
 export const DEFAULT_PER_AGENT_PER_DAY_USD = 5;
+
+/** Real per-agent daily ceilings, sourced from each agent's own
+ *  `budget.perDayUsd` (Agent, @byok/contracts) — a tier-derived default
+ *  until a genuinely per-agent-authored value exists, not a number this
+ *  function invents. No org chart yet (pre-extraction, or a tenant somehow
+ *  without one) means no entries — every taskType then falls back to
+ *  DEFAULT_PER_AGENT_PER_DAY_USD via CeilingConfig.perTaskTypePerDayDefaultUsd,
+ *  exactly as before this existed. */
+export function perAgentDailyCeilingsFromOrgChart(orgChart: OrgChart | null | undefined): Record<string, number> {
+  if (!orgChart) return {};
+  const map: Record<string, number> = {};
+  for (const agent of orgChart.agents) {
+    map[agent.id] = agent.budget.perDayUsd;
+  }
+  return map;
+}
 
 const setCeilingSchema = z.object({
   companyMonthlyUsd: z.number().positive().finite(),

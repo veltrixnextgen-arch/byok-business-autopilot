@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { test } from "node:test";
 import { InvalidCeilingError } from "@byok/db";
 import type { AppEnv, AppSession } from "../context.js";
-import { ceilingRoute, DEFAULT_MONTHLY_CEILING_USD, type CeilingRouteDeps } from "./ceiling.js";
+import type { Agent, OrgChart } from "@byok/contracts";
+import { ceilingRoute, DEFAULT_MONTHLY_CEILING_USD, perAgentDailyCeilingsFromOrgChart, type CeilingRouteDeps } from "./ceiling.js";
 
 function appWithSession(tenantId: string, session: AppSession, deps: CeilingRouteDeps) {
   return new Hono<AppEnv>()
@@ -117,4 +118,38 @@ test("POST surfaces InvalidCeilingError as a 400 with its own message, not a 500
   assert.equal(res.status, 400);
   const body = (await res.json()) as { error: string };
   assert.match(body.error, /Invalid monthly ceiling/);
+});
+
+function agent(overrides: Partial<Agent> & { id: string; budget: Agent["budget"] }): Agent {
+  return {
+    name: "Sam",
+    title: "Expenses",
+    objective: "Categorize expenses.",
+    teamId: "cfo" as never,
+    taskIds: [],
+    tier: "T1",
+    brain: null,
+    hands: [],
+    reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" },
+    autonomyDefault: "earnable",
+    complianceLocked: false,
+    requiresProfessionalVerification: false,
+    ...overrides,
+  };
+}
+
+test("perAgentDailyCeilingsFromOrgChart maps each agent's own id to its own budget.perDayUsd", () => {
+  const orgChart = {
+    agents: [
+      agent({ id: "agent-1", budget: { perDayUsd: 2, source: "tier-default" } }),
+      agent({ id: "agent-2", budget: { perDayUsd: 15, source: "tier-default" } }),
+    ],
+  } as OrgChart;
+
+  assert.deepEqual(perAgentDailyCeilingsFromOrgChart(orgChart), { "agent-1": 2, "agent-2": 15 });
+});
+
+test("perAgentDailyCeilingsFromOrgChart returns an empty map for a null/missing org chart, never throws", () => {
+  assert.deepEqual(perAgentDailyCeilingsFromOrgChart(null), {});
+  assert.deepEqual(perAgentDailyCeilingsFromOrgChart(undefined), {});
 });

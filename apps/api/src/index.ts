@@ -41,6 +41,7 @@ import { meRoute } from "./routes/me.js";
 import { schedulerRoute } from "./routes/scheduler.js";
 import { signupMetricsRoute } from "./routes/signupMetrics.js";
 import { tasksRoute } from "./routes/tasks.js";
+import { templateLearningPatternsRoute } from "./routes/templateLearningPatterns.js";
 import { tierRoute } from "./routes/tier.js";
 import { applyTierChange } from "./scheduler/applyTierChange.js";
 import { computeDesiredSchedule, type ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
@@ -305,6 +306,13 @@ export function createApp(options: CreateAppOptions) {
       internalSchedulerDebugRoute({
         queue: options.scheduler.queue,
         connectionHealth: options.scheduler.health,
+        token: options.metrics.internalMetricsToken,
+      }),
+    )
+    .route(
+      "/internal/template-learning",
+      templateLearningPatternsRoute({
+        deltaStore: options.extraction.taskDeltaStore,
         token: options.metrics.internalMetricsToken,
       }),
     );
