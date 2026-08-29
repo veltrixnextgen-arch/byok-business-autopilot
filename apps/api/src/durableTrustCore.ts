@@ -6,7 +6,7 @@ import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredent
 import type { TrustCoreDeps } from "./context.js";
 import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, createDevKms } from "./dev/devTrustCore.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "./oauth/googleCalendar.js";
-import { DEFAULT_MONTHLY_CEILING_USD } from "./routes/ceiling.js";
+import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD } from "./routes/ceiling.js";
 
 // Every Router.submitTask caller in this trust core (scheduled dispatch,
 // and apps/api/src/routes/tasks.ts's manual submit route) shares this one
@@ -41,6 +41,7 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
+      perTaskTypePerDayUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };
 

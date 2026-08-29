@@ -16,6 +16,21 @@ export interface CeilingRouteDeps {
  *  sync with what this route actually reports as the default. */
 export const DEFAULT_MONTHLY_CEILING_USD = 50;
 
+// Phase A item 2 (docs/strategy/runwisely-master-vision.md §12): the
+// Spend Protocol's own description promises per-day limits; until now
+// CeilingConfig's day-level field existed with nothing populating it. Same
+// "generous safety net, not a tight budget" spirit as the monthly default
+// above — 10% of it per day, per agent. Real typical spend is roughly
+// $3/company/month total across every agent combined (automation-runtime-
+// plan.md §7 rule 4), so $5/day on ONE agent is already an order of
+// magnitude over normal — this is a runaway-loop backstop, not a budget a
+// legitimate agent should ever be expected to approach. Not yet tenant- or
+// agent-overridable (no UI/schema for that exists — see the vision doc's
+// §9 finding that Agent has no `budget` field); a single platform-wide
+// constant, same as this file's other default, until a real per-agent
+// value exists to seed it from.
+export const DEFAULT_PER_AGENT_PER_DAY_USD = 5;
+
 const setCeilingSchema = z.object({
   companyMonthlyUsd: z.number().positive().finite(),
 });

@@ -52,7 +52,7 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 | Company Blueprint before activation | **Partially.** Org chart + Charter exist and are shown pre-activation; "blueprint" framing and architecture recommendations don't. |
 | Per-role AI model recommendation | **Half built.** Vault, router, CostGate and scheduler are all provider-aware; tier varies per role. The *recommendation with reasoning* is a markdown doc no code reads. |
 | User-owned capabilities | **Partially.** Hands are scope-bound per sub-agent with JIT granting. Most are OAuth-only and unbuilt; Google Calendar is the only real OAuth flow and it's inert pending verification. |
-| Agent Spend Protocol | **Built, at company level.** Per-tenant durable ceilings, fail-closed gate, pause-and-resume, real cost per sub-agent. Per-agent and per-day limits are not enforced. |
+| Agent Spend Protocol | **Built at company level; per-day enforcement added, per-agent still flat.** Per-tenant durable ceilings, fail-closed gate, pause-and-resume, real cost per sub-agent. A `"task-type-day"` ceiling level now resets daily with no cron job (`packages/cost-gate/src/durable/reservationStore.ts`, migration `0020_task_type_day_ceiling.sql`) — at the real scheduler call site `taskType` is the individual agent's id, so this is genuine per-agent-per-day enforcement, but the cap is one flat platform-wide number (`DEFAULT_PER_AGENT_PER_DAY_USD`, `apps/api/src/routes/ceiling.ts`), not a per-agent value, since `Agent` still has no `budget` field to seed one from. `perRoleUsd`/`perTaskTypeUsd` (the two non-day levels) remain wired to `{}` in both trust cores — the ceiling machinery supports them, nothing populates them. |
 | Native automation, no visible nodes | **Built.** Scheduler dispatches on cadence with no workflow UI. Proven running unattended. |
 | CEO / Company Brain | **Built and proven.** Real dispatch produced a genuine cross-team plan. T10 enforced structurally: recommend-only, no dispatch pathway. |
 | Continuous 24/7 operation | **Built, at daily cadence.** Runs unattended, cost-gated, with earned autonomy. |
@@ -61,7 +61,7 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 ## 10. The four real gaps
 **1. Execution.** The market judges on whether a product *acts* or only *drafts*, and Runwisely drafts. Google Calendar OAuth verification is the shortest path to "and it acts."
 **2. Learning.** The loop's final step is missing. Delta capture shipped; aggregation, redaction, and human-reviewed template proposals have not.
-**3. Per-agent budgets.** The Spend Protocol as described is per-agent and per-day; what exists is per-company and per-month. The dashboard's per-sub-agent cost view is real, but enforcement isn't.
+**3. Per-agent budgets.** Narrowed, not closed: per-day enforcement is real now (a flat platform-wide cap, resetting daily, keyed by agent id at the scheduler call site). What's still missing is a per-agent *value* — every agent shares the same $5/day ceiling because no per-agent budget field exists anywhere in the schema. The dashboard's per-sub-agent cost view is real; per-agent-differentiated limits still aren't.
 **4. Validation.** Nobody outside the build has used it. No pilot, no signups, no pricing tested against a buyer. This is the largest gap and the only one that can't be closed by engineering.
 ---
 ## 11. Commercial model
@@ -77,7 +77,7 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 ## 12. Phased plan
 **Phase A — Close the credibility gaps (now)**
 1. ~~Website-as-input, with SSRF validation as a hard prerequisite, T2 content-as-data handling, and its own cost gate ahead of the extraction batch.~~ **Done** — [PR #202](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/202) (ADR-058).
-2. Per-agent and per-day spend limits, to make the Spend Protocol match its description.
+2. ~~Per-agent and per-day spend limits, to make the Spend Protocol match its description.~~ **Per-day: done** (flat cap, resets daily, keyed by agent id at dispatch). **Per-agent value: still open** — needs a real `budget` field on `Agent` before this can be more than one platform-wide number.
 3. Measured hourly-cadence COGS against real instrumentation, deciding whether continuous operation can be faster than daily at $39.
 4. Google OAuth verification submitted — the shortest route to real execution.
 **Phase B — Validation (should not wait for Phase A)**

@@ -10,9 +10,20 @@ export interface CeilingConfig {
   companyMonthlyUsd: number;
   perRoleUsd: Record<string, number>;
   perTaskTypeUsd: Record<string, number>;
+  /** Flat cap applied to every taskType's spend for the current UTC day
+   *  (durable/reservationStore.ts scopes the counter by `${taskType}:${day}`,
+   *  so it resets on its own each day — no cron job needed). At the real
+   *  scheduler dispatch call site (apps/router/src/router.ts) taskType IS
+   *  the individual agent's id, so this is what "per-agent per-day" cashes
+   *  out to today. Flat rather than per-key: no per-agent budget value
+   *  exists anywhere in the codebase yet (Agent has no `budget` field —
+   *  see docs/strategy/runwisely-master-vision.md §9) to seed a map from.
+   *  `null`/undefined means no day-level cap, matching how an absent key in
+   *  perRoleUsd/perTaskTypeUsd already means "uncapped at that level." */
+  perTaskTypePerDayUsd?: number | null;
 }
 
-export type CeilingLevel = "company" | "role" | "task-type";
+export type CeilingLevel = "company" | "role" | "task-type" | "task-type-day";
 
 export interface CeilingCheckResult {
   withinCeiling: boolean;

@@ -30,6 +30,7 @@ const MIGRATION_FILES = [
   "0017_task_chains.sql",
   "0018_webhook_endpoints.sql",
   "0019_collapse_tenant_tier.sql",
+  "0020_task_type_day_ceiling.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every

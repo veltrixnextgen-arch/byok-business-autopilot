@@ -37,14 +37,22 @@ export interface DurableReservationStore {
   totals(tenantId: string, level: CeilingLevel, scopeKey: string): Promise<{ totalUsd: number; ceilingUsd: number | null }>;
 }
 
+/** UTC calendar day the counter resets on — no cron job, a new day is
+ *  just a scope_key nothing has written to yet. */
+function utcDay(when: Date = new Date()): string {
+  return when.toISOString().slice(0, 10);
+}
+
 function levelsFor(
   input: ReserveAtomicInput,
   ceilings: CeilingConfig,
+  day: string,
 ): Array<{ level: CeilingLevel; scopeKey: string; ceilingUsd: number | null }> {
   return [
     { level: "company", scopeKey: "company", ceilingUsd: ceilings.companyMonthlyUsd },
     { level: "role", scopeKey: input.roleId, ceilingUsd: ceilings.perRoleUsd[input.roleId] ?? null },
     { level: "task-type", scopeKey: input.taskType, ceilingUsd: ceilings.perTaskTypeUsd[input.taskType] ?? null },
+    { level: "task-type-day", scopeKey: `${input.taskType}:${day}`, ceilingUsd: ceilings.perTaskTypePerDayUsd ?? null },
   ];
 }
 
@@ -59,7 +67,7 @@ function levelsFor(
 export class InMemoryDurableReservationStore implements DurableReservationStore {
   private readonly reservations = new Map<
     string,
-    { tenantId: string; roleId: string; taskType: string; amountUsd: number; status: "reserved" | "settled" | "released" }
+    { tenantId: string; roleId: string; taskType: string; amountUsd: number; day: string; status: "reserved" | "settled" | "released" }
   >();
   private readonly counters = new Map<string, { totalUsd: number; ceilingUsd: number | null }>();
 
@@ -82,7 +90,8 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
   }
 
   async reserveAtomic(input: ReserveAtomicInput, ceilings: CeilingConfig): Promise<ReserveAtomicResult> {
-    const levels = levelsFor(input, ceilings);
+    const day = utcDay();
+    const levels = levelsFor(input, ceilings, day);
 
     for (const { level, scopeKey, ceilingUsd } of levels) {
       const current = this.counters.get(this.key(input.tenantId, level, scopeKey))?.totalUsd ?? 0;
@@ -107,6 +116,7 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
       roleId: input.roleId,
       taskType: input.taskType,
       amountUsd: input.amountUsd,
+      day,
       status: "reserved",
     });
     return { withinCeiling: true, reservationId };
@@ -117,13 +127,13 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
     const delta = actualUsd - reservation.amountUsd;
     reservation.status = "settled";
     reservation.amountUsd = actualUsd;
-    this.adjust(tenantId, reservation.roleId, reservation.taskType, delta);
+    this.adjust(tenantId, reservation.roleId, reservation.taskType, reservation.day, delta);
   }
 
   async release(tenantId: string, reservationId: string): Promise<void> {
     const reservation = this.getReserved(tenantId, reservationId);
     reservation.status = "released";
-    this.adjust(tenantId, reservation.roleId, reservation.taskType, -reservation.amountUsd);
+    this.adjust(tenantId, reservation.roleId, reservation.taskType, reservation.day, -reservation.amountUsd);
   }
 
   async totals(tenantId: string, level: CeilingLevel, scopeKey: string): Promise<{ totalUsd: number; ceilingUsd: number | null }> {
@@ -138,11 +148,12 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
     return reservation;
   }
 
-  private adjust(tenantId: string, roleId: string, taskType: string, deltaUsd: number): void {
+  private adjust(tenantId: string, roleId: string, taskType: string, day: string, deltaUsd: number): void {
     for (const [level, scopeKey] of [
       ["company", "company"],
       ["role", roleId],
       ["task-type", taskType],
+      ["task-type-day", `${taskType}:${day}`],
     ] as const) {
       const k = this.key(tenantId, level, scopeKey);
       const existing = this.counters.get(k);
@@ -170,7 +181,7 @@ export class PostgresReservationStore implements DurableReservationStore {
   ) {}
 
   async reserveAtomic(input: ReserveAtomicInput, ceilings: CeilingConfig): Promise<ReserveAtomicResult> {
-    const levels = levelsFor(input, ceilings);
+    const levels = levelsFor(input, ceilings, utcDay());
 
     try {
       const reservationId = await withTenantScope(this.pool, input.tenantId, async (client) => {
@@ -239,9 +250,9 @@ export class PostgresReservationStore implements DurableReservationStore {
   async settle(tenantId: string, reservationId: string, actualUsd: number): Promise<void> {
     await withTenantScope(this.pool, tenantId, async (client) => {
       const locked = (await client.query(
-        `SELECT role_id, task_type, amount_usd, status FROM cost_reservations WHERE id=$1::uuid AND tenant_id=$2::uuid FOR UPDATE`,
+        `SELECT role_id, task_type, amount_usd, status, created_at FROM cost_reservations WHERE id=$1::uuid AND tenant_id=$2::uuid FOR UPDATE`,
         [reservationId, tenantId],
-      )) as unknown as { rows: Array<{ role_id: string; task_type: string; amount_usd: string; status: string }> };
+      )) as unknown as { rows: Array<{ role_id: string; task_type: string; amount_usd: string; status: string; created_at: string }> };
       const row = locked.rows[0];
       if (!row || row.status !== "reserved") {
         throw new UnknownOrResolvedReservationError(`No reserved reservation "${reservationId}" for tenant "${tenantId}".`);
@@ -253,16 +264,16 @@ export class PostgresReservationStore implements DurableReservationStore {
         reservationId,
       ]);
 
-      await this.adjustCounters(client, tenantId, row.role_id, row.task_type, delta);
+      await this.adjustCounters(client, tenantId, row.role_id, row.task_type, utcDay(new Date(row.created_at)), delta);
     });
   }
 
   async release(tenantId: string, reservationId: string): Promise<void> {
     await withTenantScope(this.pool, tenantId, async (client) => {
       const locked = (await client.query(
-        `SELECT role_id, task_type, amount_usd, status FROM cost_reservations WHERE id=$1::uuid AND tenant_id=$2::uuid FOR UPDATE`,
+        `SELECT role_id, task_type, amount_usd, status, created_at FROM cost_reservations WHERE id=$1::uuid AND tenant_id=$2::uuid FOR UPDATE`,
         [reservationId, tenantId],
-      )) as unknown as { rows: Array<{ role_id: string; task_type: string; amount_usd: string; status: string }> };
+      )) as unknown as { rows: Array<{ role_id: string; task_type: string; amount_usd: string; status: string; created_at: string }> };
       const row = locked.rows[0];
       if (!row || row.status !== "reserved") {
         throw new UnknownOrResolvedReservationError(`No reserved reservation "${reservationId}" for tenant "${tenantId}".`);
@@ -270,7 +281,7 @@ export class PostgresReservationStore implements DurableReservationStore {
 
       await client.query(`UPDATE cost_reservations SET status='released', resolved_at=now() WHERE id=$1::uuid`, [reservationId]);
 
-      await this.adjustCounters(client, tenantId, row.role_id, row.task_type, -Number(row.amount_usd));
+      await this.adjustCounters(client, tenantId, row.role_id, row.task_type, utcDay(new Date(row.created_at)), -Number(row.amount_usd));
     });
   }
 
@@ -290,12 +301,14 @@ export class PostgresReservationStore implements DurableReservationStore {
     tenantId: string,
     roleId: string,
     taskType: string,
+    day: string,
     deltaUsd: number,
   ): Promise<void> {
     for (const [level, scopeKey] of [
       ["company", "company"],
       ["role", roleId],
       ["task-type", taskType],
+      ["task-type-day", `${taskType}:${day}`],
     ] as const) {
       await client.query(`UPDATE cost_ledger_counters SET total_usd = total_usd + $1, updated_at = now() WHERE tenant_id=$2::uuid AND level=$3 AND scope_key=$4`, [
         deltaUsd,

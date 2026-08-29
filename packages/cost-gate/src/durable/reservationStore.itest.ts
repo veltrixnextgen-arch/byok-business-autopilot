@@ -22,8 +22,8 @@ if (!DATABASE_URL) {
 
 const pool = createPool({ connectionString: DATABASE_URL, max: 20 });
 
-function ceilings(companyMonthlyUsd: number): CeilingConfig {
-  return { companyMonthlyUsd, perRoleUsd: {}, perTaskTypeUsd: {} };
+function ceilings(companyMonthlyUsd: number, perTaskTypePerDayUsd: number | null = null): CeilingConfig {
+  return { companyMonthlyUsd, perRoleUsd: {}, perTaskTypeUsd: {}, perTaskTypePerDayUsd };
 }
 
 test("THE atomicity fix: two genuinely concurrent Postgres connections racing a nearly-exhausted budget — exactly one wins", async () => {
@@ -106,6 +106,41 @@ test("release() frees the reserved amount back up, verified via a fresh read", a
 
   const totals = await store.totals(tenantId, "company", "company");
   assert.equal(totals.totalUsd, 0);
+});
+
+test("task-type-day: real Postgres rejects a reservation over the daily per-agent cap (migration 0020's CHECK constraint accepts the new level)", async () => {
+  const tenantId = randomUUID();
+  const store = new PostgresReservationStore(pool);
+
+  const first = await store.reserveAtomic(
+    { tenantId, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
+    ceilings(1000, 5),
+  );
+  assert.equal(first.withinCeiling, true);
+
+  const second = await store.reserveAtomic(
+    { tenantId, taskId: "task-2", roleId: "cfo", taskType: "agent-priya", amountUsd: 2 },
+    ceilings(1000, 5),
+  );
+  assert.equal(second.withinCeiling, false);
+  assert.equal(second.exceededLevel, "task-type-day");
+
+  const totals = await store.totals(tenantId, "task-type-day", `agent-priya:${new Date().toISOString().slice(0, 10)}`);
+  assert.equal(totals.totalUsd, 4, "only the admitted $4 reservation should count toward today's per-agent total");
+});
+
+test("task-type-day: settle() adjusts the real Postgres daily counter by the estimate-vs-actual delta", async () => {
+  const tenantId = randomUUID();
+  const store = new PostgresReservationStore(pool);
+
+  const reserved = await store.reserveAtomic(
+    { tenantId, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
+    ceilings(1000, 5),
+  );
+  await store.settle(tenantId, reserved.reservationId!, 1);
+
+  const totals = await store.totals(tenantId, "task-type-day", `agent-priya:${new Date().toISOString().slice(0, 10)}`);
+  assert.equal(totals.totalUsd, 1, "settling for $1 instead of the $4 reserved must free the other $3 of today's cap");
 });
 
 test("RLS: a session scoped to a different tenant cannot see another tenant's reservations", async () => {
