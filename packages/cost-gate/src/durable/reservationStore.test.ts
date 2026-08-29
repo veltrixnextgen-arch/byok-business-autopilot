@@ -89,6 +89,86 @@ test("settling or releasing an unknown or already-resolved reservation throws", 
   await assert.rejects(() => store.release(TENANT, "not-a-real-id"), UnknownOrResolvedReservationError);
 });
 
+test("task-type-day ceiling rejects a reservation that would exceed the daily per-agent cap", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+
+  const first = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
+    config,
+  );
+  assert.equal(first.withinCeiling, true);
+
+  const second = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-2", roleId: "cfo", taskType: "agent-priya", amountUsd: 2 },
+    config,
+  );
+  assert.equal(second.withinCeiling, false, "the first reservation already spent $4 of today's $5 cap for this agent");
+  assert.equal(second.exceededLevel, "task-type-day");
+});
+
+test("task-type-day ceiling doesn't leak across different agents (taskType)", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+
+  const priya = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
+    config,
+  );
+  assert.equal(priya.withinCeiling, true);
+
+  const sam = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-2", roleId: "cfo", taskType: "agent-sam", amountUsd: 4 },
+    config,
+  );
+  assert.equal(sam.withinCeiling, true, "a different agent's own daily cap must be untouched by agent-priya's spend");
+});
+
+test("settling a task-type-day reservation for less than reserved frees the difference back up", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+
+  const reserved = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 4 },
+    config,
+  );
+  await store.settle(TENANT, reserved.reservationId!, 1); // actual cost far under the upper-bound estimate
+
+  const second = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-2", roleId: "cfo", taskType: "agent-priya", amountUsd: 3 },
+    config,
+  );
+  assert.equal(second.withinCeiling, true, "settling for $1 instead of $4 must free the other $3 of today's cap");
+});
+
+test("releasing a task-type-day reservation frees the full amount back up", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({ companyMonthlyUsd: 1000, perTaskTypePerDayUsd: 5 });
+
+  const reserved = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 5 },
+    config,
+  );
+  await store.release(TENANT, reserved.reservationId!);
+
+  const second = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-2", roleId: "cfo", taskType: "agent-priya", amountUsd: 5 },
+    config,
+  );
+  assert.equal(second.withinCeiling, true);
+});
+
+test("perTaskTypePerDayUsd left unset means no day-level cap, matching the other levels' absent-key default", async () => {
+  const store = new InMemoryDurableReservationStore();
+  const config = ceilings({ companyMonthlyUsd: 1000 });
+
+  const result = await store.reserveAtomic(
+    { tenantId: TENANT, taskId: "task-1", roleId: "cfo", taskType: "agent-priya", amountUsd: 999 },
+    config,
+  );
+  assert.equal(result.withinCeiling, true);
+});
+
 test("tenants are fully isolated from each other's ceilings and totals", async () => {
   const store = new InMemoryDurableReservationStore();
   const config = ceilings({ companyMonthlyUsd: 10 });

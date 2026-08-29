@@ -13,7 +13,7 @@ import { InMemoryDurableDedupStore, InMemoryDurableTaskLedger, MockExecutor, Rou
 import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "../oauth/googleCalendar.js";
-import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
+import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD } from "../routes/ceiling.js";
 
 // Model ids here must exactly match packages/cost-gate/src/pricing-table.json
 // (loaded below, not hand-duplicated — see loadDefaultPricingTable's own
@@ -116,6 +116,7 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
+      perTaskTypePerDayUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };
 
