@@ -256,3 +256,14 @@ Project `perceptive-generosity` (Railway project id `3df3d5ad-c2a6-4ce1-88ae-a01
 Confirmed directly: `list-deployments` on the project shows every real deploy's `environmentId` as `864d7816-...`; `list-variables` on `0e744a58-...` returns only `RAILWAY_*` auto-vars.
 
 **Why this is here**: this already cost one diagnosis cycle — reading `deploy-staging.yml`'s `RAILWAY_ENV: staging` literal and assuming Railway's `"staging"`-named environment was the real target. It isn't. Anyone reaching for a Railway CLI/API command against this project should use the **environment ID** (`864d7816-...`), not the name `"staging"` or `"production"`, until/unless someone renames the Railway environment to match this repo's own terminology (at which point this note should be corrected, not left to rot).
+
+## Known gap: `DATABASE_URL`'s real host is not one of the two known Supabase projects, and no available tool can read it (2026-09-01)
+
+While verifying a real end-to-end billing flow against the live environment (`864d7816-...`, see the entry above), needed to confirm a row write directly (`stripe_customer_id`/`stripe_subscription_id` on `tenants`). Neither Supabase project this session has access to has the tenant that flow created:
+
+- `Runwisely` (`ilptweslvrwbpddhhfuw`) — schema frozen around migration `0010`; `tenants` has only 6 columns (`id, slug, name, created_at, monthly_ceiling_usd, tier`), no `stripe_customer_id` at all. Abandoned before Stripe billing was ever built.
+- `Runwisely-staging` (`fkggnoqksqblyjtewcdg`) — fully migrated, but contains exactly one tenant, from 2026-08-28, unrelated to this test.
+
+Ruled out, not just unchecked: a second Supabase organization (`list_organizations` returns exactly one), a companion Postgres service on the same Railway project (`list-services` shows only `@byok/api`), and Railway's own diagnostic agent reading the raw value directly (it reports `DATABASE_URL` as `<hidden_from_agent>` — hidden from Railway's own AI tooling by design, not just from this session's specific connector scope).
+
+**Action needed from a human**: find the real `DATABASE_URL` via Railway's dashboard directly (Settings → Variables, on service `@byok/api`, environment `864d7816-d276-4b64-b018-81561c9593a6`) and record which provider/project it actually is here. Until then, any future session needing to read this environment's real data directly (not through the app's own API) will hit the exact same wall.

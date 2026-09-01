@@ -253,7 +253,12 @@ export function createApp(options: CreateAppOptions) {
     .route("/metrics", signupMetricsRoute(options.metrics.metricsStore));
 
   const app = new Hono<AppEnv>()
-    .use("*", cors({ origin: options.webOrigins, credentials: true }))
+    // exposeHeaders: the bearer plugin's own `set-auth-token` response
+    // header (packages/auth/src/config.ts) is otherwise invisible to
+    // directApiClient's cross-origin fetch — a non-"simple" response header
+    // is stripped from JS's view unless the server explicitly lists it here,
+    // regardless of what the plugin itself already set on the response.
+    .use("*", cors({ origin: options.webOrigins, credentials: true, exposeHeaders: ["set-auth-token"] }))
     .route("/api", browserApi)
     // Deliberately NOT under /api, and NOT under tenantMiddleware or any
     // session check — Stripe calls this directly with no user session at

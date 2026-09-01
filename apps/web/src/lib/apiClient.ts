@@ -1,4 +1,5 @@
 import type { AppType } from "@byok/api";
+import { CROSS_ORIGIN_AUTH_TOKEN_KEY } from "@byok/auth/client";
 import { hc } from "hono/client";
 
 // Type-only import above — erased at compile time, so this never pulls
@@ -46,6 +47,27 @@ const RAILWAY_API_ORIGIN = "https://byokapi-production-6a57.up.railway.app";
 // resolving against the current page's own origin; in every other mode
 // (local dev, or a pre-cutover absolute VITE_API_URL) API_URL is already
 // the right direct origin, so this is identical to apiClient.
+//
+// A genuinely cross-origin call like this makes the session cookie a
+// third-party cookie from the browser's point of view — `credentials:
+// "include"` only controls whether the browser ATTEMPTS to send it, not
+// whether the browser's own privacy policy (Chrome's phase-out, Safari
+// ITP, Firefox ETP) actually allows a third-party cookie through, which
+// is a separate, independent restriction `crossSiteCookies`'s own
+// SameSite=None fix (server.ts) does not bypass. `fetchWithBearerFallback`
+// attaches the same session as an explicit Authorization header instead —
+// never subject to any cookie policy, since it isn't a cookie — captured
+// once at sign-in/sign-up by authClient.ts's own `onResponse` hook via the
+// server's `bearer()` plugin (packages/auth/src/config.ts).
+export function fetchWithBearerFallback(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = typeof window === "undefined" ? null : sessionStorage.getItem(CROSS_ORIGIN_AUTH_TOKEN_KEY);
+  if (!token) return fetch(input, init);
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
+}
+
 export const directApiClient = hc<AppType>(API_URL === "" ? RAILWAY_API_ORIGIN : API_URL, {
   init: { credentials: "include" },
+  fetch: fetchWithBearerFallback,
 }).api;
