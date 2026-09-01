@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import type { CeilingConfig } from "../ceilings.js";
-import { PostgresReservationStore } from "./reservationStore.js";
+import { companyScopeKey, PostgresReservationStore } from "./reservationStore.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -51,7 +51,7 @@ test("THE atomicity fix: two genuinely concurrent Postgres connections racing a 
   assert.equal(rejected.length, 1, "exactly one must be rejected for exceeding the company ceiling");
   assert.equal(rejected[0]?.exceededLevel, "company");
 
-  const totals = await store.totals(tenantId, "company", "company");
+  const totals = await store.totals(tenantId, "company", companyScopeKey());
   assert.equal(totals.totalUsd, 10, "the database's running total must reflect only the admitted reservation, never both");
 });
 
@@ -71,7 +71,7 @@ test("many genuinely concurrent reservations against a tight budget never double
   );
 
   const admittedCount = results.filter((r) => r.withinCeiling).length;
-  const totals = await store.totals(tenantId, "company", "company");
+  const totals = await store.totals(tenantId, "company", companyScopeKey());
 
   assert.ok(totals.totalUsd <= budget + 1e-9, `database total $${totals.totalUsd} exceeded budget $${budget}`);
   assert.ok(admittedCount <= 9, `admitted ${admittedCount} reservations at $${perTaskCost} each — more than fit in $${budget}`);
@@ -90,7 +90,7 @@ test("settle() adjusts the durable total by the estimate-vs-actual delta, verifi
 
   await store.settle(tenantId, reserved.reservationId!, 3);
 
-  const totals = await store.totals(tenantId, "company", "company");
+  const totals = await store.totals(tenantId, "company", companyScopeKey());
   assert.equal(totals.totalUsd, 3);
 });
 
@@ -104,7 +104,7 @@ test("release() frees the reserved amount back up, verified via a fresh read", a
   );
   await store.release(tenantId, reserved.reservationId!);
 
-  const totals = await store.totals(tenantId, "company", "company");
+  const totals = await store.totals(tenantId, "company", companyScopeKey());
   assert.equal(totals.totalUsd, 0);
 });
 
@@ -143,6 +143,27 @@ test("task-type-day: settle() adjusts the real Postgres daily counter by the est
   assert.equal(totals.totalUsd, 1, "settling for $1 instead of the $4 reserved must free the other $3 of today's cap");
 });
 
+test("company ceiling: real Postgres treats a different UTC month as a genuinely separate, empty counter — this IS the reset", async () => {
+  const tenantId = randomUUID();
+  const store = new PostgresReservationStore(pool);
+
+  const reserved = await store.reserveAtomic(
+    { tenantId, taskId: "task-1", roleId: "cfo", taskType: "invoicing", amountUsd: 10 },
+    ceilings(100),
+  );
+  assert.equal(reserved.withinCeiling, true);
+
+  const thisMonth = await store.totals(tenantId, "company", companyScopeKey());
+  assert.equal(thisMonth.totalUsd, 10, "this month's real spend is visible under this month's own key");
+
+  // A far-future month is a row nothing has ever written to — no migration,
+  // no cron job, just a scope_key that doesn't exist yet. Proving THIS
+  // reads back $0 is what proves the bug (a tenant's spend accumulating
+  // forever under one permanent "company" key) is actually closed.
+  const farFutureMonth = await store.totals(tenantId, "company", companyScopeKey("2099-01-15"));
+  assert.equal(farFutureMonth.totalUsd, 0, "a different month's counter must start fresh, never inherit prior months' spend");
+});
+
 test("RLS: a session scoped to a different tenant cannot see another tenant's reservations", async () => {
   const tenantA = randomUUID();
   const tenantB = randomUUID();
@@ -150,6 +171,6 @@ test("RLS: a session scoped to a different tenant cannot see another tenant's re
 
   await store.reserveAtomic({ tenantId: tenantA, taskId: "task-1", roleId: "cfo", taskType: "invoicing", amountUsd: 10 }, ceilings(100));
 
-  const totalsForB = await store.totals(tenantB, "company", "company");
+  const totalsForB = await store.totals(tenantB, "company", companyScopeKey());
   assert.equal(totalsForB.totalUsd, 0, "tenant B's session must not see tenant A's reserved total");
 });

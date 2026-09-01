@@ -1,7 +1,7 @@
 import type { ActivityByDimension, CostActivityQueries } from "@byok/router";
 import type { ApprovalQueue } from "@byok/approval-queue";
 import type { CompanyCharterStore, SignupExtractionBatchStore, TenantCeilingStore } from "@byok/db";
-import type { DurableReservationStore } from "@byok/cost-gate";
+import { companyScopeKey, type DurableReservationStore } from "@byok/cost-gate";
 import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
 
 export interface DigestDeps {
@@ -60,7 +60,7 @@ export async function buildDigestData(deps: DigestDeps, tenantId: string): Promi
     deps.approvalQueue.pendingActions(tenantId),
     deps.approvalQueue.pendingRecommendationItems(tenantId),
     deps.ceilings.get(tenantId),
-    deps.reservationTotals.totals(tenantId, "company", "company"),
+    deps.reservationTotals.totals(tenantId, "company", companyScopeKey()),
   ]);
 
   const agentById = new Map(batch.orgChart.agents.map((a) => [a.id, a]));
