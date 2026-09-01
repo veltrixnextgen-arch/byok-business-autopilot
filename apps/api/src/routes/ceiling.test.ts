@@ -132,6 +132,7 @@ function agent(overrides: Partial<Agent> & { id: string; budget: Agent["budget"]
     hands: [],
     reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" },
     autonomyDefault: "earnable",
+    riskTier: "low",
     complianceLocked: false,
     requiresProfessionalVerification: false,
     ...overrides,

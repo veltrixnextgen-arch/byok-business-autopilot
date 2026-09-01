@@ -1,6 +1,6 @@
 import { ApprovalQueue, MockEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
-import { PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
+import { AgentBudgetOverrideStore, PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
@@ -36,14 +36,18 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   const pricingTable: PricingTable = loadDefaultPricingTable();
   const tenantCeilings = new TenantCeilingStore(pool);
   const signupExtractionBatches = new SignupExtractionBatchStore(pool);
+  const agentBudgetOverrides = new AgentBudgetOverrideStore(pool);
   const ceilingResolver = async (tenantId: string) => {
-    const override = await tenantCeilings.get(tenantId);
-    const batch = await signupExtractionBatches.latestForTenant(tenantId);
+    const [override, batch, budgetOverrides] = await Promise.all([
+      tenantCeilings.get(tenantId),
+      signupExtractionBatches.latestForTenant(tenantId),
+      agentBudgetOverrides.getAll(tenantId),
+    ]);
     return {
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
-      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart),
+      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart, budgetOverrides),
       perTaskTypePerDayDefaultUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };

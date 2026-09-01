@@ -56,6 +56,36 @@ test("assembleOrgChart derives budget from the agent's own most-restrictive tier
   assert.deepEqual(tax.budget, { perDayUsd: 15, source: "tier-default" });
 });
 
+test("assembleOrgChart populates brain with a real, cost-grounded recommendation per the agent's own tier", () => {
+  const tasks = [
+    task({ id: "t-1", agentType: "support-agent", agentLabel: "Support", teamHint: "support", tier: "T1" }),
+    task({ id: "t-2", agentType: "cfo-tax", agentLabel: "Tax", teamHint: "cfo", tier: "T3" }),
+  ];
+
+  const chart = assembleOrgChart("an idea", SELECTION, tasks, { added: [], removed: [], frequencyAdjustments: [], categoryCorrections: [] }, []);
+
+  const support = chart.agents.find((a) => a.id === "support-agent")!;
+  const tax = chart.agents.find((a) => a.id === "cfo-tax")!;
+  assert.equal(support.brain?.provider, "openai");
+  assert.equal(tax.brain?.provider, "anthropic");
+  assert.ok(support.brain?.reason.length, "reason must be non-empty");
+});
+
+test("assembleOrgChart derives riskTier from the agent's own most-restrictive task stakes", () => {
+  const tasks = [
+    task({ id: "t-1", agentType: "support-agent", agentLabel: "Support", teamHint: "support", stakes: "low" }),
+    task({ id: "t-2", agentType: "cfo-tax", agentLabel: "Tax", teamHint: "cfo", stakes: "low" }),
+    task({ id: "t-3", agentType: "cfo-tax", agentLabel: "Tax", teamHint: "cfo", stakes: "high" }),
+  ];
+
+  const chart = assembleOrgChart("an idea", SELECTION, tasks, { added: [], removed: [], frequencyAdjustments: [], categoryCorrections: [] }, []);
+
+  const support = chart.agents.find((a) => a.id === "support-agent")!;
+  const tax = chart.agents.find((a) => a.id === "cfo-tax")!;
+  assert.equal(support.riskTier, "low");
+  assert.equal(tax.riskTier, "high");
+});
+
 test("assembleOrgChart's reportingStructure names the agent's own team and that team's role title", () => {
   const tasks = [task({ id: "t-1", agentType: "cfo-invoicing", agentLabel: "Invoicing", teamHint: "cfo" })];
 

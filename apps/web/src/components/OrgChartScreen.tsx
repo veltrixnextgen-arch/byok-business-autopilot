@@ -4,7 +4,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getLatestBatch, getOrgChartForTenant, reassemble, recordFunnelEvent, renameAgent, submitFeedback } from "../lib/extractionClient";
 import { connectHandsKey, getHandsKeyStatus, handsOAuthStartUrl, type HandsKeyStatus } from "../lib/handsKeyClient";
-import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, TEAM_HINT_TONE } from "../lib/teamHints";
+import { AVATAR_RING_CLASSES, DOT_TONE_CLASSES, RISK_TIER_LABEL, RISK_TIER_TONE, TEAM_HINT_TONE } from "../lib/teamHints";
 import { AppShell } from "./AppShell";
 import { Badge, type BadgeTone, Button, Card, FormError, TextInput } from "./ui";
 
@@ -259,12 +259,20 @@ function OrgChartReveal({ batchId, initialChart }: { batchId: string; initialCha
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
       <div className="mb-10 space-y-2 text-center duration-ceremony-slow ease-ceremony">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Your company</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Your Company Blueprint</p>
         <h1 className="font-display text-3xl font-bold tracking-tight text-balance sm:text-4xl">
           Meet the team behind your business.
         </h1>
         <p className="text-text-secondary">
           {chart.agents.length} agents · {nonHumanTeams.length} teams · {chart.tasks.length} tasks covered
+        </p>
+        {/* North star doc Tier 1 item 2: framing only, over the same org
+            chart/Charter data already assembled below — this is not a new
+            data source, just naming this page what it actually is: the
+            blueprint for how the company runs (who does what, at what
+            risk, on what budget), not just a static "meet the team" list. */}
+        <p className="mx-auto max-w-lg text-xs text-text-muted">
+          The full plan for how your company runs — roles, risk, and budget, in one place.
         </p>
       </div>
 
@@ -605,6 +613,7 @@ function AgentCard({
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Badge tone="accent">{agent.tier}</Badge>
+        <Badge tone={RISK_TIER_TONE[agent.riskTier]}>{RISK_TIER_LABEL[agent.riskTier]}</Badge>
         {agent.hands.map((tool) => {
           const status = handsStatus.get(`${agent.id}::${tool}`);
           if (status) {
@@ -656,6 +665,12 @@ function AgentCard({
           );
         })}
       </div>
+
+      {agent.brain && (
+        <p className="mt-3 text-xs text-text-muted" title={agent.brain.reason}>
+          <span className="font-mono uppercase tracking-[0.15em]">Brain: {agent.brain.provider}</span> — {agent.brain.reason}
+        </p>
+      )}
 
       {connectingTool && authMethodForTool(connectingTool) === "oauth-pending" && (
         <HandsOAuthPendingPanel agentName={agent.name} tool={connectingTool} onDismiss={() => setConnectingTool(null)} />

@@ -102,6 +102,16 @@ export interface Agent {
   budget: AgentBudget;
   reportingStructure: ReportingStructure;
   autonomyDefault: AutonomyDefault;
+  /** North star doc Tier 1 item 4: the risk-tiered framing for what this
+   *  agent can do unsupervised, shown to the founder as "Low/Medium/High"
+   *  rather than the flat locked/earnable/eligible-early split
+   *  `autonomyDefault` itself still drives internally (cascade.ts's system
+   *  prompt, the CLI tree printer). Derived from the most restrictive
+   *  `Stakes` among this agent's own tasks (assemble.ts's
+   *  mostRestrictiveStakes) — the same real per-task metadata the deny-list
+   *  gate (packages/approval-queue) already keys off, not a new invented
+   *  classification. */
+  riskTier: Stakes;
   /** True when this agent cannot be granted autonomy without a licensed
    *  professional's sign-off — always equal to requiresProfessionalVerification
    *  below (a UI-friendly name for the same fact, not a derived/different

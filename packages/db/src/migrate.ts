@@ -32,6 +32,7 @@ const MIGRATION_FILES = [
   "0019_collapse_tenant_tier.sql",
   "0020_task_type_day_ceiling.sql",
   "0021_template_task_delta_internal_metrics.sql",
+  "0022_agent_budget_overrides.sql",
 ];
 
 // Arbitrary but fixed — the only requirement is stability across every

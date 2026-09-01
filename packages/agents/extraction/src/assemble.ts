@@ -1,5 +1,6 @@
-import type { AutonomyDefault, TeamHint, Tier } from "@byok/templates";
+import type { AutonomyDefault, Stakes, TeamHint, Tier } from "@byok/templates";
 import { TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
+import { recommendBrain } from "./recommendBrain.js";
 import type { Agent, ApiCallUsage, CustomizationLog, OrgChart, Task, Team, TemplateSelection } from "./types.js";
 
 // ADR-001: assembly order is strict — tasks -> agents -> teams -> roles.
@@ -26,6 +27,9 @@ const TIER_RANK: Record<Tier, number> = { T1: 1, T2: 2, T3: 3 };
 // reviewing "what can this agent do unsupervised" should see the
 // cautious answer, matching the fail-closed spirit of the cost gate.
 const AUTONOMY_RANK: Record<AutonomyDefault, number> = { locked: 0, earnable: 1, "eligible-early": 2 };
+// Same "most restrictive wins" spirit as AUTONOMY_RANK above, for the
+// north star doc's Tier 1 item 4 risk-tier framing.
+const STAKES_RANK: Record<Stakes, number> = { low: 0, medium: 1, high: 2 };
 
 function mostRestrictiveTier(tasks: Task[]): Tier {
   return tasks.reduce((max, t) => (TIER_RANK[t.tier] > TIER_RANK[max] ? t.tier : max), "T1" as Tier);
@@ -36,6 +40,10 @@ function mostRestrictiveAutonomy(tasks: Task[]): AutonomyDefault {
     (min, t) => (AUTONOMY_RANK[t.autonomy] < AUTONOMY_RANK[min] ? t.autonomy : min),
     "eligible-early" as AutonomyDefault,
   );
+}
+
+function mostRestrictiveStakes(tasks: Task[]): Stakes {
+  return tasks.reduce((max, t) => (STAKES_RANK[t.stakes] > STAKES_RANK[max] ? t.stakes : max), "low" as Stakes);
 }
 
 // A curated first-name bank for Agent.name (docs/product/userflow-v2.md
@@ -176,14 +184,12 @@ export function assembleOrgChart(
       teamId,
       taskIds: agentTasks.map((t) => t.id),
       tier,
-      // No real per-role Brain recommendation exists yet (which provider,
-      // and why, is a product decision nobody has made) — null is the
-      // honest value, not a stand-in for one that hasn't been computed.
-      brain: null,
+      brain: recommendBrain(tier),
       hands: [...new Set(agentTasks.map((t) => t.handsTool).filter((h): h is string => h !== null))],
       budget: { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[tier], source: "tier-default" },
       reportingStructure: { teamId, teamRoleTitle: ROLE_TITLES[teamId] },
       autonomyDefault,
+      riskTier: mostRestrictiveStakes(agentTasks),
       // NOT autonomyDefault === "locked": plenty of tasks are locked for
       // caution unrelated to compliance (deploy-coordinator: "the human
       // approves every production deploy, always"; vendor-manager:

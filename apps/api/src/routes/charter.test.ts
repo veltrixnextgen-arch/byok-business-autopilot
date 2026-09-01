@@ -32,8 +32,8 @@ const CHART: OrgChart = {
     { id: "cfo", roleTitle: "CFO", isHuman: false, agentIds: ["agent-1"] },
   ],
   agents: [
-    { id: "ceo-1", name: "Jordan", title: "Chief of Staff", objective: "Keep the company on track.", teamId: "founder" as never, taskIds: [], tier: "T3", brain: null, hands: [], budget: { perDayUsd: 15, source: "tier-default" }, reportingStructure: { teamId: "founder" as never, teamRoleTitle: "Founder" }, autonomyDefault: "earnable", complianceLocked: false, requiresProfessionalVerification: false },
-    { id: "agent-1", name: "Sam", title: "Expenses", objective: "Categorize expenses.", teamId: "cfo" as never, taskIds: ["task-1"], tier: "T1", brain: null, hands: [], budget: { perDayUsd: 2, source: "tier-default" }, reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" }, autonomyDefault: "earnable", complianceLocked: false, requiresProfessionalVerification: false },
+    { id: "ceo-1", name: "Jordan", title: "Chief of Staff", objective: "Keep the company on track.", teamId: "founder" as never, taskIds: [], tier: "T3", brain: null, hands: [], budget: { perDayUsd: 15, source: "tier-default" }, reportingStructure: { teamId: "founder" as never, teamRoleTitle: "Founder" }, autonomyDefault: "earnable", riskTier: "medium", complianceLocked: false, requiresProfessionalVerification: false },
+    { id: "agent-1", name: "Sam", title: "Expenses", objective: "Categorize expenses.", teamId: "cfo" as never, taskIds: ["task-1"], tier: "T1", brain: null, hands: [], budget: { perDayUsd: 2, source: "tier-default" }, reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" }, autonomyDefault: "earnable", riskTier: "low", complianceLocked: false, requiresProfessionalVerification: false },
   ],
   tasks: [
     { id: "task-1", text: "Categorize expenses", agentType: "expense-categorization", agentLabel: "Expenses", teamHint: "cfo" as never, frequency: "weekly", stakes: "low", tier: "T1", autonomy: "earnable", handsTool: null, origin: "template", cadence: "nightly", batchable: true, triggerType: "cadence" },
