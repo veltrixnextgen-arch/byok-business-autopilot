@@ -2,7 +2,7 @@ import type { Database, PoolLike } from "@byok/db";
 import { tenants, users, withTenantScope } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { organization, twoFactor } from "better-auth/plugins";
+import { bearer, organization, twoFactor } from "better-auth/plugins";
 import * as authSchema from "./schema.js";
 
 export interface AuthConfigOptions {
@@ -137,6 +137,25 @@ export function createAuth(options: AuthConfigOptions) {
       // MFA (TOTP) enrollment — security-architecture.md T6 requires this
       // before any of the STEP_UP_OPERATIONS (see stepUp.ts) can proceed.
       twoFactor(),
+      // Root-causes the "session expired" false negative on directApiClient's
+      // calls (apps/web/src/lib/apiClient.ts): those calls go straight to
+      // Railway's own domain, not through the same-origin Vercel proxy
+      // (ADR-053's own exemption for extraction's long-running calls), which
+      // makes the session cookie a genuine THIRD-PARTY cookie from the
+      // browser's point of view — crossSiteCookies's own SameSite=None fix
+      // (this file's own doc comment above) makes the cookie eligible to be
+      // sent cross-site, but says nothing about a browser's separate
+      // third-party-cookie blocking (Chrome's phase-out, Safari ITP,
+      // Firefox ETP), which SameSite=None does not bypass. This plugin's
+      // `after` hook echoes the session token as a `set-auth-token` response
+      // header (exposed to JS via Access-Control-Expose-Headers — see
+      // index.ts's own cors() config) on sign-in/sign-up; its `before` hook
+      // accepts that same token back as `Authorization: Bearer <token>` and
+      // resolves the session from it exactly as if it were the cookie. An
+      // explicit Authorization header is never subject to any third-party
+      // cookie policy, since it isn't a cookie — see authClient.ts (capture)
+      // and apiClient.ts's directApiClient (attach).
+      bearer(),
     ],
   });
 }
