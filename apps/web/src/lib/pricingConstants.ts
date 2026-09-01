@@ -16,12 +16,12 @@ export interface BillingPeriodOption {
   savePercent: number | null;
 }
 
-const MONTHLY_USD = 39;
+const MONTHLY_USD = 39.99;
 
 export const BILLING_PERIODS: BillingPeriodOption[] = [
   { id: "monthly", label: "Monthly", billedUsd: MONTHLY_USD, effectiveMonthlyUsd: MONTHLY_USD, savePercent: null },
-  { id: "quarterly", label: "Quarterly", billedUsd: 105, effectiveMonthlyUsd: 105 / 3, savePercent: 10 },
-  { id: "yearly", label: "Yearly", billedUsd: 374, effectiveMonthlyUsd: 374 / 12, savePercent: 20 },
+  { id: "quarterly", label: "Quarterly", billedUsd: 107.97, effectiveMonthlyUsd: 107.97 / 3, savePercent: 10 },
+  { id: "yearly", label: "Yearly", billedUsd: 383.9, effectiveMonthlyUsd: 383.9 / 12, savePercent: 20 },
 ];
 
 export const PLAN = {
