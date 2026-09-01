@@ -967,3 +967,15 @@ OpenAI's and Google's own cheap tiers are meaningfully cheaper than Anthropic's 
 
 **Trust-core note:** touches `packages/cost-gate`'s own source directly — needs the human attestation before merge.
 
+## ADR-PENDING — Price change: $39/$105/$374 → $39.99/$107.97/$383.90 (2026-09-01)
+
+**What changed and why.** ADR-057's monthly price moves from $39 to $39.99, with quarterly and yearly re-derived from it rather than independently re-picked: quarterly's effective monthly rate rounds to $35.99 (10% off), yearly's to $31.99 (20% off) — both chosen for the same ".99 for display consistency" reason the monthly price already had, then the billed totals ($107.97, $383.90) are what those effective rates actually multiply out to. `pricingConstants.ts`'s own `MONTHLY_USD` constant and `BILLING_PERIODS` array are the only numbers that changed; `effectiveMonthlyUsd` stays derived from `billedUsd` (never hand-typed), preserving the invariant the original ADR-057 comment already established.
+
+**`PricingPage.tsx`'s billed-total display had a latent rounding gap, fixed in the same pass.** The small "billed [period]" text used `billedUsd.toLocaleString()` with no fixed decimal count — harmless when every `billedUsd` happened to already carry exactly two decimals ($105, $374 render as whole/short numbers anyway), but $383.90 would have rendered as "$383.9", one digit short of matching $107.97's two decimals right next to it on the same toggle. Now `toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })` — a real display-consistency fix this price change exposed, not scope creep.
+
+**Verified the displayed math against Stripe's actual cent amounts, not just against itself:** $39.99 → 3999¢, $107.97 → 10797¢, $383.90 → 38390¢, matching the three new Stripe Price objects exactly (see below). `35.99 = 107.97/3` and `31.99 = 383.90/12` (to two decimals; `383.90/12` is `31.9916...`, which is exactly why the effective-rate display uses `.toFixed(2)` rather than expecting a clean division). Save percentages recompute to exactly 10.00% and 20.00% against $39.99×3 and $39.99×12 — the labels aren't just carried over from the old prices, they're still true at the new ones.
+
+**Stripe (test mode): three new Price objects on the existing `prod_V9oUTg3VtYV8rv` product, three old ones archived (`active: false`), not deleted** — Monthly `price_1UAx0RPGceis61DATwOBarsk`, Quarterly `price_1UAx0aPGceis61DAz2K5MuHK`, Yearly `price_1UAx0jPGceis61DAsyn3L7aY`. Archiving rather than deleting matches how a live Stripe integration actually retires a price — a Price object can't be deleted once it's ever been used in a real transaction, and archiving is the same operation whether or not one has; doing it that way now avoids a surprise later once real subscriptions exist. `STRIPE_PRICE_MONTHLY`/`_QUARTERLY`/`_YEARLY` need updating to the three new ids wherever they're set as real deploy secrets — see the trust-core-attestation companion entry on staging's own Stripe wiring landing in this same window.
+
+**Trust-core note:** doesn't touch a `@byok/{router,vault,cost-gate,approval-queue}` package's own source. No attestation needed.
+

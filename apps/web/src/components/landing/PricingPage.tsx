@@ -54,7 +54,7 @@ function formatPrice(option: BillingPeriodOption): { amount: string; suffix: str
   return {
     amount: `$${option.effectiveMonthlyUsd.toFixed(2)}`,
     suffix: "/month",
-    billedNote: `$${option.billedUsd.toLocaleString()} billed ${option.label.toLowerCase()} · save ${option.savePercent}%`,
+    billedNote: `$${option.billedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} billed ${option.label.toLowerCase()} · save ${option.savePercent}%`,
   };
 }
 

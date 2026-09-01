@@ -32,7 +32,7 @@ afterEach(() => {
 describe("PricingPage — one plan, three billing periods (ADR-057)", () => {
   it("shows the real monthly price by default, not a placeholder", () => {
     render(<PricingPage />);
-    expect(screen.getByText("$39")).toBeTruthy();
+    expect(screen.getByText("$39.99")).toBeTruthy();
     expect(screen.queryByText("Pricing not finalised. Values shown are placeholders.")).toBeNull();
   });
 
@@ -42,18 +42,18 @@ describe("PricingPage — one plan, three billing periods (ADR-057)", () => {
 
     // The big number is the effective monthly rate, derived from the real
     // billed total — never a lump "$/quarter" figure.
-    expect(screen.getByText("$35.00")).toBeTruthy();
-    expect(screen.queryByText("$39")).toBeNull();
-    expect(screen.getByText(/\$105 billed quarterly · save 10%/)).toBeTruthy();
+    expect(screen.getByText("$35.99")).toBeTruthy();
+    expect(screen.queryByText("$39.99")).toBeNull();
+    expect(screen.getByText(/\$107\.97 billed quarterly · save 10%/)).toBeTruthy();
   });
 
   it("switches to the yearly effective monthly rate with the real billed total shown small beneath", () => {
     render(<PricingPage />);
     fireEvent.click(screen.getByRole("button", { name: "Yearly — save 20%" }));
 
-    expect(screen.getByText("$31.17")).toBeTruthy();
-    expect(screen.queryByText("$39")).toBeNull();
-    expect(screen.getByText(/\$374 billed yearly · save 20%/)).toBeTruthy();
+    expect(screen.getByText("$31.99")).toBeTruthy();
+    expect(screen.queryByText("$39.99")).toBeNull();
+    expect(screen.getByText(/\$383\.90 billed yearly · save 20%/)).toBeTruthy();
   });
 
   it("leads with no credit caps and is honest that scheduled work is draft-only", () => {

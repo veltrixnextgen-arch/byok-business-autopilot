@@ -69,9 +69,9 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 **One plan, one company per user.** Everything included — unlimited agents, all AI providers, all Hands, full approval and spending controls.
 | | Total | Effective | Save |
 |---|---|---|---|
-| Monthly | $39 | $39/mo | — |
-| Quarterly | $105 | $35/mo | 10% |
-| Yearly | $374 | $31.17/mo | 20% |
+| Monthly | $39.99 | $39.99/mo | — |
+| Quarterly | $107.97 | $35.99/mo | 10% |
+| Yearly | $383.90 | $31.99/mo | 20% |
 **Target infrastructure cost: ≤$6 per company per month.** Not a proven figure — modelled at $3.59–$9.39 and to be validated against real instrumentation data. Never present it as proven.
 **The paywall sits at activation, not understanding.** A user sees their reverse-engineered company — structure, departments, roles, agents, automation opportunities — free. They pay to *operate* it. The intended reaction: *"Runwisely understands the company I need. Now I want it to actually run."*
 ---
@@ -79,7 +79,7 @@ Per-task, per-day, per-month, and company-wide limits. On reaching a limit: **st
 **Phase A — Close the credibility gaps (now)**
 1. ~~Website-as-input, with SSRF validation as a hard prerequisite, T2 content-as-data handling, and its own cost gate ahead of the extraction batch.~~ **Done** — [PR #202](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/202) (ADR-058).
 2. ~~Per-agent and per-day spend limits, to make the Spend Protocol match its description.~~ **Done** — `Agent.budget` (tier-derived), real per-agent daily ceilings wired into both trust cores, read-only visibility in `AgentsScreen.tsx`. [PR #205](https://github.com/veltrixnextgen-arch/byok-business-autopilot/pull/205). Still open, and deliberately not this PR: an *informed* (not tier-default) per-agent value, and a surface to edit one.
-3. Measured hourly-cadence COGS against real instrumentation, deciding whether continuous operation can be faster than daily at $39.
+3. Measured hourly-cadence COGS against real instrumentation, deciding whether continuous operation can be faster than daily at $39.99.
 4. Google OAuth verification submitted — the shortest route to real execution.
 **Phase B — Validation (should not wait for Phase A)**
 5. The twenty-tester pilot. ≥70% saying the chart taught them something; ≥35% connecting a key. Ready for weeks.

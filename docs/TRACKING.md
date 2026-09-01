@@ -245,3 +245,14 @@ While scoping the Solo/Company/Scale → single-plan collapse (ADR-057), grepped
 This is the second time a doc has asserted a code behavior nobody verified against the actual file (the first: `docs/STATUS.md`'s Redis/database provider drift, closed out in ADR-046's own pass but never independently tracked as a pattern). Rule 4 above is the standing fix — cited file, not just a claim, whenever an ADR describes what the product enforces.
 
 **The pattern worth naming**: a custom domain changes real Vercel project configuration, not just DNS — deployment protection scope is exactly the kind of setting that's easy to leave in a state that silently blocks every *other* deployment while asked only to secure the one you were paying attention to. Check `Project Settings → Deployment Protection` after attaching or changing any custom domain, before assuming a subsequently-stuck check is a code problem.
+
+## Known state: Railway's own environment names are inverted relative to this project's terminology (2026-09-01)
+
+Project `perceptive-generosity` (Railway project id `3df3d5ad-c2a6-4ce1-88ae-a011409d60ce`), service `@byok/api` (id `a2a8cff5-1f2f-40e9-8d5e-dd5a69ef3179`), has two Railway environments:
+
+- **`864d7816-d276-4b64-b018-81561c9593a6`, Railway-named `"production"`** — this is the real, and only, deployed backend. Every merge to `main` has deployed here, going back through at least PR #200. `DATABASE_URL`, `STAGING_KMS_MASTER_KEY`, `ANTHROPIC_API_KEY`, and every other required var live here. Public domain: `byokapi-production-6a57.up.railway.app`. **This is what `deploy-staging.yml` and every ADR/doc in this repo means by "staging."**
+- **`0e744a58-08ca-4248-9597-efb33a3c29ef`, Railway-named `"staging"`** — created for a genuine environment split (per `deploy-staging.yml`'s own 2026-08-26 header comment) that never happened. Zero deployments, ever. No variables beyond Railway's own auto-injected ones. Not in use.
+
+Confirmed directly: `list-deployments` on the project shows every real deploy's `environmentId` as `864d7816-...`; `list-variables` on `0e744a58-...` returns only `RAILWAY_*` auto-vars.
+
+**Why this is here**: this already cost one diagnosis cycle — reading `deploy-staging.yml`'s `RAILWAY_ENV: staging` literal and assuming Railway's `"staging"`-named environment was the real target. It isn't. Anyone reaching for a Railway CLI/API command against this project should use the **environment ID** (`864d7816-...`), not the name `"staging"` or `"production"`, until/unless someone renames the Railway environment to match this repo's own terminology (at which point this note should be corrected, not left to rot).
