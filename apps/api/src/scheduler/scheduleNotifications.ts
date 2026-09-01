@@ -1,4 +1,4 @@
-import type { DurableReservationStore } from "@byok/cost-gate";
+import { companyScopeKey, type DurableReservationStore } from "@byok/cost-gate";
 import type { TenantCeilingStore } from "@byok/db";
 import { buildSchedulePausedEmail, buildScheduleResumedEmail, type EmailSender, type PauseReason } from "@byok/notifications";
 import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
@@ -36,7 +36,7 @@ export async function notifySchedulePaused(
     const [emails, ceilingOverride, totals] = await Promise.all([
       deps.getOwnerEmails(tenantId),
       deps.ceilings.get(tenantId),
-      deps.reservationTotals.totals(tenantId, "company", "company"),
+      deps.reservationTotals.totals(tenantId, "company", companyScopeKey()),
     ]);
     if (emails.length === 0) return;
 

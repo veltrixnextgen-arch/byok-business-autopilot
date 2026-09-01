@@ -43,13 +43,32 @@ function utcDay(when: Date = new Date()): string {
   return when.toISOString().slice(0, 10);
 }
 
+/**
+ * `companyMonthlyUsd` was checked against a scope_key of the literal string
+ * `"company"` — one counter row per tenant, accumulating since the
+ * tenant's first-ever spend, forever. A tenant whose cumulative total
+ * crossed the ceiling once stayed blocked permanently; raising the
+ * override only delayed hitting it again, it never actually reset. Same
+ * fix as `"task-type-day"`'s own scope_key: fold the UTC calendar month
+ * into the key so a new month is just a row nothing has written to yet —
+ * no cron job, no migration (scope_key is unconstrained TEXT; only
+ * `level`'s own values are constrained, and this doesn't add a new one).
+ * Exported so the handful of external readers of the company total
+ * (buildDigestData.ts, scheduler.ts, scheduleNotifications.ts) construct
+ * the exact same key `totals()` needs, rather than each guessing the
+ * format independently.
+ */
+export function companyScopeKey(day: string = utcDay()): string {
+  return `company:${day.slice(0, 7)}`;
+}
+
 function levelsFor(
   input: ReserveAtomicInput,
   ceilings: CeilingConfig,
   day: string,
 ): Array<{ level: CeilingLevel; scopeKey: string; ceilingUsd: number | null }> {
   return [
-    { level: "company", scopeKey: "company", ceilingUsd: ceilings.companyMonthlyUsd },
+    { level: "company", scopeKey: companyScopeKey(day), ceilingUsd: ceilings.companyMonthlyUsd },
     { level: "role", scopeKey: input.roleId, ceilingUsd: ceilings.perRoleUsd[input.roleId] ?? null },
     { level: "task-type", scopeKey: input.taskType, ceilingUsd: ceilings.perTaskTypeUsd[input.taskType] ?? null },
     {
@@ -154,7 +173,7 @@ export class InMemoryDurableReservationStore implements DurableReservationStore 
 
   private adjust(tenantId: string, roleId: string, taskType: string, day: string, deltaUsd: number): void {
     for (const [level, scopeKey] of [
-      ["company", "company"],
+      ["company", companyScopeKey(day)],
       ["role", roleId],
       ["task-type", taskType],
       ["task-type-day", `${taskType}:${day}`],
@@ -309,7 +328,7 @@ export class PostgresReservationStore implements DurableReservationStore {
     deltaUsd: number,
   ): Promise<void> {
     for (const [level, scopeKey] of [
-      ["company", "company"],
+      ["company", companyScopeKey(day)],
       ["role", roleId],
       ["task-type", taskType],
       ["task-type-day", `${taskType}:${day}`],

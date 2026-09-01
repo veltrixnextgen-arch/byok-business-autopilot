@@ -1,13 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CeilingConfig } from "../ceilings.js";
-import { InMemoryDurableReservationStore, UnknownOrResolvedReservationError } from "./reservationStore.js";
+import { companyScopeKey, InMemoryDurableReservationStore, UnknownOrResolvedReservationError } from "./reservationStore.js";
 
 const TENANT = "t1";
 
 function ceilings(overrides: Partial<CeilingConfig> = {}): CeilingConfig {
   return { companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {}, ...overrides };
 }
+
+test("companyScopeKey: two days in the same UTC month produce the same key — the counter is shared all month", () => {
+  assert.equal(companyScopeKey("2026-08-01"), companyScopeKey("2026-08-31"));
+});
+
+test("companyScopeKey: crossing a month boundary produces a genuinely different key — this IS the reset, no cron job", () => {
+  assert.notEqual(companyScopeKey("2026-08-31"), companyScopeKey("2026-09-01"));
+});
+
+test("companyScopeKey: a tenant's cumulative-forever total from before this fix is a dead, orphaned key, not a header start", () => {
+  // The bug this fix closes: scope_key was the literal "company" for every
+  // tenant, forever. Proving the new key is never that literal string is
+  // what proves a tenant who'd hit the old, never-resetting ceiling starts
+  // this month with a genuinely fresh $0 counter, not still summing
+  // against whatever it accumulated before this shipped.
+  assert.notEqual(companyScopeKey(), "company");
+});
 
 test("reserveAtomic succeeds and returns a reservation id when within every ceiling", async () => {
   const store = new InMemoryDurableReservationStore();
@@ -58,7 +75,7 @@ test("settle adjusts the total by the delta between estimated and actual cost", 
   );
   await store.settle(TENANT, reserved.reservationId!, 4); // actual cost much lower than the upper-bound estimate
 
-  const totals = await store.totals(TENANT, "company", "company");
+  const totals = await store.totals(TENANT, "company", companyScopeKey());
   assert.equal(totals.totalUsd, 4);
 
   // A second reservation should now see the freed-up budget.
@@ -79,7 +96,7 @@ test("release frees the reserved amount back up entirely", async () => {
   );
   await store.release(TENANT, reserved.reservationId!);
 
-  const totals = await store.totals(TENANT, "company", "company");
+  const totals = await store.totals(TENANT, "company", companyScopeKey());
   assert.equal(totals.totalUsd, 0);
 });
 

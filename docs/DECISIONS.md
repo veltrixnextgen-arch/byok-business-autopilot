@@ -955,3 +955,15 @@ OpenAI's and Google's own cheap tiers are meaningfully cheaper than Anthropic's 
 
 **Trust-core note:** doesn't touch a `@byok/{router,vault,cost-gate,approval-queue}` package's own source. No attestation needed.
 
+## ADR-PENDING — The company monthly ceiling actually resets monthly now (2026-08-29)
+
+**The bug, plainly.** `cost_ledger_counters`' company-level row was keyed by the literal scope_key `"company"` — one counter per tenant, summing every dollar spent since their first task, forever. A tenant whose cumulative total crossed `companyMonthlyUsd` (default $50) stayed blocked permanently: every subsequent task queued or skipped, and raising the override only bought a delayed second permanent block, never a real reset. This was flagged as a known, unfixed gap in the per-agent-per-day entry above ("even the company-level ceiling never actually resets monthly") and left there deliberately, out of that PR's scope. It's a real correctness bug, not a missing feature — `SpendingScreen.tsx`'s own copy ("the most your agents can ever spend **in a month**") has been asserting monthly semantics the backend never delivered.
+
+**The fix is the same trick as the day-level ceiling, one level up.** `companyScopeKey(day)` (`packages/cost-gate/src/durable/reservationStore.ts`) folds the UTC calendar month into the scope_key — `` `company:${YYYY-MM}` `` instead of the bare literal. A new month is just a row nothing has written to yet: no cron job, no migration (`scope_key` is unconstrained `TEXT`; only `level`'s own values are CHECK-constrained, and this doesn't add a new one). Exported so the three external readers of the company total — `buildDigestData.ts`, `apps/api/src/routes/scheduler.ts`, `scheduleNotifications.ts` — construct the identical key `totals()` needs, rather than each hardcoding the literal independently (which is exactly the kind of duplication that made the bug easy to leave in place: the format was implicit, not named anywhere).
+
+**No backfill, and none needed.** Every tenant's pre-fix cumulative total is now an orphaned row under the dead `"company"` key — harmless, never read again. The moment this ships, every tenant gets a fresh $0 counter for the current month, which is the correct outcome, not a side effect to work around.
+
+**Test coverage:** `companyScopeKey` unit-tested directly (same UTC day → same key; a month boundary → a different key; the new key is never the old bare literal). `reservationStore.itest.ts` proves it against real Postgres — a reservation's spend is visible under the current month's key and reads back `$0` under an unrelated future month's key, the actual mechanism the fix depends on.
+
+**Trust-core note:** touches `packages/cost-gate`'s own source directly — needs the human attestation before merge.
+

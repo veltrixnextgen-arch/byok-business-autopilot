@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import type { DurableBatchStore } from "@byok/cost-gate";
+import { companyScopeKey, type DurableBatchStore } from "@byok/cost-gate";
 import type { CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
 import type { Cadence, OrgChart } from "@byok/contracts";
 import { syncTenantSchedule, type QueueLike, type RepeatableQueueLike } from "@byok/jobs";
@@ -177,7 +177,7 @@ export function schedulerRoute(deps: SchedulerRouteDeps) {
         const [batch, ceilingOverride, totals] = await Promise.all([
           state.pausedBatchId ? deps.durableBatchStore.get(tenantId, state.pausedBatchId).catch(() => null) : null,
           deps.notifications.ceilings.get(tenantId),
-          deps.notifications.reservationTotals.totals(tenantId, "company", "company"),
+          deps.notifications.reservationTotals.totals(tenantId, "company", companyScopeKey()),
         ]);
         remainingTaskCount = batch?.remainingTasks.length ?? null;
         ceilingUsd = ceilingOverride ?? DEFAULT_MONTHLY_CEILING_USD;
