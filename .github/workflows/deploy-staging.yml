@@ -255,6 +255,22 @@ jobs:
           fi
           echo "Org creation succeeded end to end."
 
+      # Issue #175: same cleanup as deploy-production.yml's identical
+      # step — see its own comment for the full rationale. if: always()
+      # so a failed verification still gets its own throwaway account
+      # deleted.
+      - name: Clean up this run's own throwaway test account
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          if [ -f /tmp/deploy_verify_stamp.txt ]; then
+            STAMP=$(cat /tmp/deploy_verify_stamp.txt)
+            npx tsx packages/db/src/deleteTestAccounts.ts "deploy-verify-$STAMP@example.invalid"
+          else
+            echo "No throwaway test account recorded this run — nothing to clean up."
+          fi
+
       - name: Summary
         env:
           API_URL: ${{ steps.railway_domain.outputs.url }}
