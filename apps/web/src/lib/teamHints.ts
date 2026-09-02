@@ -1,4 +1,4 @@
-import type { TeamHint } from "@byok/contracts";
+import type { Stakes, TeamHint } from "@byok/contracts";
 import type { BadgeTone } from "../components/ui";
 
 // A colored tone per team (STEP 7 design fidelity pass, shared by tasks.tsx
@@ -43,4 +43,20 @@ export const AVATAR_RING_CLASSES: Record<BadgeTone, string> = {
   marketing: "border-marketing/50 bg-marketing/15 text-marketing",
   operations: "border-operations/50 bg-operations/15 text-operations",
   danger: "border-danger/50 bg-danger/15 text-danger",
+};
+
+/** North star doc Tier 1 item 4: risk-tiered autonomy framing
+ *  (Agent.riskTier, @byok/contracts) — low reads as safe (money's green),
+ *  high as the same danger red the locked-agent banner already uses,
+ *  medium in between (operations' amber). */
+export const RISK_TIER_TONE: Record<Stakes, BadgeTone> = {
+  low: "money",
+  medium: "operations",
+  high: "danger",
+};
+
+export const RISK_TIER_LABEL: Record<Stakes, string> = {
+  low: "Low risk",
+  medium: "Medium risk",
+  high: "High risk",
 };

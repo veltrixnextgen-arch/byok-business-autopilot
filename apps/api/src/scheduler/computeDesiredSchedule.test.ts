@@ -17,6 +17,7 @@ function makeAgent(overrides: Partial<Agent> = {}): Agent {
     budget: { perDayUsd: 2, source: "tier-default" },
     reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" },
     autonomyDefault: "earnable",
+    riskTier: "low",
     complianceLocked: false,
     requiresProfessionalVerification: false,
     ...overrides,

@@ -95,7 +95,13 @@ export function CharterScreen() {
     <AppShell active="/charter">
       <div className="mx-auto max-w-3xl px-6 py-16">
         <header className="mb-10 space-y-1">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">Company charter</p>
+          {/* North star doc Tier 1 item 2: same framing eyebrow
+              OrgChartScreen.tsx now uses — the Charter is the "why" half
+              of the Company Blueprint, the org chart is the "who" half;
+              same data either way, just named as one coherent whole. */}
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-text-muted">
+            Company charter · Part of your Company Blueprint
+          </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {state.kind === "installed" && "Your company's charter"}
             {state.kind === "accepted" && "Charter handed off"}

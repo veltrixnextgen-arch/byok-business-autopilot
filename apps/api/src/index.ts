@@ -1,6 +1,7 @@
 import type { Auth } from "@byok/auth";
 import { PostgresDurableBatchStore } from "@byok/cost-gate";
 import {
+  AgentBudgetOverrideStore,
   CompanyCharterStore,
   SchedulerInstrumentationStore,
   TenantCeilingStore,
@@ -24,6 +25,7 @@ import type { ScheduleNotificationDeps } from "./scheduler/scheduleNotifications
 import { requireStepUp } from "./middleware/stepUp.js";
 import { tenantMiddleware } from "./middleware/tenant.js";
 import { userMiddleware } from "./middleware/user.js";
+import { agentBudgetsRoute } from "./routes/agentBudgets.js";
 import { approvalsRoute } from "./routes/approvals.js";
 import { billingCheckoutRoute, billingWebhookRoute } from "./routes/billing.js";
 import { brainKeyRoute } from "./routes/brainKeys.js";
@@ -134,6 +136,9 @@ export function createApp(options: CreateAppOptions) {
   // Same reasoning as costActivity above — a thin pool wrapper (issue #15),
   // safe to construct here rather than adding a CreateAppOptions field.
   const ceilings = new TenantCeilingStore(options.pool);
+  // North star doc Tier 1 item 3 — same reasoning as ceilings above, a thin
+  // withTenantScope wrapper, safe to construct here.
+  const agentBudgetOverrides = new AgentBudgetOverrideStore(options.pool);
   // Same reasoning again (R2/ADR-024) — CompanyCharterStore is a thin
   // withTenantScope wrapper with no state of its own.
   const charters = new CompanyCharterStore(options.pool);
@@ -173,6 +178,10 @@ export function createApp(options: CreateAppOptions) {
       brainKeyRoute({ vault: options.trustCore.vault, batchStore: options.extraction.batchStore }),
     )
     .route("/me/ceiling", ceilingRoute({ ceilings }))
+    .route(
+      "/me/agent-budgets",
+      agentBudgetsRoute({ batchStore: options.extraction.batchStore, overrides: agentBudgetOverrides }),
+    )
     .route(
       "/me/charter",
       charterRoute({

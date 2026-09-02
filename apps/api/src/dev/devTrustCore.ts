@@ -8,7 +8,7 @@ import {
   type TierModelMap,
   type TierModelMapsByProvider,
 } from "@byok/cost-gate";
-import { SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
+import { AgentBudgetOverrideStore, SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
 import { InMemoryDurableDedupStore, InMemoryDurableTaskLedger, MockExecutor, Router } from "@byok/router";
 import { LocalKms, PostgresDekRecordStore, PostgresVaultKeyStore, StagingKms, Vault, type HandsCredentialRefresher, type Kms } from "@byok/vault";
 import type { TrustCoreDeps } from "../context.js";
@@ -111,14 +111,18 @@ export function createDevTrustCore(pool: PoolLike, options: { google?: { clientI
   const pricingTable = loadDevPricingTable();
   const tenantCeilings = new TenantCeilingStore(pool);
   const signupExtractionBatches = new SignupExtractionBatchStore(pool);
+  const agentBudgetOverrides = new AgentBudgetOverrideStore(pool);
   const ceilingResolver = async (tenantId: string) => {
-    const override = await tenantCeilings.get(tenantId);
-    const batch = await signupExtractionBatches.latestForTenant(tenantId);
+    const [override, batch, budgetOverrides] = await Promise.all([
+      tenantCeilings.get(tenantId),
+      signupExtractionBatches.latestForTenant(tenantId),
+      agentBudgetOverrides.getAll(tenantId),
+    ]);
     return {
       companyMonthlyUsd: override ?? DEFAULT_MONTHLY_CEILING_USD,
       perRoleUsd: {},
       perTaskTypeUsd: {},
-      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart),
+      perTaskTypePerDayUsd: perAgentDailyCeilingsFromOrgChart(batch?.orgChart, budgetOverrides),
       perTaskTypePerDayDefaultUsd: DEFAULT_PER_AGENT_PER_DAY_USD,
     };
   };

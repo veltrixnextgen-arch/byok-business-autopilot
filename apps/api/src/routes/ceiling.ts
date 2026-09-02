@@ -38,12 +38,19 @@ export const DEFAULT_PER_AGENT_PER_DAY_USD = 5;
  *  function invents. No org chart yet (pre-extraction, or a tenant somehow
  *  without one) means no entries — every taskType then falls back to
  *  DEFAULT_PER_AGENT_PER_DAY_USD via CeilingConfig.perTaskTypePerDayDefaultUsd,
- *  exactly as before this existed. */
-export function perAgentDailyCeilingsFromOrgChart(orgChart: OrgChart | null | undefined): Record<string, number> {
+ *  exactly as before this existed.
+ *
+ *  `overrides` (AgentBudgetOverrideStore, @byok/db) is the genuinely
+ *  per-agent-authored value the doc comment above once said didn't exist —
+ *  an entry there wins over the tier default for that one agent. */
+export function perAgentDailyCeilingsFromOrgChart(
+  orgChart: OrgChart | null | undefined,
+  overrides: Record<string, number> = {},
+): Record<string, number> {
   if (!orgChart) return {};
   const map: Record<string, number> = {};
   for (const agent of orgChart.agents) {
-    map[agent.id] = agent.budget.perDayUsd;
+    map[agent.id] = overrides[agent.id] ?? agent.budget.perDayUsd;
   }
   return map;
 }

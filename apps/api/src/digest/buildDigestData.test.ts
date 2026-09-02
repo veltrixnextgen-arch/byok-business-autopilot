@@ -18,7 +18,7 @@ const CHART: OrgChart = {
   meta: { idea: "x", generatedAt: "2026-01-01T00:00:00.000Z", templateSelection: undefined as never, calls: [], costUsd: 0 },
   teams: [],
   agents: [
-    { id: "agent-1", name: "Sam", title: "Expenses", objective: "Track expenses.", teamId: "cfo" as never, taskIds: [], tier: "T1", brain: null, hands: [], budget: { perDayUsd: 2, source: "tier-default" }, reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" }, autonomyDefault: "earnable", complianceLocked: false, requiresProfessionalVerification: false },
+    { id: "agent-1", name: "Sam", title: "Expenses", objective: "Track expenses.", teamId: "cfo" as never, taskIds: [], tier: "T1", brain: null, hands: [], budget: { perDayUsd: 2, source: "tier-default" }, reportingStructure: { teamId: "cfo" as never, teamRoleTitle: "CFO" }, autonomyDefault: "earnable", riskTier: "low", complianceLocked: false, requiresProfessionalVerification: false },
   ],
   tasks: [],
   customization: { added: [], removed: [], frequencyAdjustments: [], categoryCorrections: [] },
