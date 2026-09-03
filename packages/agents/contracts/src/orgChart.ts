@@ -228,6 +228,31 @@ export interface OrgChart {
   onboardingBatch: OnboardingBatch | null;
 }
 
+// Shared with assemble.ts (fresh extraction) and normalizeOrgChart below
+// (backfilling a stored chart older than Agent.reportingStructure existed)
+// — moved here for the same reason mostRestrictiveStakes was: one
+// definition, not two that can drift apart.
+export const ROLE_TITLES: Record<TeamHint, string> = {
+  founder: "Founder / CEO",
+  cfo: "CFO",
+  cmo: "CMO",
+  support: "Support Lead",
+  sales: "Sales Lead",
+  ops: "Ops Lead",
+  delivery: "Delivery Lead",
+  compliance: "Compliance",
+  people: "People Lead",
+  "product-dev": "Product/Dev Lead",
+};
+
+/** Agent.objective's own doc comment: derived, not authored or
+ *  LLM-generated — the plain-language join of an agent's own task
+ *  descriptions. Shared with assemble.ts for the same reason as
+ *  ROLE_TITLES above. */
+export function deriveObjective(tasks: Task[]): string {
+  return tasks.map((t) => t.text).join(" ");
+}
+
 const STAKES_RANK: Record<Stakes, number> = { low: 0, medium: 1, high: 2 };
 
 /** The most restrictive Stakes among a set of tasks — shared by
@@ -242,8 +267,13 @@ export function mostRestrictiveStakes(tasks: Task[]): Stakes {
  * schema drift (docs/STATUS.md's "JSONB schema drift" issue, found via
  * PR #213: `signup_extraction_batches.org_chart` is a frozen snapshot, and
  * a chart captured before a contract field existed has that field simply
- * absent, not null — `agent.budget`/`agent.riskTier` on every real tenant's
- * chart predating 2026-09-02 were exactly this).
+ * absent, not null — `agent.budget`/`agent.riskTier`/`agent.objective`/
+ * `agent.reportingStructure` on every real tenant's chart predating their
+ * respective additions were exactly this. The second pair was found live,
+ * 2026-09-03: `AgentsScreen.tsx`'s `agent.reportingStructure.teamRoleTitle`
+ * crashed the whole /agents screen for every one of the 5 real tenants,
+ * because only budget/riskTier got this fix originally — the same class
+ * of gap, just not closed for these two fields yet until now.
  *
  * `SignupExtractionBatchStore.rowToBatch` (packages/db) runs every stored
  * chart through this on read, so the next field the Agent/Task contract
@@ -263,12 +293,21 @@ export function normalizeOrgChart(chart: OrgChart): OrgChart {
   return {
     ...chart,
     agents: chart.agents.map((agent) => {
-      if (agent.budget !== undefined && agent.riskTier !== undefined) return agent;
+      if (
+        agent.budget !== undefined &&
+        agent.riskTier !== undefined &&
+        agent.objective !== undefined &&
+        agent.reportingStructure !== undefined
+      ) {
+        return agent;
+      }
       const agentTasks = (chart.tasks ?? []).filter((t) => agent.taskIds.includes(t.id));
       return {
         ...agent,
         budget: agent.budget ?? { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier], source: "tier-default" },
         riskTier: agent.riskTier ?? mostRestrictiveStakes(agentTasks),
+        objective: agent.objective ?? deriveObjective(agentTasks),
+        reportingStructure: agent.reportingStructure ?? { teamId: agent.teamId, teamRoleTitle: ROLE_TITLES[agent.teamId] },
       };
     }),
   };

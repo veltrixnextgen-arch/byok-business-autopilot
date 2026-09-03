@@ -1,5 +1,5 @@
 import type { AutonomyDefault, TeamHint, Tier } from "@byok/templates";
-import { mostRestrictiveStakes, TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
+import { deriveObjective, mostRestrictiveStakes, ROLE_TITLES, TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
 import { recommendBrain } from "./recommendBrain.js";
 import type { Agent, ApiCallUsage, CustomizationLog, OrgChart, Task, Team, TemplateSelection } from "./types.js";
 
@@ -8,19 +8,6 @@ import type { Agent, ApiCallUsage, CustomizationLog, OrgChart, Task, Team, Templ
 // task metadata (agentType, teamHint) that each task already carries,
 // rather than a hardcoded org chart keyed by business type — swap the task
 // list and the org chart that falls out changes with it.
-
-const ROLE_TITLES: Record<TeamHint, string> = {
-  founder: "Founder / CEO",
-  cfo: "CFO",
-  cmo: "CMO",
-  support: "Support Lead",
-  sales: "Sales Lead",
-  ops: "Ops Lead",
-  delivery: "Delivery Lead",
-  compliance: "Compliance",
-  people: "People Lead",
-  "product-dev": "Product/Dev Lead",
-};
 
 const TIER_RANK: Record<Tier, number> = { T1: 1, T2: 2, T3: 3 };
 // Most restrictive wins when summarizing an agent's default: a team lead
@@ -83,12 +70,6 @@ function assignAgentNames(agentTypes: string[]): Map<string, string> {
     // "· Invoicing" card) rather than a silent one.
   }
   return names;
-}
-
-/** Derived, not authored or LLM-generated — see Agent.objective's own doc
- *  comment (@byok/contracts) for why. */
-function deriveObjective(tasks: Task[]): string {
-  return tasks.map((t) => t.text).join(" ");
 }
 
 export class HandsScopeViolationError extends Error {}
