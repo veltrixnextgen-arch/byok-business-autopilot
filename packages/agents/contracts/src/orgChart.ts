@@ -227,3 +227,43 @@ export interface OrgChart {
    *  chart itself is still valid. */
   onboardingBatch: OnboardingBatch | null;
 }
+
+const STAKES_RANK: Record<Stakes, number> = { low: 0, medium: 1, high: 2 };
+
+/** The most restrictive Stakes among a set of tasks — shared by
+ *  assemble.ts (fresh extraction) and normalizeOrgChart below (backfilling
+ *  a stored chart older than Agent.riskTier existed). */
+export function mostRestrictiveStakes(tasks: Task[]): Stakes {
+  return tasks.reduce((max, t) => (STAKES_RANK[t.stakes] > STAKES_RANK[max] ? t.stakes : max), "low" as Stakes);
+}
+
+/**
+ * Migration-on-read for a stored org chart — the systemic fix for JSONB
+ * schema drift (docs/STATUS.md's "JSONB schema drift" issue, found via
+ * PR #213: `signup_extraction_batches.org_chart` is a frozen snapshot, and
+ * a chart captured before a contract field existed has that field simply
+ * absent, not null — `agent.budget`/`agent.riskTier` on every real tenant's
+ * chart predating 2026-09-02 were exactly this).
+ *
+ * `SignupExtractionBatchStore.rowToBatch` (packages/db) runs every stored
+ * chart through this on read, so the next field the Agent/Task contract
+ * gains only needs a default added HERE, once, instead of hunted down
+ * across every consumer (apps/api routes, apps/web screens, worker
+ * dispatch) the way budget/riskTier had to be this time. A freshly
+ * assembled chart (assembleOrgChart) never needs this — it's never
+ * missing a field its own contract defines.
+ */
+export function normalizeOrgChart(chart: OrgChart): OrgChart {
+  return {
+    ...chart,
+    agents: chart.agents.map((agent) => {
+      if (agent.budget !== undefined && agent.riskTier !== undefined) return agent;
+      const agentTasks = chart.tasks.filter((t) => agent.taskIds.includes(t.id));
+      return {
+        ...agent,
+        budget: agent.budget ?? { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier], source: "tier-default" },
+        riskTier: agent.riskTier ?? mostRestrictiveStakes(agentTasks),
+      };
+    }),
+  };
+}
