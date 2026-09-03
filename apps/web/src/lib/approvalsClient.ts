@@ -29,6 +29,8 @@ export interface ApprovalsView {
 
 export type Verdict = { kind: "APPROVE" } | { kind: "REJECT"; feedback: string } | { kind: "MODIFY"; editedOutput: string };
 
+export type EffectResult = { success: true } | { success: false; error: string };
+
 export async function getApprovals(): Promise<ApprovalsView> {
   const res = await apiClient.me.approvals.$get();
   if (!res.ok) throw new Error(`Could not load your approvals queue (${res.status}).`);
@@ -46,7 +48,7 @@ export async function resolveApproval(
   id: string,
   kind: "action" | "recommendation",
   verdict: Verdict,
-): Promise<{ resolved: boolean; dispatched: boolean }> {
+): Promise<{ resolved: boolean; dispatched: boolean; effectResult: EffectResult | null }> {
   const res = await apiClient.me.approvals[":id"].resolve.$post({ param: { id }, json: { kind, verdict } });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;

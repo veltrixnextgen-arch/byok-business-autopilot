@@ -52,10 +52,21 @@ export function approvalsRoute(deps: ApprovalsRouteDeps) {
       try {
         if (kind === "action") {
           const result = await deps.approvalQueue.resolve(tenantId, id, verdict);
-          return c.json({ resolved: true, dispatched: result.dispatched });
+          // issue #159's own discipline, applied here too: a real effect
+          // that failed to dispatch (e.g. Resend rejected the send) must
+          // be visible, not just "dispatched: true" regardless of what
+          // effectExecutor actually returned. Logged loudly server-side
+          // AND returned to the caller — the UI surfaces this, not just
+          // this route.
+          if (result.effectResult?.success === false) {
+            console.error(
+              `[approvals] tenant ${tenantId} action ${id} dispatched but its effect failed: ${result.effectResult.error}`,
+            );
+          }
+          return c.json({ resolved: true, dispatched: result.dispatched, effectResult: result.effectResult ?? null });
         }
         await deps.approvalQueue.resolveRecommendation(tenantId, id, verdict);
-        return c.json({ resolved: true, dispatched: false });
+        return c.json({ resolved: true, dispatched: false, effectResult: null });
       } catch (err) {
         if (err instanceof UnknownActionError || err instanceof UnknownRecommendationError) {
           return c.json({ error: err.message }, 404);

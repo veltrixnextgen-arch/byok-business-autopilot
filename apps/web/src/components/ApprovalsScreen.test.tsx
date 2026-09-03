@@ -78,14 +78,49 @@ describe("ApprovalsScreen", () => {
 
   it("Approve calls resolveApproval with APPROVE and removes the item from the queue", async () => {
     getApprovals.mockResolvedValue({ items: [ACTION], autonomyStatus: [] });
-    resolveApproval.mockResolvedValue({ resolved: true, dispatched: true });
+    resolveApproval.mockResolvedValue({ resolved: true, dispatched: true, effectResult: null });
     render(<ApprovalsScreen />);
 
     await screen.findByText("Sam");
-    fireEvent.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve & send" }));
 
     await waitFor(() => expect(resolveApproval).toHaveBeenCalledWith("action-1", "action", { kind: "APPROVE" }));
     await waitFor(() => expect(screen.getByText("Nothing waiting on you")).toBeTruthy());
+  });
+
+  it("a pure draft (no effect) shows 'Mark reviewed', not 'Approve & send'", async () => {
+    getApprovals.mockResolvedValue({ items: [{ ...ACTION, effectDescription: null }], autonomyStatus: [] });
+    render(<ApprovalsScreen />);
+
+    await screen.findByText("Sam");
+    expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Approve & send" })).toBeNull();
+  });
+
+  it("shows a success banner naming the agent when the approved effect actually dispatches", async () => {
+    getApprovals.mockResolvedValue({ items: [ACTION], autonomyStatus: [] });
+    resolveApproval.mockResolvedValue({ resolved: true, dispatched: true, effectResult: { success: true } });
+    render(<ApprovalsScreen />);
+
+    await screen.findByText("Sam");
+    fireEvent.click(screen.getByRole("button", { name: "Approve & send" }));
+
+    expect(await screen.findByText(/Sent — Sam's action went out for real/)).toBeTruthy();
+  });
+
+  it("shows the real error, not a silent success, when the approved effect fails to dispatch", async () => {
+    getApprovals.mockResolvedValue({ items: [ACTION], autonomyStatus: [] });
+    resolveApproval.mockResolvedValue({
+      resolved: true,
+      dispatched: true,
+      effectResult: { success: false, error: "Resend send failed: 401 invalid API key" },
+    });
+    render(<ApprovalsScreen />);
+
+    await screen.findByText("Sam");
+    fireEvent.click(screen.getByRole("button", { name: "Approve & send" }));
+
+    expect(await screen.findByText(/Approved, but the send failed: Resend send failed: 401 invalid API key/)).toBeTruthy();
   });
 
   it("Reject requires feedback before the confirm button is enabled", async () => {
@@ -121,7 +156,7 @@ describe("ApprovalsScreen", () => {
     expect(textarea.value).toBe("Categorized 12 transactions.");
 
     fireEvent.change(textarea, { target: { value: "Categorized 13 transactions, one corrected." } });
-    fireEvent.click(screen.getByRole("button", { name: "Mark reviewed with edits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send with edits" }));
 
     await waitFor(() =>
       expect(resolveApproval).toHaveBeenCalledWith("action-1", "action", {

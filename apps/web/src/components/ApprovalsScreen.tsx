@@ -6,6 +6,7 @@ import {
   type ApprovalItem,
   type ApprovalsView,
   type AutonomyStatusEntry,
+  type EffectResult,
 } from "../lib/approvalsClient";
 import { AppShell } from "./AppShell";
 import { Badge, Button, Card } from "./ui";
@@ -24,6 +25,13 @@ function textareaClass(): string {
 // it fast," not for browsing the whole queue.
 export function ApprovalsScreen() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  // Surfaced separately from the queue itself: the item that carried this
+  // result is already gone (resolved/removed) by the time this renders,
+  // so it can't live in that item's own local state. issue #159's own
+  // discipline — a real effect (e.g. a Resend send) that failed to
+  // dispatch must be visible here, not just silently absorbed into
+  // "the item disappeared from the queue."
+  const [notice, setNotice] = useState<{ agentName: string; result: EffectResult } | null>(null);
 
   useEffect(() => {
     getApprovals()
@@ -52,6 +60,24 @@ export function ApprovalsScreen() {
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Approvals</h1>
         </header>
 
+        {notice && (
+          <div
+            role="alert"
+            className={`mb-6 rounded-lg border px-3.5 py-2.5 text-sm ${
+              notice.result.success ? "border-money/30 bg-money/10 text-money" : "border-danger/30 bg-danger/10 text-danger"
+            }`}
+          >
+            {notice.result.success ? (
+              <>✓ Sent — {notice.agentName}'s action went out for real.</>
+            ) : (
+              <>✗ Approved, but the send failed: {notice.result.error}</>
+            )}
+            <button type="button" onClick={() => setNotice(null)} className="ml-3 underline underline-offset-2">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {state.kind === "loading" && <p className="text-text-muted">Loading…</p>}
         {state.kind === "error" && (
           <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
@@ -66,6 +92,7 @@ export function ApprovalsScreen() {
               index={state.index}
               onIndexChange={(index) => setState((prev) => (prev.kind === "ready" ? { ...prev, index } : prev))}
               onResolved={removeItemAndAdvance}
+              onEffectResult={(agentName, result) => setNotice({ agentName, result })}
             />
             <AutonomySection autonomyStatus={state.view.autonomyStatus} onOfferAccepted={() => replaceView((v) => v)} refreshView={replaceView} />
           </div>
@@ -80,11 +107,13 @@ function QueueCard({
   index,
   onIndexChange,
   onResolved,
+  onEffectResult,
 }: {
   view: ApprovalsView;
   index: number;
   onIndexChange: (index: number) => void;
   onResolved: (id: string) => void;
+  onEffectResult: (agentName: string, result: EffectResult) => void;
 }) {
   const [mode, setMode] = useState<"view" | "reject" | "modify">("view");
   const [feedback, setFeedback] = useState("");
@@ -117,7 +146,8 @@ function QueueCard({
     setSubmitting(true);
     setError(null);
     try {
-      await resolveApproval(item.id, item.kind, verdict);
+      const result = await resolveApproval(item.id, item.kind, verdict);
+      if (result.effectResult) onEffectResult(item.agentName, result.effectResult);
       onResolved(item.id);
       resetLocalState();
     } catch (err) {
@@ -173,17 +203,18 @@ function QueueCard({
       </div>
 
       <div className="mt-3 rounded-lg border border-border-subtle bg-bg px-3.5 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">If you mark this reviewed</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-text-muted">
+          {item.effectDescription ? "If you approve this" : "If you mark this reviewed"}
+        </p>
         <p className="mt-1.5 text-sm text-text-secondary">
           {
-            // Effect-dispatch decision (docs/DECISIONS.md): draft-only for
-            // all of MVP-1/Phase 2, deliberately, not an unfinished
-            // feature — item.effectDescription is never non-null today
-            // (no code path sets ProposedAction.effect), and the button
-            // below says "Mark reviewed," not "Approve," so nothing here
-            // implies a real-world action was taken. The branch stays for
-            // when real dispatch actually ships — it should read
-            // accurately then without another copy pass.
+            // Week 1's narrow real-effect-dispatch scope (docs/STATUS.md):
+            // item.effectDescription IS non-null now, for the one task
+            // type wired to a real EffectExecutor (PR #218) — this branch
+            // is live, not aspirational. Copy below (and the button
+            // label) must say plainly that a real action fires on
+            // approve, not just describe it passively while implying
+            // "reviewed" is all that happens.
             item.effectDescription ?? "Nothing is sent, posted, or executed — this only marks the work reviewed."
           }
         </p>
@@ -194,7 +225,7 @@ function QueueCard({
       {mode === "view" && (
         <div className="mt-6 grid grid-cols-3 gap-2">
           <Button variant="gradient" disabled={submitting} onClick={() => submit({ kind: "APPROVE" })}>
-            Mark reviewed
+            {item.effectDescription ? "Approve & send" : "Mark reviewed"}
           </Button>
           <Button variant="secondary" disabled={submitting} onClick={() => setMode("modify")}>
             Modify
@@ -230,7 +261,7 @@ function QueueCard({
       {mode === "modify" && (
         <div className="mt-6 space-y-3">
           <label htmlFor="modify-output" className="block text-sm font-medium text-text-secondary">
-            Edit the output before it's marked reviewed
+            {item.effectDescription ? "Edit the output before it's sent" : "Edit the output before it's marked reviewed"}
           </label>
           <textarea
             id="modify-output"
@@ -249,7 +280,7 @@ function QueueCard({
               onClick={() => submit({ kind: "MODIFY", editedOutput: (editedOutput || item.output).trim() })}
               className="flex-1"
             >
-              {submitting ? "Saving…" : "Mark reviewed with edits"}
+              {submitting ? "Saving…" : item.effectDescription ? "Send with edits" : "Mark reviewed with edits"}
             </Button>
           </div>
         </div>

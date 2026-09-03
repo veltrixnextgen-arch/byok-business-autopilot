@@ -97,6 +97,49 @@ test("POST /:id/resolve APPROVE calls approvalQueue.resolve for an action", asyn
   assert.equal(body.dispatched, true);
 });
 
+test("POST /:id/resolve returns the real effectResult, not just whether it dispatched", async () => {
+  const deps = fakeDeps({
+    approvalQueue: {
+      ...fakeDeps().approvalQueue,
+      resolve: async () => ({ dispatched: true, effectResult: { success: false, error: "Resend send failed: 401 invalid API key" } }),
+    },
+  });
+  const app = appWithSession("tenant-1", SESSION, deps);
+  const res = await app.request("/action-1/resolve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "action", verdict: { kind: "APPROVE" } }),
+  });
+  const body = (await res.json()) as { dispatched: boolean; effectResult: { success: boolean; error?: string } | null };
+  // The safety-critical point: dispatched:true alone would read as
+  // success. A real caller must be able to tell the two apart.
+  assert.equal(body.dispatched, true);
+  assert.deepEqual(body.effectResult, { success: false, error: "Resend send failed: 401 invalid API key" });
+});
+
+test("POST /:id/resolve logs loudly (not silently) when the dispatched effect failed", async () => {
+  const originalError = console.error;
+  const logged: unknown[][] = [];
+  console.error = (...args: unknown[]) => logged.push(args);
+  try {
+    const deps = fakeDeps({
+      approvalQueue: {
+        ...fakeDeps().approvalQueue,
+        resolve: async () => ({ dispatched: true, effectResult: { success: false, error: "Resend send failed: 401 invalid API key" } }),
+      },
+    });
+    const app = appWithSession("tenant-1", SESSION, deps);
+    await app.request("/action-1/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "action", verdict: { kind: "APPROVE" } }),
+    });
+    assert.ok(logged.some((args) => String(args[0]).includes("Resend send failed")), "the failure must be logged server-side");
+  } finally {
+    console.error = originalError;
+  }
+});
+
 test("POST /:id/resolve REJECT requires feedback — rejected by the schema before reaching the store", async () => {
   const app = appWithSession("tenant-1", SESSION, fakeDeps());
   const res = await app.request("/action-1/resolve", {
