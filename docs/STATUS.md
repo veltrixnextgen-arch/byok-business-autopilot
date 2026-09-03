@@ -1,6 +1,17 @@
 # Project status
 
-**Generated:** 2026-08-26, from repo state at this commit. Regenerate rather than hand-edit stale sections — this is a snapshot, not a living narrative; `docs/DECISIONS.md` (ADRs) and `docs/TRACKING.md` (incident history) are the durable record this is derived from.
+**Generated:** 2026-09-02, from repo state through PR #213 (pending merge) and ADR-059. Regenerate rather than hand-edit stale sections — this is a snapshot, not a living narrative; `docs/DECISIONS.md` (ADRs) and `docs/TRACKING.md` (incident history) are the durable record this is derived from. **Standing rule as of this snapshot: this file and `docs/strategy/runwisely-north-star.md` §3 get updated in the same PR as the code they describe — see the note at the bottom of this file.**
+
+## What's blocking a real customer launch, ranked by revenue/value impact
+
+Not the roadmap — the actual question. Ranked by what stops taking money or delivering the value already promised, not by build order.
+
+1. **Fixed, pending merge/deploy: scheduled dispatch was silently non-functional for the one real tenant for three weeks.** `apps/api/src/routes/ceiling.ts`'s `perAgentDailyCeilingsFromOrgChart` crashed on every dispatch for Acme from at least 2026-08-19 — a JSONB schema-drift bug (`agent.budget` missing on a stored chart older than the field), with zero failure logging anywhere in `packages/jobs` to surface it. This was the single biggest gap between "architecturally sound" and "actually delivering value": an agent that never runs delivers nothing regardless of what's billed. **Fix + real data backfill + a `worker.on("failed", ...)` listener are in PR #213**, verified against Supabase directly (a real cadence tick and a real manual dispatch both landed correctly post-fix). Nothing else on this list matters if this doesn't ship and stay fixed.
+2. **Effect-dispatch stays draft-only (ADR-043).** The entire category promise is agents that *act*, not agents that draft forever. This is deliberate — earned autonomy triggering a real, unattended external action before any real pilot usage was explicitly rejected — but it is the actual ceiling on value delivered today, and every day it stays draft-only is a day the product can't do what it says on the landing page.
+3. **Google OAuth verification not yet submitted.** The shortest concrete path from #2 toward "and it acts" (Google Calendar is the one real OAuth flow that exists, currently inert pending this). This is a submission + review-wait, not an engineering task — the code side is done.
+4. **Two of the five North Star validation gates are still open**, and both need real usage, not code: ≥20 testers at ≥70% "taught me something," and ≥35% key-connection rate. Billing is done (verified end-to-end in Stripe test mode, 2026-09-01/02). First paying customer is open by definition until the above move.
+5. **JSONB schema drift is a recurring bug class, not a one-time fix.** Item 1's root cause will recur every time `Agent`/`Task` gains a field, for every tenant whose chart predates it, unless a systemic fix (a migration step on read, or a backfill wired into extraction) lands — flagged, not yet built.
+6. **Company Graph / Skill layer / Capability Registry / Company Memory / outcome learning — correctly not started.** These are Tier 2/3 per the North Star doc's own sequencing rule, gated behind item 4's validation gates. Listed here only so "what can wait" is explicit: everything past item 5 can, and should, keep waiting.
 
 ## Where we are against the roadmap
 
@@ -11,77 +22,81 @@ Per `docs/strategy/master-plan-v2.md` §4–5.
 | **MVP-0** — Extraction validated | Templates + customize pass + assembly produce a real org chart | **Done.** |
 | **Phase A** — Trust core + shell | Router/Vault/CostGate/ApprovalQueue exist and enforce T-series controls | **Done.** |
 | **Phase B** — Commodity surface | Onboarding, role cards, Charter editor, approvals UI, dashboard | **Done.** |
-| **MVP-1** — First role live | BYOK key flow + spend walls + Charter compile/handoff + one role executing with full approval queue + per-sub-agent cost dashboard | **Functionally proven, formally still open** — see below. |
-| **MVP-2** — Full org | Multi-role handoffs, CEO recommendation loop, earned autonomy, JIT Hands, batching, skip-the-call, Agency workspaces | **Partially done** — CEO loop and earned autonomy are real and durable; multi-role handoffs/batching/Agency workspaces not started. |
+| **MVP-1** — First role live | BYOK key flow + spend walls + Charter compile/handoff + one role executing with full approval queue + per-sub-agent cost dashboard | **Functionally proven and durable.** Router/Vault/CostGate/ApprovalQueue all read real Postgres now (ADR-039/040), not in-memory state. Formal test-gate closure (issue #19) still open per `docs/TRACKING.md`'s own rule — needs a report committed to `test/results/`, not more code. |
+| **MVP-2** — Full org | Multi-role handoffs, CEO recommendation loop, earned autonomy, JIT Hands, batching, skip-the-call, Agency workspaces | **Partially done** — CEO loop and earned autonomy are real and durable; risk-tiering added a presentation layer (Tier 1 item 4) without changing the underlying mechanism; multi-role handoffs/batching/Agency workspaces not started. |
 | **MVP-3** — Deploy layer | User-owned repo, sandbox→staging→approve→deploy pipeline | **Not started** — explicitly gated on MVP-2 paying traction. |
-| **Beyond MVP-3 — the runtime** (R1–R7) | Charter → cascade → scheduler → task chains → unattended execution | **R1–R4 shipped** (cadence metadata, Charter+cascade, scheduler, digest). **R5 (task chains), R6 (event triggers), R7 (threshold triggers) not started.** |
+| **Beyond MVP-3 — the runtime** (R1–R7) | Charter → cascade → scheduler → task chains → unattended execution | **R1–R4 shipped and durable** (ADR-039). **R5 (task chains, ADR-052) and R6 (event triggers, ADR-054) exist as unwired foundations** — real state machine/signature verification, neither reaches real dispatch. **R7 (threshold triggers) not started.** |
 
-**Why MVP-1 shows "functionally proven, formally still open":** every capability the milestone names is real and verified — BYOK connect flow, per-tenant/per-role spend ceilings, Charter compile/handoff, a real scheduled dispatch through the full approval queue (ADR-033, against tenant Acme, genuine non-mock output), and a working cost dashboard. What's still open is the milestone's own kill/advance criterion (issue #20: ≥35% of chart-completers connect a key after the simulated day) — that needs real signup volume over time, not more engineering — and issue #19's formal test-gate closure, which per `docs/TRACKING.md`'s own rule only closes with a passing report committed to `test/results/`, not on code merged alone.
+## What's shipped since the last snapshot (2026-08-26)
 
-## What's shipped, verified vs. assumed
-
-This session's arc, in order (full detail in `docs/DECISIONS.md`, ADR-028 through ADR-038):
+Full detail in `docs/DECISIONS.md`, ADR-039 through ADR-059, plus PR #210/#212/#213.
 
 | # | What | Verified how |
 |---|---|---|
-| ADR-028 | Vault durability audit — Brain/Hands key storage moves to Postgres | Real Postgres integration suite; cross-tenant RLS isolation proven |
-| ADR-029 | Deploy verification stops trusting the platform's own deploy-status API, uses a self-reported build SHA instead | Proven both directions against live staging (correct SHA passes, wrong SHA fails loud) |
-| ADR-030 | Postgres pool timeout bounds; a self-caught regression (monkeypatching `pg.Pool` broke `pool.query()` internally) | Caught via a 24-minute test-suite anomaly; reverted, fixed at call sites instead |
-| ADR-031 | `STAGING_KMS_MASTER_KEY` becomes a real persisted secret; a decrypt-path health signal replaces "connected" as proof a key works | Live incident (key was regenerated every deploy, silently orphaning DEKs) |
-| ADR-032 | Undecryptable DEK recovers on write, fails honestly on read | Real reconnect for tenant Acme confirmed working live |
-| **ADR-033** | **Real-executor verification against Acme** — genuine, non-mock, Acme-specific output confirmed through an actual scheduled dispatch | **Verified.** Real CEO-tier task, $0.027306 real cost, output read directly from a file (not a terminal paste) |
-| ADR-034 | Circuit breaker stops a Redis-error retry storm from becoming an unbounded cost leak | 8 dedicated tests + confirmed the storm stopped in production logs. **Issue #160 closed** (this session — PR #163 had shipped the fix but never linked the issue) |
-| ADR-035 | Issue #161's "corrupted output" was a terminal copy-paste artifact, not a runtime bug | Byte-clean file read of a second real dispatch's raw output |
-| **ADR-036** | **`www.runwisely.cc` / `runwisely.cc` are now live** — CORS/`trustedOrigins` fixed to trust multiple origins, closing a sign-in outage on the new domain | Code verified (192/192 tests); **live sign-in test on the real domain is the user's own next step**, not yet confirmed at time of writing |
-| **ADR-037** | **Autonomy durability** — `ApprovalQueue` reads a real `PostgresDurableAutonomyStore`, closing the accept-offer split-brain (`apps/api/src/routes/approvals.ts`'s accept-offer route used to write to a table live dispatch gating never read) | 38/38 approval-queue tests, including a structural proof (`acceptOffer()` flips `isActive` on the same store `submitProposedAction` reads) |
-| **ADR-038** | **Code-leanness pass** — 3 dead scripts deleted, 2 removable dependencies dropped (which also retired 2 tracked `npm audit` exceptions), 4 over-exported internals scoped down, 1 missing dependency (`playwright`) added | `npm audit`: 0 vulnerabilities (down from 2). Full suite green across every touched package |
-
-**The one item still genuinely unverified at the time of writing:** ADR-036's fix is code-complete and tested, and the Railway variable (`ADDITIONAL_WEB_ORIGINS`) is set — but a real browser sign-in on `https://www.runwisely.cc` hadn't been confirmed as of this snapshot. Don't treat it as done until that's confirmed.
+| ADR-039 | Router durability — real `DurableTaskLedger`/`DurableDedupStore`, closing a crash-orphans-a-reserved-cost-row gap | Integration suite against real Postgres |
+| ADR-040 | Vault's and CostGate's own audit logs unified into one shared, durable `DurableAuditLog` | Same store, differentiated by `source` column, confirmed via real writes |
+| **ADR-041/ADR-059** | **Database moved from Neon to Supabase — twice.** The first attempt (ADR-041, 2026-08-26) never actually took: `DATABASE_URL` never durably held the Supabase value, and the live environment ran on Neon, undetected, for another week through real billing traffic. Found via an `ENETUNREACH` on a since-corrected connection string, root-caused precisely (DNS match + Railway deployment history cross-referenced against Neon's own activity timestamp), and redone for real (ADR-059): wider tenant scope than the original Acme-only cut, byte-exact verification on every encrypted column, a real KMS-backed decrypt gate run without ever touching the live service, hardening re-verified by construction. | Live decrypt gate: all 6 of Acme's brain keys decrypted clean against Supabase using the real deployed KMS key. A real signup through the live UI confirmed present in Supabase, absent from Neon, at the exact timestamp of creation. |
+| ADR-042 | A real second Supabase project + Railway environment provisioned for staging | Isolated secrets, fresh KMS key confirmed never reused from production |
+| ADR-043 | Effect-dispatch stays draft-only for all of MVP-1/Phase 2 — a decision, not an open TBD | Documented as a closed question with the three options actually considered |
+| ADR-044/051/057 | Pricing set, then re-differentiated on cadence not agent count, then collapsed to one plan/three billing periods — current: $39.99/$107.97/$383.90 | Displayed math cross-checked against the real Stripe test-mode charge |
+| ADR-045 | Stripe billing wired: checkout, webhook, free-tier-upgrade hole closed | Full real flow: Checkout Session → subscription → webhook → tier/Stripe-id set → cancellation → tier revert, verified against live Stripe test mode 2026-09-01/02, including a direct database row read (not just 200s) |
+| ADR-046 | Bundle-size gate reads the real preload manifest instead of guessing from filenames | Worst-case route (146.21 KB gzip) now actually measured |
+| ADR-047/048/050 | CostGate's pricing table becomes provider-scoped; the executor and scheduled dispatch both actually tell the model layer which provider to use | Real OpenAI/Google pricing entries; a live latent single-provider bug closed |
+| ADR-049 | Template-learning capture layer — every task-list edit records a durable per-task delta | Real writes confirmed against migration `0016`'s table |
+| ADR-052/054 | Task chains (R5) and event triggers (R6) ship as real, tested foundations — a state machine and signature-verified webhook storage — deliberately not wired into dispatch yet | Unit-tested in isolation; explicitly flagged as not-yet-real automation in the roadmap above |
+| ADR-053/055/056 | Same-origin proxy for apps/web↔apps/api, with extraction deliberately exempted (latency headroom), cut over to production | Live CORS/cookie behavior confirmed post-cutover |
+| ADR-058 | Website-as-input: paste a URL instead of typing an idea, SSRF-hardened | Per-redirect-hop re-validation tested against a real private-IP redirect |
+| **PR #206–208** | Monthly cost-ceiling reset bug fixed; Stripe test-mode billing verified against real staging; "session expired" root-caused (third-party cookie block on cross-origin calls, not a race) and fixed via Better Auth's `bearer()` plugin; stale `WEB_ORIGIN` corrected | Live re-verification after each fix — a real signed-in user's dashboard load, a real checkout→webhook→cancellation cycle |
+| **PR #210 (North Star Tier 1, all four items)** | `Agent.brain` model recommendation with a cost-grounded reason; Company Blueprint framing; a real per-agent budget override surface (table + route + UI); `Agent.riskTier` (low/medium/high) rendered on both org-chart screens | Full monorepo test suite green; a live browser pass confirmed the Blueprint framing and budget editor render correctly against Supabase |
+| **PR #212** | Issue #175 fixed — both deploy-verification workflows now delete their own throwaway test account after running, `if: always()` | Live-tested the exact cleanup mechanism against a real test tenant before wiring it into CI |
+| **PR #213 (pending)** | The three-week silent scheduler failure (see "blocking a launch," item 1) — root cause, code fix, real-data backfill, and the missing `worker.on("failed", ...)` listener, all in one PR | New tests cover the fallback explicitly; live-verified via a real cadence tick and a real manual dispatch post-fix |
 
 ## Open issues, with trigger conditions
 
-Every issue currently open, in one place, so nothing is only "known" from scattered PR history.
+Every issue currently open, in one place, so nothing is only "known" from scattered PR history. Refreshed this snapshot — several close, several are new.
 
 | # | Issue | Trigger condition — what would resolve or require this |
 |---|---|---|
-| 159 | No safe "run now" path for scheduled dispatch | Build a real `POST /me/scheduler/run-now` (rate-limited, pause-aware). Currently stood in for by manual ops scripts (`packages/jobs/scripts/*.mjs`). |
-| 156 | KMS master key rotation has no design | Needed before any *deliberate* KMS rotation (versioned keys, re-encryption path). ADR-032's discard-and-recreate is a stopgap for the *accidental* case, not this. |
-| 150 | CostGate's own audit log is in-memory | Needed before this audit trail can be trusted to survive a restart — same shape as #149. |
-| 149 | Vault's own audit log is in-memory | Same — key store/rotate/revoke/decrypt events vanish on restart today. |
-| 144 | Same-origin proxy for apps/web + apps/api | The real, structural fix for cross-site cookies — ADR-036 made the *current* architecture correctly trust the real domain; this replaces the architecture itself. Deliberately deferred (per explicit sequencing decision) until after the domain launch stabilized. |
+| **NEW** | JSONB schema drift on stored org charts (see "blocking a launch," item 5) | Needs a systemic fix — a migration-on-read step, or a backfill wired into extraction — before the next contract field addition reproduces the same class of silent failure. |
+| **175** | **Closed (PR #212).** Deploy-verification test accounts never cleaned up, accumulating ~89 junk tenants on the live database. | Both workflows now delete their own account after running. |
+| **159** | **Closed.** No safe "run now" path for scheduled dispatch. | `POST /me/scheduler/run-now` exists and works — confirmed live 2026-09-02 (no UI button wired to it yet, but the route itself is real and rate-limited/pause-aware). |
+| 156 | KMS master key rotation has no design | Needed before any *deliberate* KMS rotation (versioned keys, re-encryption path). |
+| 150/149 | CostGate's / Vault's own audit logs | **Closed (ADR-040).** Both now read the same shared, durable `DurableAuditLog`. |
+| 144 | Same-origin proxy for apps/web + apps/api | **Closed (ADR-053/056).** Cut over to production. |
 | 141 | No way for a user to change a task's own cadence | Product gap — cadence is currently fixed at extraction time. |
 | 135 | `POST /me/scheduler/sync` returns a silent 200 | UX gap — the route already computes a real, useful result; it's just not surfaced. |
 | 124 | Charter drafting silently breaks past a 3000-token ceiling | Needs a real org chart large enough to hit it, or a raised ceiling + real verification. |
-| 120 | Router's TaskLedger/DedupStore are still in-memory | **Required before multi-replica or production traffic** — sharpened this session (ADR-033's investigation) to also block basic single-replica observability of in-flight tasks. Next up per the user's own sequencing, right after autonomy durability. |
+| 120 | Router's TaskLedger/DedupStore are still in-memory | **Closed (ADR-039).** Both now Postgres-backed. |
 | 112 | Cascade regeneration not wired for agent-rename/autonomy-change | Needs the post-claim org-chart-editing endpoints this was scoped out of (PR #94) to exist first. |
-| 47 | Cost ceiling is a single shared pool, not per-tenant | Real blocker once multiple tenants are live simultaneously on shared infrastructure — worth re-checking now that Acme is a real, live tenant. |
+| 47 | Cost ceiling is a single shared pool, not per-tenant | Re-check now that Acme is a real tenant with real billing — worth confirming this is actually still shared, not just historically noted as such. |
 | 38 | Org-chart-to-tenant handoff gap at Charter acceptance | Phase B commodity-surface gap. |
-| 37 | Deep Router/CostGate integration for user keys | Superseded in spirit by the real Vault/executor wiring since shipped — worth a look at whether this is now stale. |
-| 24 | MVP-3 parallel build branch | Explicitly gated on MVP-2 paying traction — not actionable yet. Scoping report requested separately (see "Next up"). |
+| 37 | Deep Router/CostGate integration for user keys | Likely stale — superseded by the real Vault/executor wiring since shipped. Worth closing on inspection rather than carrying forward again. |
+| 24 | MVP-3 parallel build branch | Explicitly gated on MVP-2 paying traction — not actionable yet. |
 | 23 | Multi-role handoffs + Agency workspaces | MVP-2 core scope — not started. |
-| 22 | Just-in-time Hands granting flow | Partially real (`missingHands` mechanism exists in the executor) — worth checking whether this issue's specific acceptance criteria are actually still open or just never closed. |
-| 21 | CEO recommendation loop | **The mechanism is done and proven** (ADR-033's real Grace dispatch). Open only on its kill/advance metric (≥30% approve rate) — needs real usage volume, not more code. |
+| 22 | Just-in-time Hands granting flow | Partially real (`missingHands` mechanism exists in the executor). |
+| 21 | CEO recommendation loop | **The mechanism is done and proven.** Open only on its kill/advance metric (≥30% approve rate) — needs real usage volume. |
 | 20 | Key-connection rate instrumentation (test-gate) | Needs real signup volume — ≥35% target, can't be resolved by engineering. |
-| 19 | One role executing end-to-end (test-gate) | **The capability is proven** (ADR-033) — this issue is open specifically because no report has been committed to `test/results/` yet, per `docs/TRACKING.md`'s own test-gate closure rule. |
-| 18 | Stripe billing for the four tiers | Not started — next up per the user's own phase-2 sequencing. |
-| 17 | Approval queue UI + morning digest + dashboard | Believed shipped (PR #146, #148) — worth confirming this issue's specific acceptance criteria are fully covered before closing. |
-| 16 | Charter editor + handoff ceremony + cascade | Believed shipped (R2/ADR-024) — same caveat as #17. |
-| 14 | Simulated-day player + value screen | Status unconfirmed this session — not touched. |
-| 13 | Role-card deck | Status unconfirmed this session — not touched. |
-
-**Note on #13/#14/#16/#17:** these read as already-shipped based on this session's own knowledge of the codebase (Charter editor, approvals UI, and dashboard are all real and in production use against Acme), but weren't individually re-verified against each issue's exact acceptance criteria in this pass — flagged rather than silently closed, since closing on an assumption would be exactly the kind of unverified claim this document is trying not to make.
+| 19 | One role executing end-to-end (test-gate) | **The capability is proven and now independently re-verified post-migration.** Open specifically because no report has been committed to `test/results/` yet. |
+| 18 | Stripe billing for the four tiers | **Closed (ADR-045).** Verified end-to-end against live Stripe test mode. |
+| 17/16 | Approval queue UI + digest + dashboard / Charter editor + handoff + cascade | Believed shipped and in real production use against Acme — not individually re-verified against each issue's exact acceptance criteria this pass. |
+| 14/13 | Simulated-day player + value screen / Role-card deck | Status unconfirmed — not touched this snapshot either. |
 
 ## Live infrastructure, as of this snapshot
 
-- **Domain:** `https://www.runwisely.cc` and `https://runwisely.cc` both attached to the Vercel project; sign-in fix deployed, live test pending.
-- **Backend:** Railway project `perceptive-generosity`, service `@byok/api`, environment literally named `production` in Railway's own terms (there is still only one real environment — see issue-worthy gap noted in ADR-033).
-- **Redis:** Upstash, pay-as-you-go (upgraded this session after a free-tier quota exhaustion incident), circuit breaker live on both workers.
-- **Database:** Neon Postgres, RLS-isolated per tenant.
+- **Domain:** `https://www.runwisely.cc` and `https://runwisely.cc`, both live, sign-in confirmed working (third-party-cookie fix, PR #208).
+- **Backend:** Railway project `perceptive-generosity`, service `@byok/api`, environment `864d7816-d276-4b64-b018-81561c9593a6` (Railway's own dashboard calls this environment "production" — it is the one and only real deployed backend; a second Railway environment named "staging" exists and has never been deployed to. This naming inversion has already cost two diagnosis cycles — see `docs/TRACKING.md`).
+- **Database: Supabase** (`ilptweslvrwbpddhhfuw`, "Runwisely"), **not Neon** — cut over 2026-09-02 (ADR-059) via the Session Pooler (`app_user.ilptweslvrwbpddhhfuw@aws-0-us-west-2.pooler.supabase.com:5432`, not the direct IPv6-only endpoint, not the transaction-mode pooler). Neon (`royal-sky-49178132`) stays live and untouched until **2026-09-09** before any deletion discussion.
+- **Redis:** Upstash, pay-as-you-go, circuit breaker live on both workers (ADR-034).
+- **Trust-core gate:** `packages/{router,agents,vault,cost-gate,approval-queue,db,jobs}` are all CODEOWNERS-locked — a PR touching any of them needs a human `TRUST-CORE REVIEWED` attestation before merge, enforced by CI, not just convention.
 
-## Next up (per the user's own stated sequencing)
+## Next up
 
-1. Confirm live sign-in on the real domain (ADR-036) — the one open verification loop.
-2. Issue #120 — Router ledger/dedup durability (queued immediately after autonomy durability, which shipped this session as ADR-037).
-3. ~~Performance measurement — resolve the CI bundle-gate discrepancy~~ — resolved (ADR-046): `check-bundle-size.mjs` rewritten to read the real TanStack Start preload manifest instead of guessing "initial vs. lazy" from filenames, and to count CSS (previously invisible to the gate entirely). Reports the worst-case route's real payload now: 146.21 KB gzip (route `/org-chart`), under the 150KB budget but closer to it than the old, incomplete measurement implied.
-4. Template-learning scoping (usage-data-driven template improvement, human-reviewed, no cross-tenant leakage) — scoping only, no code yet.
-5. Stripe billing (#18), then MVP-2's remaining scope (multi-role handoffs, batching, Agency workspaces — #23).
+1. **Merge and deploy PR #213** — the scheduler fix is the most consequential open item on this snapshot; nothing else matters if it doesn't land.
+2. Build the systemic fix for JSONB schema drift (this snapshot's new, unnumbered issue) before the next contract field addition reproduces it.
+3. Submit Google OAuth verification — the concrete next step toward closing the "drafts, doesn't act" gap.
+4. Formal test-gate closures (#19, #20, #21) — need a report committed to `test/results/` and real signup volume, not more code.
+5. Everything in North Star §5 Tier 2 (Company Graph, Skill layer, Capability Registry, wiring `@byok/chains`/`@byok/webhooks`, existing-business mapping) stays correctly un-started until §4's validation gates clear.
+
+---
+
+**Standing rule (established this snapshot):** any PR that changes what the product actually does updates this file and `docs/strategy/runwisely-north-star.md` §3 in the same PR — the same discipline already applied to ADRs (`docs/DECISIONS.md`) and incidents (`docs/TRACKING.md`). A status report should arrive with the work, not get requested after the fact.
