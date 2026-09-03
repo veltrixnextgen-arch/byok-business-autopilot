@@ -1,6 +1,6 @@
-import { ApprovalQueue, MockEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
+import { ApprovalQueue, ResendEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
-import { AgentBudgetOverrideStore, PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, type PoolLike } from "@byok/db";
+import { AgentBudgetOverrideStore, PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, getTenantOwnerEmails, type PoolLike } from "@byok/db";
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
@@ -71,19 +71,19 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // one — the same instance apps/api/src/index.ts wires into the
   // approvals route below, not a second one constructed there.
   const autonomyStore = new PostgresDurableAutonomyStore(pool);
-  const approvalQueue = new ApprovalQueue(autonomyStore, new MockEffectExecutor(), undefined, new PostgresDurableApprovalStore(pool, auditLog));
   const ledger = new PostgresDurableTaskLedger(pool);
 
   const handsCredentialRefreshers = new Map<string, HandsCredentialRefresher>();
   if (options.google) {
     handsCredentialRefreshers.set(GOOGLE_CALENDAR_SERVICE, createGoogleCalendarRefresher(options.google));
   }
-  // Constructed before the Router below — the executor needs it. Vault
-  // durability (found during MVP-1 readiness audit): key records and the
-  // per-tenant DEK that encrypts them are both real Postgres now, not the
-  // plain in-memory Maps that silently lost every stored key on every
-  // restart/redeploy before this — see durable/vaultKeyStore.ts and
-  // durable/dekRecordStore.ts's own module comments.
+  // Constructed before ApprovalQueue below now — ResendEffectExecutor
+  // needs it. Vault durability (found during MVP-1 readiness audit): key
+  // records and the per-tenant DEK that encrypts them are both real
+  // Postgres now, not the plain in-memory Maps that silently lost every
+  // stored key on every restart/redeploy before this — see
+  // durable/vaultKeyStore.ts and durable/dekRecordStore.ts's own module
+  // comments.
   const vault = new Vault(
     createDevKms(),
     auditLog,
@@ -93,6 +93,19 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
     new PostgresVaultKeyStore(pool),
     new PostgresDekRecordStore(pool),
   );
+  // Week 1's narrow effect-dispatch scope (docs/STATUS.md): the first
+  // real EffectExecutor, replacing MockEffectExecutor here (dev/
+  // devTrustCore.ts stays on the mock deliberately — no real sends
+  // during local dev). Only ever reached via a human APPROVE/MODIFY
+  // (queue.ts's own autonomy-bypass path refuses to carry an effect at
+  // all) — see ResendEffectExecutor's own doc comment for the full
+  // guarantee.
+  const effectExecutor = new ResendEffectExecutor(
+    { getOwnerEmails: (tenantId) => getTenantOwnerEmails(pool, tenantId) },
+    vault,
+    ROUTER_SERVICE_IDENTITY,
+  );
+  const approvalQueue = new ApprovalQueue(autonomyStore, effectExecutor, undefined, new PostgresDurableApprovalStore(pool, auditLog));
 
   // Real execution: every task submitted through this Router now resolves
   // the tenant's own stored Brain key and calls a real model, not
@@ -101,13 +114,17 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // comment) always wins over the fixed model here; DEV_TIER_MODEL_MAP.T1
   // is only a fallback for the theoretical no-CostGate case, which never
   // happens in this durable wiring (costGate is always passed to Router
-  // below). No handsVault/handsTools yet — draft-only for all of
-  // MVP-1/Phase 2 is now a settled decision, not an open "TBD" (ADR-043):
-  // every scheduled task's RouterTaskInput already omits `effect`
-  // entirely regardless, so omitting Hands here doesn't change what can
-  // dispatch today, only keeps this executor's tool surface at zero
-  // until the ADR's gates (real pilot usage, a Hands connection actually
-  // usable in production) clear.
+  // below). No handsVault/handsTools yet — the LIVE, mid-execution
+  // tool-call path (apps/router/src/handsTool.ts) stays entirely unwired
+  // regardless of ResendEffectExecutor above: that path runs a Hands
+  // tool call BEFORE the approval queue is ever reached, which is
+  // exactly the human-review guarantee Week 1's narrow effect-dispatch
+  // scope depends on. Real effects go through RouterTaskInput.effect ->
+  // the approval queue -> ResendEffectExecutor instead (currently just
+  // one task type — see scheduledDispatchProcessor.ts), never through a
+  // live tool call. ADR-043 (effect-dispatch stays draft-only for
+  // MVP-1/Phase 2) is superseded for that one task type specifically,
+  // not reopened wholesale.
   const executor = new OpenMultiAgentExecutor(vault, ROUTER_SERVICE_IDENTITY, DEV_TIER_MODEL_MAP.T1);
   const router = new Router(ledger, new PostgresDurableDedupStore(pool), executor, costGate, approvalQueue);
 

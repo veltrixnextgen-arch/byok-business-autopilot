@@ -41,6 +41,15 @@ function ledgerRowsFor(status: RouterTask["status"]): number {
   return status === "queued" || status === "skipped" ? 2 : 3;
 }
 
+// Week 1's narrow real-effect-dispatch scope (docs/STATUS.md): exactly
+// one task type carries a real effect today, not a general "any task
+// can send" system. The actual send (real Resend call, recipient
+// resolution, the agent's own draft as the body) all happen later, in
+// ResendEffectExecutor, once a human approves — this only decides
+// WHETHER a task proposes an effect at all, matching what
+// packages/templates/src/saas.ts's own comment on this task id says.
+const EFFECT_TASK_IDS: ReadonlySet<string> = new Set(["support.digest.weekly-summary"]);
+
 /** The ONLY thing that produces a "queued"/"skipped" RouterTask status is
  *  the cost gate's verdict (router.ts's submitTask — QUEUE/SKIP are
  *  returned before the executor is ever reached, and nothing else in that
@@ -113,6 +122,13 @@ export function createScheduledDispatchProcessor(deps: ScheduledDispatchDeps) {
       systemPrompt,
       promptTier,
       batchable: task.batchable,
+      // Router.submitTask itself still drops this for a CEO-tier task or
+      // one with missing Hands (T10 / issue #22 — see router.ts's own
+      // effectiveEffect) — proposing it here doesn't bypass either gate,
+      // only opts this one task type IN to the possibility.
+      ...(EFFECT_TASK_IDS.has(task.id)
+        ? { effect: { kind: "send" as const, description: `Email ${agent.name}'s weekly summary to the founder` } }
+        : {}),
     };
 
     const start = Date.now();

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@byok/db": "*",
+    "@byok/notifications": "*",
     "@byok/vault": "*"
   },
   "devDependencies": {

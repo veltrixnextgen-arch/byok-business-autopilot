@@ -143,6 +143,49 @@ test("a role whose Brain key is on a non-Anthropic provider gets that provider's
   assert.equal(seenModel, "gpt-t1");
 });
 
+// Week 1's narrow real-effect-dispatch scope (docs/STATUS.md): exactly
+// one task type proposes a real effect. This is the ONLY thing this
+// processor decides — the actual send, recipient resolution, and
+// human-gating all happen later (ResendEffectExecutor, queue.ts).
+test('the one Week-1 task type ("support.digest.weekly-summary") proposes a real "send" effect', async () => {
+  const chart: OrgChart = {
+    ...CHART,
+    tasks: [{ ...CHART.tasks[0]!, id: "support.digest.weekly-summary" }],
+  };
+  const payload: ScheduledDispatchPayload = { ...PAYLOAD, taskId: "support.digest.weekly-summary" };
+  let seenInput: unknown;
+  const deps = baseDeps({
+    batchStore: { latestForTenant: async () => ({ orgChart: chart }) as never },
+    router: {
+      submitTask: async (input) => {
+        seenInput = input;
+        return { status: "awaiting_review" } as RouterTask;
+      },
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(payload);
+
+  assert.deepEqual((seenInput as { effect?: unknown }).effect, {
+    kind: "send",
+    description: "Email Sam's weekly summary to the founder",
+  });
+});
+
+test("every other task type still proposes no effect at all — this stays the exception, not the default", async () => {
+  let seenInput: unknown;
+  const deps = baseDeps({
+    router: {
+      submitTask: async (input) => {
+        seenInput = input;
+        return { status: "awaiting_review" } as RouterTask;
+      },
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(PAYLOAD); // CHART's task-1, unchanged
+
+  assert.equal((seenInput as { effect?: unknown }).effect, undefined);
+});
+
 test("a role with no Brain key connected yet falls back to the Anthropic map, not a crash", async () => {
   let seenModel: string | undefined;
   const deps = baseDeps({
