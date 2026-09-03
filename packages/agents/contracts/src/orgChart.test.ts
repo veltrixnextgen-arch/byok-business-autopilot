@@ -87,6 +87,11 @@ test("normalizeOrgChart backfills a missing riskTier from the agent's own tasks"
   assert.equal(result.agents[0]!.riskTier, "medium");
 });
 
+test("normalizeOrgChart tolerates a partial/stub chart with no agents field at all", () => {
+  const c = { meta: { idea: "a laundromat" } } as unknown as OrgChart;
+  assert.deepEqual(normalizeOrgChart(c), c);
+});
+
 test("normalizeOrgChart backfills both fields independently on the same agent", () => {
   const a = agent({ id: "a1", tier: "T2", taskIds: ["t1"] });
   delete (a as { budget?: unknown }).budget;

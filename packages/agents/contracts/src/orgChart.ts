@@ -252,13 +252,19 @@ export function mostRestrictiveStakes(tasks: Task[]): Stakes {
  * dispatch) the way budget/riskTier had to be this time. A freshly
  * assembled chart (assembleOrgChart) never needs this — it's never
  * missing a field its own contract defines.
+ *
+ * `chart.agents` itself is tolerated as absent — some stored rows (e.g.
+ * signupExtractionBatches.itest.ts's deliberately minimal fixtures) are
+ * a partial stub, not a real assembled chart. Nothing to normalize on
+ * one of those; return it unchanged rather than crashing.
  */
 export function normalizeOrgChart(chart: OrgChart): OrgChart {
+  if (!Array.isArray(chart.agents)) return chart;
   return {
     ...chart,
     agents: chart.agents.map((agent) => {
       if (agent.budget !== undefined && agent.riskTier !== undefined) return agent;
-      const agentTasks = chart.tasks.filter((t) => agent.taskIds.includes(t.id));
+      const agentTasks = (chart.tasks ?? []).filter((t) => agent.taskIds.includes(t.id));
       return {
         ...agent,
         budget: agent.budget ?? { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier], source: "tier-default" },
