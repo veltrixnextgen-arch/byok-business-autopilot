@@ -13,9 +13,9 @@ import { Reveal, RwCard, SectionContainer, SectionEyebrow, SectionHeading, useRe
 // live yet (docs/design/meta-app-review-checklist.md — Google Calendar
 // is the only live connection today, see ADR-021).
 //
-// PLACEHOLDER: shares PRIVACY_EMAIL's assumed domain — see
-// PrivacyPolicyPage.tsx's own note. Keep both files' addresses in sync.
-const DELETION_EMAIL = "privacy@runwisely.com";
+// Shares PRIVACY_EMAIL's address — see PrivacyPolicyPage.tsx's own note.
+// Keep both files' addresses in sync.
+const DELETION_EMAIL = "veltrixnextgen@gmail.com";
 
 const STEPS = [
   {

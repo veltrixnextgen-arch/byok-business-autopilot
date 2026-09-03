@@ -14,11 +14,13 @@ import { Reveal, SectionContainer, SectionEyebrow, SectionHeading, useRevealOnSc
 // packages/vault (key custody), packages/db/src/migrations (funnel
 // analytics tables) — see each section's own note.
 //
-// PLACEHOLDER: privacy@runwisely.com / support@runwisely.com assume the
-// product's own name as the eventual domain. Confirm against the real
-// domain once it's chosen and update both this file and DataDeletionPage.tsx
-// together — they must name the same address.
-const PRIVACY_EMAIL = "privacy@runwisely.com";
+// Personal address, deliberately — no business mailbox exists yet
+// (2026-09-03). Must match DataDeletionPage.tsx's DELETION_EMAIL. Swap
+// to a real runwisely.cc address once one exists; Google's verification
+// doesn't require the contact email's domain to match the homepage's
+// (only the privacy policy PAGE itself has to live on the verified
+// domain, which this page already does), so this isn't blocking.
+const PRIVACY_EMAIL = "veltrixnextgen@gmail.com";
 
 const LAST_UPDATED = "August 2026";
 
@@ -40,7 +42,7 @@ export function PrivacyPolicyPage() {
         <section className="space-y-3">
           <h2 className="font-display text-xl font-semibold text-text">What this covers</h2>
           <p>
-            This policy explains what Runwisely ("we," "us") collects when you use runwisely.com and the Runwisely
+            This policy explains what Runwisely ("we," "us") collects when you use runwisely.cc and the Runwisely
             application, why we collect it, and how you can have it deleted. It covers everyone who visits the site,
             signs up, or connects a third-party account (like Google Calendar) to a Runwisely agent.
           </p>

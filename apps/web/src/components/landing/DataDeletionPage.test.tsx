@@ -41,7 +41,7 @@ describe("DataDeletionPage", () => {
 
   it("gives a concrete full-deletion path with an email address and a stated turnaround", () => {
     render(<DataDeletionPage />);
-    const emailMatches = screen.getAllByText(/privacy@runwisely\.com/);
+    const emailMatches = screen.getAllByText(/veltrixnextgen@gmail\.com/);
     expect(emailMatches.length).toBeGreaterThan(0);
     expect(screen.getByText(/within 30 days/i)).toBeTruthy();
   });

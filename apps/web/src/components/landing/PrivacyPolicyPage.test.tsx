@@ -53,9 +53,9 @@ describe("PrivacyPolicyPage", () => {
 
   it("gives a concrete deletion path with an email address, not just a vague promise", () => {
     render(<PrivacyPolicyPage />);
-    const emailLinks = screen.getAllByRole("link", { name: "privacy@runwisely.com" });
+    const emailLinks = screen.getAllByRole("link", { name: "veltrixnextgen@gmail.com" });
     expect(emailLinks.length).toBeGreaterThan(0);
-    expect(emailLinks[0]?.getAttribute("href")).toBe("mailto:privacy@runwisely.com");
+    expect(emailLinks[0]?.getAttribute("href")).toBe("mailto:veltrixnextgen@gmail.com");
     expect(screen.getByText(/within 30 days/i)).toBeTruthy();
   });
 
