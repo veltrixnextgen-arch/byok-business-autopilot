@@ -6,6 +6,7 @@
 // 1995 HTML (raw form elements, no layout, no visible input boxes). Bare
 // interactivity can't tell that apart from a real page; this asserts the
 // design tokens actually reached the DOM as computed styles.
+import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const webUrl = process.argv[2];
@@ -78,6 +79,11 @@ try {
   const stamp = Date.now();
   const email = `verify-styled-${stamp}@example.invalid`;
   const password = "Str0ngTempPassw0rd!";
+  // Issue #175: this account/org is real, deployed data — the workflow's
+  // own cleanup step reads this file to delete it after the check runs,
+  // pass or fail. Nothing about this script's own logic depends on the
+  // file existing; it's purely for the caller.
+  writeFileSync("/tmp/verify_styled_email.txt", email);
 
   const signUpRes = await fetch(`${apiUrl}/api/auth/sign-up/email`, {
     method: "POST",
