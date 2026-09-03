@@ -1,4 +1,4 @@
-import type { OrgChart } from "@byok/contracts";
+import { normalizeOrgChart, type OrgChart } from "@byok/contracts";
 import { withInternalMetricsScope } from "./signupMetrics.js";
 import { withUserAndTenantScope, withUserScope } from "./userContext.js";
 import { withTenantScope, type PoolLike } from "./tenantContext.js";
@@ -43,7 +43,11 @@ function rowToBatch(row: SignupExtractionBatchRow): SignupExtractionBatch {
     tenantId: row.tenant_id,
     idea: row.idea,
     status: row.status,
-    orgChart: row.org_chart,
+    // Every read runs the stored chart through normalizeOrgChart — the
+    // single chokepoint fix for JSONB schema drift (see that function's
+    // own doc comment in @byok/contracts). This is the one place a future
+    // Agent/Task contract field needs a default added, not every consumer.
+    orgChart: row.org_chart === null ? null : normalizeOrgChart(row.org_chart),
     costUsd: row.cost_usd === null ? null : Number(row.cost_usd),
     error: row.error,
     createdAt: row.created_at,
