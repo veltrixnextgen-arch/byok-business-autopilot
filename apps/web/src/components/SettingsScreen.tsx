@@ -148,6 +148,18 @@ export function SettingsScreen() {
             <h2 className="font-display text-base font-semibold text-text">Notifications</h2>
             <p className="mt-3 text-sm text-text-muted">Notification preferences aren't available yet.</p>
           </Card>
+
+          <Card>
+            <h2 className="font-display text-base font-semibold text-text">Legal</h2>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <Link to="/privacy" className="text-sm font-medium text-accent hover:text-accent-strong">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="text-sm font-medium text-accent hover:text-accent-strong">
+                Terms of Service
+              </Link>
+            </div>
+          </Card>
         </div>
       </div>
     </AppShell>

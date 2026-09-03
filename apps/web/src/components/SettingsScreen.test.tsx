@@ -97,4 +97,18 @@ describe("SettingsScreen", () => {
     expect(await screen.findByText("Not connected yet.")).toBeTruthy();
     expect(await screen.findByText(/no agents need a tool connection yet/i)).toBeTruthy();
   });
+
+  it("links to the privacy policy and terms of service — not just the landing footer", async () => {
+    useSession.mockReturnValue({ data: { user: { name: "Alex Founder", email: "alex@example.com" } } });
+    getBrainKeyStatus.mockResolvedValue(null);
+    getCeiling.mockResolvedValue({ companyMonthlyUsd: 50, isOverride: false });
+    getOrgChartForTenant.mockResolvedValue(null);
+
+    render(<SettingsScreen />);
+
+    const privacyLink = await screen.findByRole("link", { name: "Privacy Policy" });
+    expect(privacyLink.getAttribute("href")).toBe("/privacy");
+    const termsLink = screen.getByRole("link", { name: "Terms of Service" });
+    expect(termsLink.getAttribute("href")).toBe("/terms");
+  });
 });
