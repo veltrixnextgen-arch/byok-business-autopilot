@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import { TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
 import type { SignupExtractionBatchStore, AgentBudgetOverrideStore } from "@byok/db";
 import { InvalidAgentBudgetError } from "@byok/db";
 import { Hono } from "hono";
@@ -32,12 +33,19 @@ export function agentBudgetsRoute(deps: AgentBudgetsRouteDeps) {
       const [batch, overrides] = await Promise.all([deps.batchStore.latestForTenant(tenantId), deps.overrides.getAll(tenantId)]);
       const agents = (batch?.orgChart?.agents ?? []).map((agent) => {
         const override = overrides[agent.id];
+        // agent.budget can be missing on a stored org chart older than the
+        // field itself (ceiling.ts's own perAgentDailyCeilingsFromOrgChart
+        // comment has the full story — confirmed live on Acme's chart).
+        // Same TIER_DEFAULT_BUDGET_PER_DAY_USD fallback, same "tier-default"
+        // label, since that's the honest source for a value neither this
+        // route nor the stored chart ever actually authored.
+        const tierDefault = TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier];
         return {
           agentId: agent.id,
           name: agent.name,
           title: agent.title,
-          perDayUsd: override ?? agent.budget.perDayUsd,
-          source: override !== undefined ? ("override" as const) : agent.budget.source,
+          perDayUsd: override ?? agent.budget?.perDayUsd ?? tierDefault,
+          source: override !== undefined ? ("override" as const) : agent.budget?.source ?? "tier-default",
         };
       });
       return c.json({ agents });

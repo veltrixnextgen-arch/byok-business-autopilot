@@ -154,3 +154,18 @@ test("perAgentDailyCeilingsFromOrgChart returns an empty map for a null/missing 
   assert.deepEqual(perAgentDailyCeilingsFromOrgChart(null), {});
   assert.deepEqual(perAgentDailyCeilingsFromOrgChart(undefined), {});
 });
+
+// Real incident, not a hypothetical: Acme's own stored org chart (captured
+// before Agent.budget existed) has every agent's budget as `null` in the
+// JSONB, and this exact unguarded access killed every scheduled dispatch
+// for three weeks with no visible error.
+test("perAgentDailyCeilingsFromOrgChart falls back to the tier default when an agent's budget is missing (older stored chart), never throws", () => {
+  const orgChart = {
+    agents: [
+      { ...agent({ id: "agent-1", budget: { perDayUsd: 999, source: "tier-default" } }), budget: undefined as never, tier: "T1" },
+      { ...agent({ id: "agent-2", budget: { perDayUsd: 999, source: "tier-default" } }), budget: undefined as never, tier: "T3" },
+    ],
+  } as unknown as OrgChart;
+
+  assert.deepEqual(perAgentDailyCeilingsFromOrgChart(orgChart), { "agent-1": 2, "agent-2": 15 });
+});

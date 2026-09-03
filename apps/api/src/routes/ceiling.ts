@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import type { OrgChart } from "@byok/contracts";
+import { TIER_DEFAULT_BUDGET_PER_DAY_USD, type OrgChart } from "@byok/contracts";
 import { InvalidCeilingError, type TenantCeilingStore } from "@byok/db";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -42,7 +42,18 @@ export const DEFAULT_PER_AGENT_PER_DAY_USD = 5;
  *
  *  `overrides` (AgentBudgetOverrideStore, @byok/db) is the genuinely
  *  per-agent-authored value the doc comment above once said didn't exist —
- *  an entry there wins over the tier default for that one agent. */
+ *  an entry there wins over the tier default for that one agent.
+ *
+ *  `agent.budget` can be missing on a stored org chart older than the field
+ *  itself — `signup_extraction_batches.org_chart` is a frozen JSONB
+ *  snapshot from extraction time, never migrated forward when the Agent
+ *  contract gains a field (confirmed live: Acme's own chart, captured
+ *  2026-08-07, predates `budget` entirely — every agent had it `null`,
+ *  which crashed every single scheduled dispatch for three weeks with no
+ *  visible error, since nothing here defended against it). Falling back to
+ *  the same `TIER_DEFAULT_BUDGET_PER_DAY_USD[tier]` assembleOrgChart itself
+ *  would have assigned keeps this honest — the exact value a fresh chart
+ *  gets — rather than inventing a different number. */
 export function perAgentDailyCeilingsFromOrgChart(
   orgChart: OrgChart | null | undefined,
   overrides: Record<string, number> = {},
@@ -50,7 +61,7 @@ export function perAgentDailyCeilingsFromOrgChart(
   if (!orgChart) return {};
   const map: Record<string, number> = {};
   for (const agent of orgChart.agents) {
-    map[agent.id] = overrides[agent.id] ?? agent.budget.perDayUsd;
+    map[agent.id] = overrides[agent.id] ?? agent.budget?.perDayUsd ?? TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier];
   }
   return map;
 }
