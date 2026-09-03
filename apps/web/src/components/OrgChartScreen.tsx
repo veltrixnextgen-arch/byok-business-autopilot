@@ -25,17 +25,21 @@ export function OrgChartScreen() {
 
     async function load() {
       try {
-        // Primary path: the fresh, pre-org reveal right after extraction
-        // completes (unchanged). If nothing's there, this may be a
-        // revisit after the org-chart -> tenant handoff already claimed
-        // it (issue #38) — getLatestBatch can no longer see a claimed
-        // row once tenant_id is set, so fall back to the tenant-scoped
-        // read. That fallback 401s (swallowed here) for a user with no
-        // active organization at all, which is the same "nothing to
-        // show" case as today.
-        let batch = await getLatestBatch();
+        // Tenant-scoped read FIRST. Real bug, found 2026-09-03: the
+        // previous order tried getLatestBatch (the pre-org, per-USER
+        // path) first — for an account that has BOTH a claimed
+        // organization AND any older, abandoned, never-claimed batch
+        // (e.g. a founder who tried a few ideas before committing to
+        // one), getLatestBatch succeeds with the stale draft and this
+        // screen never even checks the real, claimed org chart. Once a
+        // user has an active organization, that's authoritative — show
+        // it, always. Both calls are swallowed to null on failure
+        // (including a transient 401, not just "no row") so neither a
+        // race nor a genuinely missing row crashes this screen; "nothing
+        // found either way" still means "nothing to show" below.
+        let batch = await getOrgChartForTenant().catch(() => null);
         if (!batch) {
-          batch = await Promise.resolve(getOrgChartForTenant()).catch(() => null);
+          batch = await getLatestBatch().catch(() => null);
         }
         if (cancelled) return;
         if (!batch) {

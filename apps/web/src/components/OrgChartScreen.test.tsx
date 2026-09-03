@@ -100,6 +100,10 @@ beforeEach(() => {
     "matchMedia",
     vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
   );
+  // Default: no claimed organization yet — matches the genuine pre-org
+  // state most tests below exercise. Tests for the tenant-scoped path
+  // override this with their own mockResolvedValueOnce.
+  vi.mocked(getOrgChartForTenant).mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -138,13 +142,14 @@ describe("OrgChartScreen — closing state", () => {
   });
 });
 
-// Issue #38: once a chart is claimed by a tenant, getLatestBatch (user-
-// scoped) can no longer see it — a revisit to /org-chart after org
-// creation must fall back to the tenant-scoped read instead of treating
-// "nothing pre-org" as "nothing at all."
+// Issue #38 + a real bug found 2026-09-03: once a chart is claimed by a
+// tenant, that's the authoritative state — it must win even when the
+// user ALSO has an older, never-claimed batch sitting around (a founder
+// who tried a few ideas before committing to one). The tenant-scoped
+// read is tried FIRST, always; the pre-org read is only a fallback for
+// a user with no active organization at all yet.
 describe("OrgChartScreen — post-claim revisit (issue #38)", () => {
-  it("falls back to the tenant-scoped org chart when the pre-org read finds nothing", async () => {
-    vi.mocked(getLatestBatch).mockResolvedValueOnce(null);
+  it("shows the tenant-scoped org chart when the user has a claimed organization", async () => {
     vi.mocked(getOrgChartForTenant).mockResolvedValueOnce({
       id: "batch-1",
       idea: "a barber shop",
@@ -158,9 +163,37 @@ describe("OrgChartScreen — post-claim revisit (issue #38)", () => {
 
     await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
     expect(vi.mocked(getOrgChartForTenant)).toHaveBeenCalledOnce();
+    expect(vi.mocked(getLatestBatch)).not.toHaveBeenCalled();
   });
 
-  it("never calls the tenant-scoped fallback when the pre-org read already found the chart", async () => {
+  it("shows the claimed org's chart even when an older, unclaimed pre-org batch also exists — the exact bug this fixed", async () => {
+    // A stale, abandoned draft from an earlier idea the user never
+    // finished onboarding with. Before the fix, this alone determined
+    // what rendered, forever hiding the user's real, claimed company.
+    vi.mocked(getLatestBatch).mockResolvedValueOnce({
+      id: "old-draft",
+      idea: "a completely different, abandoned idea",
+      status: "completed",
+      orgChart: { ...CHART, meta: { ...CHART.meta, idea: "a completely different, abandoned idea" } },
+      costUsd: 0.01,
+      error: null,
+    });
+    vi.mocked(getOrgChartForTenant).mockResolvedValueOnce({
+      id: "batch-1",
+      idea: "a barber shop",
+      status: "completed",
+      orgChart: CHART,
+      costUsd: 0.01,
+      error: null,
+    });
+
+    render(<OrgChartScreen />);
+
+    await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
+    expect(vi.mocked(getLatestBatch)).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the pre-org read when the user has no claimed organization at all", async () => {
     vi.mocked(getLatestBatch).mockResolvedValueOnce({
       id: "batch-1",
       idea: "a barber shop",
@@ -173,7 +206,7 @@ describe("OrgChartScreen — post-claim revisit (issue #38)", () => {
     render(<OrgChartScreen />);
 
     await waitFor(() => expect(screen.getByText(/that's the preview, in full/i)).toBeTruthy());
-    expect(vi.mocked(getOrgChartForTenant)).not.toHaveBeenCalled();
+    expect(vi.mocked(getOrgChartForTenant)).toHaveBeenCalledOnce();
   });
 });
 
