@@ -604,6 +604,35 @@ jobs:
           npx playwright install --with-deps chromium
           node apps/web/scripts/verify-staging-styled.mjs "$WEB_URL" "$RAILWAY_URL"
 
+      # Issue #175: every verification step above creates a real,
+      # deployed test account/org (deploy-verify-$STAMP,
+      # verify-styled-$STAMP) and none of them ever cleaned up after
+      # themselves — the actual source of the ~89 throwaway tenants ADR-059
+      # found accumulated on the database this workflow deploys to.
+      # if: always() so a FAILED verification step still gets its own
+      # throwaway account deleted, not just a successful run's.
+      # deleteTestAccounts.ts is itself a no-op for an email that was
+      # never created (e.g. the styled-check email file is missing
+      # because that step never ran).
+      - name: Clean up this run's own throwaway test accounts
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          EMAILS=""
+          if [ -f /tmp/deploy_verify_stamp.txt ]; then
+            STAMP=$(cat /tmp/deploy_verify_stamp.txt)
+            EMAILS="$EMAILS deploy-verify-$STAMP@example.invalid"
+          fi
+          if [ -f /tmp/verify_styled_email.txt ]; then
+            EMAILS="$EMAILS $(cat /tmp/verify_styled_email.txt)"
+          fi
+          if [ -z "$EMAILS" ]; then
+            echo "No throwaway test accounts recorded this run — nothing to clean up."
+          else
+            npx tsx packages/db/src/deleteTestAccounts.ts $EMAILS
+          fi
+
       - name: Summary
         env:
           WEB_URL: ${{ steps.vercel_domain.outputs.url }}
