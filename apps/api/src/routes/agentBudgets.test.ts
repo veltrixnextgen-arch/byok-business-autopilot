@@ -53,6 +53,26 @@ test("GET reports each agent's tier-default budget when no override exists", asy
   });
 });
 
+// Real incident: Acme's own stored org chart predates Agent.budget
+// entirely — every agent has it `null`. Same fallback ceiling.ts's
+// perAgentDailyCeilingsFromOrgChart uses, so this route reports the same
+// number the scheduler now actually enforces.
+test("GET falls back to the tier default when an agent's budget is missing (older stored chart)", async () => {
+  const orgChart = {
+    agents: [{ ...agent({ id: "agent-1", budget: { perDayUsd: 999, source: "tier-default" } }), budget: undefined as never, tier: "T3" }],
+  } as unknown as OrgChart;
+  const app = appWithSession("tenant-1", SESSION, {
+    batchStore: { latestForTenant: async () => ({ orgChart }) as never },
+    overrides: { getAll: async () => ({}), set: async () => {} },
+  });
+
+  const res = await app.request("/");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    agents: [{ agentId: "agent-1", name: "Sam", title: "Expenses", perDayUsd: 15, source: "tier-default" }],
+  });
+});
+
 test("GET prefers an agent's own override over its tier-default", async () => {
   const orgChart = {
     agents: [agent({ id: "agent-1", budget: { perDayUsd: 2, source: "tier-default" } })],

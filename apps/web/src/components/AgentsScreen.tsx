@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TIER_DEFAULT_BUDGET_PER_DAY_USD } from "@byok/contracts";
 import { getAgentBudgets, setAgentBudget, InvalidAgentBudgetError, type AgentBudgetInfo } from "../lib/agentBudgetClient";
 import { getOrgChartForTenant, type LatestBatch } from "../lib/extractionClient";
 import { DOT_TONE_CLASSES, RISK_TIER_LABEL, RISK_TIER_TONE, TEAM_HINT_TONE } from "../lib/teamHints";
@@ -74,8 +75,14 @@ export function AgentsScreen() {
             {state.batch.orgChart.agents.map((agent) => {
               const tone = TEAM_HINT_TONE[agent.teamId] ?? "accent";
               const budgetInfo = budgets.get(agent.id);
-              const perDayUsd = budgetInfo?.perDayUsd ?? agent.budget.perDayUsd;
+              // agent.budget can be missing on a stored org chart older
+              // than the field itself (see ceiling.ts's own comment) — the
+              // /me/agent-budgets fetch above already carries the right
+              // tier-default fallback, so this local one only matters
+              // before that request resolves.
+              const perDayUsd = budgetInfo?.perDayUsd ?? agent.budget?.perDayUsd ?? TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier];
               const isOverride = budgetInfo?.source === "override";
+              const riskTier = agent.riskTier ?? "low";
               return (
                 <Card key={agent.id}>
                   <div className="flex items-start justify-between gap-3">
@@ -88,7 +95,7 @@ export function AgentsScreen() {
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <Badge tone={tone}>{agent.tier}</Badge>
-                      <Badge tone={RISK_TIER_TONE[agent.riskTier]}>{RISK_TIER_LABEL[agent.riskTier]}</Badge>
+                      <Badge tone={RISK_TIER_TONE[riskTier]}>{RISK_TIER_LABEL[riskTier]}</Badge>
                     </div>
                   </div>
                   <p className="mt-3 text-sm text-text-secondary">{agent.objective}</p>

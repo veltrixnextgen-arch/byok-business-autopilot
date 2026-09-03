@@ -7,16 +7,32 @@ export interface WorkerConfig {
   concurrency?: number;
 }
 
+/** Real incident, not a hypothetical: a job whose processor throws is
+ *  caught internally by BullMQ and written to Redis's own failed-job
+ *  data — the ONLY other listener this codebase ever attached (see
+ *  redisErrorCircuitBreaker.ts) is `worker.on("error", ...)`, a completely
+ *  different event (Redis connection health, not job outcomes). With
+ *  neither wired to `"failed"`, a genuinely broken job — Acme's scheduled
+ *  dispatch crashed on every single firing for three weeks — produces
+ *  zero output anywhere Railway's own logs surface. This is the minimum
+ *  fix: log it, so "silently wrong" becomes "loudly wrong" the same day. */
+function logFailedJob(workerName: string, job: { id?: string; name: string; data: unknown } | undefined, err: Error): void {
+  const tenantId = (job?.data as { tenantId?: string } | undefined)?.tenantId ?? "unknown-tenant";
+  console.error(`[jobs] "${workerName}" job "${job?.name ?? "unknown"}" (id ${job?.id ?? "unknown"}, tenant ${tenantId}) failed:`, err.message);
+}
+
 export function createTenantWorker<Payload extends TenantJobPayload>(
   name: string,
   processor: Processor<Payload>,
   config: WorkerConfig,
 ): Worker<Payload> {
-  return new Worker<Payload>(name, processor, {
+  const worker = new Worker<Payload>(name, processor, {
     connection: config.connection,
     prefix: config.prefix,
     concurrency: config.concurrency ?? 5,
   });
+  worker.on("failed", (job, err) => logFailedJob(name, job, err));
+  return worker;
 }
 
 /**
@@ -30,9 +46,11 @@ export function createTenantWorker<Payload extends TenantJobPayload>(
  * it would be worse than just not claiming one.
  */
 export function createPlatformWorker<Payload = unknown>(name: string, processor: Processor<Payload>, config: WorkerConfig): Worker<Payload> {
-  return new Worker<Payload>(name, processor, {
+  const worker = new Worker<Payload>(name, processor, {
     connection: config.connection,
     prefix: config.prefix,
     concurrency: config.concurrency ?? 1,
   });
+  worker.on("failed", (job, err) => logFailedJob(name, job, err));
+  return worker;
 }

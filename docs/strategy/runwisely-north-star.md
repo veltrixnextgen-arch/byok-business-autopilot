@@ -37,56 +37,60 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 
 ## 3. Reconciliation — what exists today
 
+*Last reconciled 2026-09-02, against commit history through PR #213 (pending merge) and ADR-059.*
+
 | Target capability | Real state |
 |---|---|
 | Idea → company reverse engineering | **Built, proven.** 7 templates + customize pass, domain-specific output, six-fixture suite. |
-| Website → company analysis | **Built.** Shipped with SSRF validation and T2 content-as-data handling. |
+| Website → company analysis | **Built.** Shipped with SSRF validation and T2 content-as-data handling (ADR-058). |
 | Existing-business audit (before/after mapping) | **Not built.** Website analysis produces a chart, not a current-state → future-state map. |
-| Company Blueprint as a first-class object | **Partial.** Org chart + Charter exist; blueprint framing, tech recommendations, automation opportunities don't. |
+| Company Blueprint as a first-class object | **Framing built, structure unchanged.** `OrgChartScreen.tsx`/`CharterScreen.tsx` now present themselves as one "Company Blueprint" (Tier 1 item 2, PR #210) — presentation only, same underlying org chart + Charter data. Tech recommendations, automation opportunities as first-class fields still don't exist. |
 | Company Graph | **Not built.** Relationships are implicit in a JSONB org chart, not a queryable graph. |
 | Company Skill Tree | **Not built.** No skill layer exists — agents map straight to tasks. |
 | Dynamic workforce generation | **Built.** Structure emerges from extracted tasks. |
 | Agent / Skill / Capability / Tool separation | **Partial.** Agent, tool and task exist. Skill and capability do not. |
 | Capability Registry | **Partial.** `tool-registry.md` is prose; Hands are scope-bound per sub-agent in code. No registry with schemas, costs, rate limits, or reliability data. |
-| Model recommendation with reasoning | **Not built.** `Agent.brain` is null for every agent. Tier varies per role; provider is stored and dispatched but never recommended. |
+| Model recommendation with reasoning | **Built for new extractions.** `recommendBrain()` (`packages/agents/extraction/src/recommendBrain.ts`) populates `Agent.brain` with a cost-grounded provider pick and a real, checkable reason — wired into `assembleOrgChart` (Tier 1 item 1, PR #210). **Not retroactive**: the 5 tenants whose org chart was captured before this shipped (including Acme) still show `brain: null` for every agent until their chart is regenerated — confirmed directly against Supabase, not assumed. |
 | BYOK / BYOC | **Built for Brains.** Four providers validated, per-role keys, vault-encrypted. Hands are mostly OAuth-pending. |
 | CEO / Company Brain | **Built, proven.** Real dispatch produced a genuine cross-team plan. T10 enforced structurally — recommend-only, no dispatch pathway. |
 | Company Memory | **Not built.** Deliberately deferred: no adjacent design, real cross-run leakage implications. |
 | Multi-agent orchestration with dynamic routing | **Partial.** Router tags, dedupes, dispatches. Routing is cadence-driven, not objective-driven. |
-| Intelligent agent handoffs | **Foundation only.** `@byok/chains` shipped as a state machine, never wired into dispatch. |
+| Intelligent agent handoffs | **Foundation only.** `@byok/chains` shipped as a state machine (ADR-052), never wired into dispatch. |
 | Structured agent outputs | **Partial.** Approval queue items are structured; inter-agent messages aren't. |
 | Verification & error correction | **Partial.** Retries, circuit breakers, fail-closed gates, typed failures. No independent verification of agent output. |
-| Risk-based autonomy | **Partial.** Earned autonomy per task type with a permanent deny-list. Not risk-tiered as low/medium/high. |
-| Agent Spend Protocol | **Mostly built.** Per-company monthly (now resetting correctly), per-agent daily from tier-derived budgets. Per-task limits and user-editable per-agent values missing. |
+| Risk-based autonomy | **Presentation layer built; earning mechanism unchanged.** `Agent.riskTier` (low/medium/high, derived from task stakes) now renders on `AgentsScreen`/`OrgChartScreen` (Tier 1 item 4, PR #210) — but the actual autonomy-*granting* logic underneath is still the same flat `locked`/`earnable`/`eligible-early` + permanent deny-list (`packages/approval-queue/src/denyList.ts`) it always was. `riskTier` is not read anywhere in the real gating path (`isDeniedFromAutonomy`) yet — naming this precisely so it isn't mistaken for the mechanism actually changing. |
+| Agent Spend Protocol | **Built.** Per-company monthly (resetting correctly), per-agent daily from tier-derived budgets, **and now a real per-agent override surface** (Tier 1 item 3: `agent_budget_overrides` table + `/me/agent-budgets` route + `AgentsScreen.tsx` inline editor, PR #210) — an agent's ceiling can be authored by the founder, not just inherited from its tier, and `ceilingResolver` actually enforces it. Per-*task-type* limits (as opposed to per-agent) still don't exist. |
 | Permission architecture | **Partial.** Tenant RLS, per-sub-agent tool scoping, step-up auth. No department/data/action permission layer. |
 | Security & credential control | **Built.** Envelope encryption, AAD scope-binding, TTL-zeroing handles, revocation, per-tenant isolation. |
-| Agent Activity Ledger | **Built.** Durable audit log, per-agent cost, dispatch records. |
-| Native automation engine | **Built, daily cadence.** Scheduler dispatches with no workflow UI. |
-| Continuous operating loop | **Partial.** Observe→execute→verify exist. Learn captures deltas and surfaces patterns; nothing acts on them. |
-| Event triggers | **Foundation only.** `@byok/webhooks` verifies signatures; nothing dispatches from a verified event. |
-| Outcome learning | **Not built.** Template-learning patterns surface; no agent-performance or model-performance tracking. |
+| Agent Activity Ledger | **Built.** Durable audit log, per-agent cost, dispatch records (`packages/db`'s shared `DurableAuditLog`, ADR-040). |
+| Native automation engine | **Built at daily cadence — but was silently non-functional for the one real tenant for three weeks.** `perAgentDailyCeilingsFromOrgChart` (`apps/api/src/routes/ceiling.ts`) crashed on every single dispatch for Acme from at least 2026-08-19 to 2026-09-02 (`agent.budget` missing on Acme's stored chart, an unguarded access), and no `worker.on("failed", ...)` listener existed anywhere to surface it — confirmed by reading BullMQ's own failed-job data directly out of Redis, not inferred. Both are fixed (PR #213, pending merge): the ceiling function now falls back to the tier default instead of throwing, and both worker factories now log a failure's job name/id/tenant. **The mechanism is real and now verified working** — the natural cadence tick and a manual run-now both dispatched cleanly against Supabase post-fix — but "built, proven, running unattended" (the phrasing in `runwisely-master-vision.md` §9) was false for three of the weeks it was in production, and should not be repeated without re-verifying it holds. |
+| Continuous operating loop | **Partial, and see the row above.** Observe→execute→verify exist in code; whether "execute" was actually reaching real tenants went unverified for three weeks because nothing alerted on it. Learn captures deltas and surfaces patterns; nothing acts on them. |
+| Event triggers | **Foundation only.** `@byok/webhooks` verifies signatures (ADR-054); nothing dispatches from a verified event. |
+| Outcome learning | **Not built.** Template-learning patterns surface (ADR-049); no agent-performance or model-performance tracking. |
 | Software development workforce | **Not built.** MVP-3 scope, explicitly gated. |
 | Real execution (agents that act) | **Draft-only, deliberate.** ADR-043. Nothing sends, posts, or pays. |
 
-**The honest summary:** the control plane is genuinely strong — spend, security, audit, approval, isolation. The *intelligence* layer described in §2 is largely absent: no graph, no skills, no memory, no objective-driven routing, no verification of output, no outcome learning.
+**The honest summary:** the control plane is genuinely strong — spend, security, audit, isolation — but one link in that chain (the scheduler actually *running*, not just being architecturally sound) was broken and invisible for three weeks against the only real tenant this system has. That's now fixed and independently verified, not just patched and assumed. The *intelligence* layer described in §2 is still largely absent: no graph, no skills, no memory, no objective-driven routing, no verification of output, no outcome learning. Tier 1 (§5) closed the four items it named; nothing in Tier 2 has started, correctly, per §4's own gate.
 
 ## 4. Validation gates — these come before more architecture
 
 Nothing in §5's Tier 2 or 3 gets built until these pass. They cost days, not months, and every one of them can invalidate architecture built ahead of it.
 
-1. **Twenty testers.** ≥70% saying the org chart taught them something about their business. Ready for weeks.
-2. **Key-connection rate.** ≥35% of chart-completers connect a Brain key.
-3. **Billing proven end to end** in test mode against real staging.
-4. **Google OAuth verification submitted** — the shortest path from "we draft" to "we act," which is the category's own dividing line.
-5. **First paying customer.**
+1. **Twenty testers.** ≥70% saying the org chart taught them something about their business. Ready for weeks. **Still open** — needs real signup volume, not more engineering.
+2. **Key-connection rate.** ≥35% of chart-completers connect a Brain key. **Still open** — same, needs volume.
+3. **Billing proven end to end** in test mode against real staging. **Done** — real Checkout Session → subscription → webhook → tier/Stripe-id update → cancellation → tier revert, all verified against live Stripe test mode and a real database row read (2026-09-01/02).
+4. **Google OAuth verification submitted** — the shortest path from "we draft" to "we act," which is the category's own dividing line. **Still open** — this is a real action item (submit the verification request), not a build task.
+5. **First paying customer.** **Still open.**
 
 ## 5. Sequenced roadmap
 
-### Tier 1 — buildable now, user-visible, ungated
-- Model recommendation with reasoning (`Agent.brain` populated, with the *why*)
-- Company Blueprint framing over data that already exists
-- Editable per-agent budgets, and the missing product surface for per-role/per-task ceilings
-- Risk-tiering autonomy as low/medium/high rather than a flat earned/denied split
+### Tier 1 — buildable now, user-visible, ungated — **done** (PR #210, 2026-09-02)
+- Model recommendation with reasoning (`Agent.brain` populated, with the *why*) — **built**, new extractions only (see §3's own caveat on the 5 pre-existing stored charts).
+- Company Blueprint framing over data that already exists — **built**.
+- Editable per-agent budgets, and the missing product surface for per-role/per-task ceilings — **built** for per-agent; per-task-type still doesn't exist.
+- Risk-tiering autonomy as low/medium/high rather than a flat earned/denied split — **built as a presentation layer** (`Agent.riskTier`); the underlying earning/denial mechanism is unchanged — see §3.
+
+**Nothing in Tier 2 starts yet.** §4's gates haven't cleared (2 of 5 done). The scheduler incident (§3) delayed nothing here — it was found and fixed alongside verifying the Tier 1 work's own database migration, not instead of it.
 
 ### Tier 2 — after the validation gates
 - **Company Graph** — the foundational shift from JSONB blob to queryable relationships. Everything in Tier 3 depends on it.
