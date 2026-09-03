@@ -37,7 +37,7 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 
 ## 3. Reconciliation — what exists today
 
-*Last reconciled 2026-09-03, against commit history through PR #213/#215/#217 (merged) and PR #218.*
+*Last reconciled 2026-09-03, against commit history through PR #213/#215/#217/#218/#219/#220/#221 (all merged).*
 
 | Target capability | Real state |
 |---|---|
@@ -68,7 +68,7 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 | Event triggers | **Foundation only.** `@byok/webhooks` verifies signatures (ADR-054); nothing dispatches from a verified event. |
 | Outcome learning | **Not built.** Template-learning patterns surface (ADR-049); no agent-performance or model-performance tracking. |
 | Software development workforce | **Not built.** MVP-3 scope, explicitly gated. |
-| Real execution (agents that act) | **Draft-only for everything except one task type.** ADR-043's decision holds in general, but is superseded for `support.digest.weekly-summary` (SaaS template, PR #218): a real `ResendEffectExecutor` sends via the tenant's own connected Resend key, gated on a human APPROVE/MODIFY — earned autonomy cannot bypass this for any effect-bearing action, by construction (`queue.ts`). Proof of the mechanism, not a general capability — every other task type across every template stays draft-only. Not yet observed sending a real email to a real inbox. |
+| Real execution (agents that act) | **Draft-only for everything except one task type — that one confirmed live, real inbox, 2026-09-03.** ADR-043's decision holds in general, but is superseded for `support.digest.weekly-summary` (SaaS template, PR #218): a real `ResendEffectExecutor` sends via the tenant's own connected Resend key, gated on a human APPROVE/MODIFY — earned autonomy cannot bypass this for any effect-bearing action, by construction (`queue.ts`). Backfilled into Acme with explicit real-tenant authorization; the founder connected Resend, approved the proposed send through the real Approvals UI, and confirmed the email arrived. Proof of the mechanism for one task type, not a general capability — every other task type across every template stays draft-only, and this one doesn't exist on any other real tenant's chart yet. Two further silent-failure-class gaps found and closed in the process: `AgentsScreen.tsx` crashed for every real tenant on `objective`/`reportingStructure` (PR #219, the other half of PR #215's fix); the API/UI never surfaced whether a dispatched effect actually succeeded (PR #221). |
 
 **The honest summary:** the control plane is genuinely strong — spend, security, audit, isolation — but one link in that chain (the scheduler actually *running*, not just being architecturally sound) was broken and invisible for three weeks against the only real tenant this system has. That's now fixed and independently verified, not just patched and assumed. The *intelligence* layer described in §2 is still largely absent: no graph, no skills, no memory, no objective-driven routing, no verification of output, no outcome learning. Tier 1 (§5) closed the four items it named; nothing in Tier 2 has started, correctly, per §4's own gate.
 
