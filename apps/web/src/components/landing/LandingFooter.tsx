@@ -29,6 +29,9 @@ export function LandingFooter() {
         <Link to="/data-deletion" className="font-mono text-xs text-text-muted transition-colors duration-landing-hover ease-landing hover:text-text-secondary">
           Data Deletion
         </Link>
+        <Link to="/terms" className="font-mono text-xs text-text-muted transition-colors duration-landing-hover ease-landing hover:text-text-secondary">
+          Terms of Service
+        </Link>
       </div>
     </footer>
   );
