@@ -27,9 +27,15 @@ export interface ResolveResult {
 
 // "Every agent action lands here before it's visible as 'done'" (issue #9)
 // — submitProposedAction() is the ONLY path by which an action's effect
-// can ever run, and even the bypass path (earned autonomy) still logs and
-// still dispatches through the same effectExecutor, never a shortcut that
-// skips this class.
+// can ever run. The earned-autonomy bypass below still logs and still
+// dispatches through the same effectExecutor for an action with NO
+// effect (a pure draft) — but an action that DOES carry a real effect
+// never takes the bypass, no matter how "earned" autonomy is for that
+// task type. This is deliberate for as long as real effect dispatch is
+// new (see ResendEffectExecutor's own comment): earned autonomy earns a
+// skip on human REVIEW of drafts, not a skip on human approval before a
+// real external action fires. Revisit only as its own explicit decision,
+// not a side effect of some other change.
 export class ApprovalQueue {
   private readonly listeners: QueueEventListener[] = [];
 
@@ -74,11 +80,15 @@ export class ApprovalQueue {
 
   async submitProposedAction(action: ProposedAction): Promise<SubmitResult> {
     const autonomyActive = (await this.autonomy.isActive(action.tenantId, action.taskType)) && !this.autonomy.isDeniable(action.stakesTags);
+    // An effect-bearing action never bypasses human review, regardless of
+    // autonomy state — see this class's own top comment. Only a pure
+    // draft (no effect at all) can skip straight to "done."
+    const canBypass = autonomyActive && !this.autonomy.shouldSpotCheck() && !action.effect;
 
-    if (autonomyActive && !this.autonomy.shouldSpotCheck()) {
-      // Bypass: no human review. Still dispatches through the SAME
-      // effectExecutor, still fully audited — just no pending queue entry.
-      const effectResult = action.effect ? await this.effectExecutor.execute(action.effect, action) : undefined;
+    if (canBypass) {
+      // Bypass: no human review, no effect to run — nothing but a pure
+      // draft ever reaches here now, so effectResult is always undefined.
+      const effectResult = undefined;
       const at = new Date().toISOString();
       this.audit.append({
         at,
@@ -86,7 +96,6 @@ export class ApprovalQueue {
         tenantId: action.tenantId,
         taskType: action.taskType,
         kind: "auto-approved",
-        detail: action.effect ? `effect=${action.effect.kind}` : undefined,
       });
       this.emit({ type: "action.auto-approved", actionId: action.id, tenantId: action.tenantId, taskType: action.taskType, at });
       return { queued: false, effectResult };

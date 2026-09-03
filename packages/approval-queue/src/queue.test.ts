@@ -148,7 +148,7 @@ test("resolve() emits autonomy.offered exactly on the approval that crosses the 
   assert.deepEqual(autonomyEvents, ["autonomy.offered"]);
 });
 
-test("earned autonomy bypass: active + sampler skips -> dispatches without ever queuing", async () => {
+test("earned autonomy bypass: active + sampler skips -> a pure draft dispatches without ever queuing", async () => {
   const { executor, callCount } = countingExecutor();
   const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // 1 >= any rate -> never spot-check
   const queue = new ApprovalQueue(autonomy, executor);
@@ -160,14 +160,42 @@ test("earned autonomy bypass: active + sampler skips -> dispatches without ever 
 
   const events: string[] = [];
   queue.onEvent((e) => events.push(e.type));
+  const result = await queue.submitProposedAction(makeAction({ id: "a2" })); // no effect — a pure draft
+
+  assert.equal(result.queued, false);
+  assert.equal(callCount(), 0, "a1 and a2 are both pure drafts — nothing to dispatch either way");
+  assert.deepEqual(events, ["action.auto-approved"]);
+  assert.equal((await queue.pendingActions(TENANT)).length, 0);
+});
+
+// The safety-critical case: MockEffectExecutor being a no-op is the ONLY
+// reason a real effect never fired via the bypass above before this fix
+// existed — the moment a real EffectExecutor (e.g. ResendEffectExecutor)
+// is wired in, that silence would have become a real, unreviewed
+// external action. This test is the structural proof that can't happen.
+test("an effect-bearing action never bypasses human review, even when autonomy is fully active and the sampler would never spot-check", async () => {
+  const { executor, callCount } = countingExecutor();
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // 1 >= any rate -> never spot-check
+  const queue = new ApprovalQueue(autonomy, executor);
+
+  await queue.submitProposedAction(makeAction({ id: "a1" }));
+  await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
+  await queue.acceptOffer("tenant-a", "invoicing");
+  assert.equal(await autonomy.isActive("tenant-a", "invoicing"), true);
+
+  const events: string[] = [];
+  queue.onEvent((e) => events.push(e.type));
   const result = await queue.submitProposedAction(
     makeAction({ id: "a2", effect: { kind: "send", description: "..." } }),
   );
 
-  assert.equal(result.queued, false);
-  assert.equal(callCount(), 1, "a1 had no effect (never dispatches); only a2's bypass dispatches"); // a1 had no effect, only a2 dispatches
-  assert.deepEqual(events, ["action.auto-approved"]);
-  assert.equal((await queue.pendingActions(TENANT)).length, 0);
+  assert.equal(result.queued, true, "a real effect must always queue for a human, regardless of autonomy state");
+  assert.equal(callCount(), 0, "the effect must not dispatch until a human resolves it");
+  assert.deepEqual(events, ["action.queued"], "no auto-approved event — this never took the bypass");
+
+  const resolved = await queue.resolve(TENANT, "a2", { kind: "APPROVE" });
+  assert.equal(resolved.dispatched, true);
+  assert.equal(callCount(), 1, "the human APPROVE, not autonomy, is what dispatched it");
 });
 
 test("earned autonomy active but sampler selects spot-check -> still queues for human review", async () => {
@@ -323,14 +351,17 @@ test("acceptOffer() flips isActive on the SAME store submitProposedAction reads 
   await queue.submitProposedAction(makeAction({ id: "a1" }));
   await queue.resolve(TENANT, "a1", { kind: "APPROVE" });
 
-  // Not yet accepted — must still queue, not bypass.
-  const beforeAccept = await queue.submitProposedAction(makeAction({ id: "a2", effect: { kind: "send", description: "..." } }));
+  // Not yet accepted — must still queue, not bypass. Pure drafts (no
+  // effect) throughout: bypass reachability is proven by `queued`
+  // flipping, not by anything actually dispatching — see the dedicated
+  // effect-bearing tests above for why an effect never takes this path.
+  const beforeAccept = await queue.submitProposedAction(makeAction({ id: "a2" }));
   assert.equal(beforeAccept.queued, true);
 
   await queue.acceptOffer("tenant-a", "invoicing");
 
   // Now accepted — the exact same queue/store must immediately bypass.
-  const afterAccept = await queue.submitProposedAction(makeAction({ id: "a3", effect: { kind: "send", description: "..." } }));
+  const afterAccept = await queue.submitProposedAction(makeAction({ id: "a3" }));
   assert.equal(afterAccept.queued, false, "acceptOffer must be immediately visible to submitProposedAction's own isActive check");
-  assert.equal(callCount(), 1, "only a3 (the post-accept bypass) dispatches — a1/a2 had no effect or were queued");
+  assert.equal(callCount(), 0, "a1/a2/a3 are all pure drafts — nothing to dispatch");
 });

@@ -55,7 +55,7 @@ test("resolving the queued action with APPROVE does not change RouterTask status
   assert.equal(dispatched, true);
 });
 
-test("earned autonomy bypass: task completes immediately, no queue entry, effect dispatches", async () => {
+test("earned autonomy bypass: a pure-draft task completes immediately, no queue entry", async () => {
   let dispatched = false;
   const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
   const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // never spot-check
@@ -79,12 +79,49 @@ test("earned autonomy bypass: task completes immediately, no queue entry, effect
     title: "Draft invoice #2",
     payload: "...",
     dedupKey: "task-4",
-    effect: { kind: "send", description: "Email the invoice" },
+    // No effect — a pure draft is the only thing the bypass can ever
+    // reach. See the dedicated test below for why an effect-bearing
+    // task never takes this path, no matter how "earned" autonomy is.
   });
 
   assert.equal(second.status, "completed");
   assert.equal((await queue.pendingActions("default")).length, 0);
-  assert.equal(dispatched, true);
+  assert.equal(dispatched, false, "a pure draft has nothing to dispatch");
+});
+
+test("an effect-bearing task still queues for human review even with earned autonomy active, and only dispatches after APPROVE", async () => {
+  let dispatched = false;
+  const effectExecutor = { async execute() { dispatched = true; return { success: true as const }; } };
+  const autonomy = new InMemoryDurableAutonomyStore({ offerThreshold: 1, spotCheckRate: 0 }, () => 1); // never spot-check
+  const queue = new ApprovalQueue(autonomy, effectExecutor);
+  const router = new Router(new InMemoryDurableTaskLedger(), new InMemoryDurableDedupStore(), alwaysCompletesExecutor(), undefined, queue);
+
+  const first = await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Draft invoice #1",
+    payload: "...",
+    dedupKey: "task-3",
+  });
+  await queue.resolve("default", first.id, { kind: "APPROVE" });
+  await queue.acceptOffer("default", "invoicing");
+
+  const second = await router.submitTask({
+    subAgentId: "invoicing",
+    teamId: "cfo",
+    title: "Send invoice #2",
+    payload: "...",
+    dedupKey: "task-4",
+    effect: { kind: "send", description: "Email the invoice" },
+  });
+
+  assert.equal(second.status, "awaiting_review", "earned autonomy never skips review for a real effect");
+  assert.equal((await queue.pendingActions("default")).length, 1);
+  assert.equal(dispatched, false, "must not dispatch before a human approves, autonomy or not");
+
+  const result = await queue.resolve("default", second.id, { kind: "APPROVE" });
+  assert.equal(result.dispatched, true);
+  assert.equal(dispatched, true, "the human APPROVE, not autonomy, is what dispatched it");
 });
 
 test("tenantId defaults to 'default' and flows through to the queue's autonomy tracking", async () => {

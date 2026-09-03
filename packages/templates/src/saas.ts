@@ -183,6 +183,28 @@ const tasks: TemplateTask[] = [
     triggerType: "cadence",
   },
 
+  // Support — ops digest (Week 1's narrow real-effect-dispatch scope,
+  // docs/STATUS.md: one task type, templated send, human-gated). Not
+  // client-facing and not teamHint "founder" (that's CEO-tier — T10/
+  // ADR-004 means it could never carry an effect at all) — this agent
+  // emails the tenant's own owner/admin addresses, resolved at send time
+  // by ResendEffectExecutor (packages/approval-queue), never a customer.
+  {
+    id: "support.digest.weekly-summary",
+    text: "Compile a summary of what the team completed this week and email it to the founder",
+    agentType: "ops-digest",
+    agentLabel: "Ops digest",
+    teamHint: "support",
+    frequency: "weekly",
+    stakes: "low",
+    tier: "T1",
+    autonomy: "earnable",
+    handsTool: "Resend",
+    cadence: "weekly",
+    batchable: false,
+    triggerType: "cadence",
+  },
+
   // Support — waitlist
   {
     id: "support.waitlist.updates",
