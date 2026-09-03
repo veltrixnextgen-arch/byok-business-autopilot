@@ -613,7 +613,11 @@ function AgentCard({
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Badge tone="accent">{agent.tier}</Badge>
-        <Badge tone={RISK_TIER_TONE[agent.riskTier]}>{RISK_TIER_LABEL[agent.riskTier]}</Badge>
+        {/* agent.riskTier can be missing on a stored org chart older than
+            the field itself (see ceiling.ts's own comment on the exact
+            same class of drift) — "low" is the same starting value
+            mostRestrictiveStakes itself reduces from. */}
+        <Badge tone={RISK_TIER_TONE[agent.riskTier ?? "low"]}>{RISK_TIER_LABEL[agent.riskTier ?? "low"]}</Badge>
         {agent.hands.map((tool) => {
           const status = handsStatus.get(`${agent.id}::${tool}`);
           if (status) {
