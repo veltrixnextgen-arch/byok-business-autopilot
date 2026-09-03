@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mostRestrictiveStakes, normalizeOrgChart, TIER_DEFAULT_BUDGET_PER_DAY_USD } from "./orgChart.js";
+import { deriveObjective, mostRestrictiveStakes, normalizeOrgChart, ROLE_TITLES, TIER_DEFAULT_BUDGET_PER_DAY_USD } from "./orgChart.js";
 import type { Agent, OrgChart, Task } from "./orgChart.js";
 
 function task(overrides: Partial<Task> & { id: string }): Task {
@@ -92,12 +92,36 @@ test("normalizeOrgChart tolerates a partial/stub chart with no agents field at a
   assert.deepEqual(normalizeOrgChart(c), c);
 });
 
-test("normalizeOrgChart backfills both fields independently on the same agent", () => {
-  const a = agent({ id: "a1", tier: "T2", taskIds: ["t1"] });
+test("normalizeOrgChart backfills a missing objective from the agent's own task text", () => {
+  const a = agent({ id: "a1", tier: "T1", taskIds: ["t1", "t2"] });
+  delete (a as { objective?: unknown }).objective;
+  const c = chart({
+    tasks: [task({ id: "t1", text: "Send invoices" }), task({ id: "t2", text: "Chase overdue payments" })],
+    agents: [a],
+  });
+  const result = normalizeOrgChart(c);
+  assert.equal(result.agents[0]!.objective, deriveObjective(c.tasks));
+  assert.equal(result.agents[0]!.objective, "Send invoices Chase overdue payments");
+});
+
+test("normalizeOrgChart backfills a missing reportingStructure from the agent's own team", () => {
+  const a = agent({ id: "a1", tier: "T1", taskIds: [], teamId: "cfo" });
+  delete (a as { reportingStructure?: unknown }).reportingStructure;
+  const c = chart({ agents: [a] });
+  const result = normalizeOrgChart(c);
+  assert.deepEqual(result.agents[0]!.reportingStructure, { teamId: "cfo", teamRoleTitle: ROLE_TITLES.cfo });
+});
+
+test("normalizeOrgChart backfills all four fields independently on the same agent — the real shape of Acme's 18 pre-existing agents", () => {
+  const a = agent({ id: "a1", tier: "T2", taskIds: ["t1"], teamId: "support" });
   delete (a as { budget?: unknown }).budget;
   delete (a as { riskTier?: unknown }).riskTier;
-  const c = chart({ tasks: [task({ id: "t1", stakes: "high" })], agents: [a] });
+  delete (a as { objective?: unknown }).objective;
+  delete (a as { reportingStructure?: unknown }).reportingStructure;
+  const c = chart({ tasks: [task({ id: "t1", stakes: "high", text: "Triage support tickets" })], agents: [a] });
   const result = normalizeOrgChart(c);
   assert.deepEqual(result.agents[0]!.budget, { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD.T2, source: "tier-default" });
   assert.equal(result.agents[0]!.riskTier, "high");
+  assert.equal(result.agents[0]!.objective, "Triage support tickets");
+  assert.deepEqual(result.agents[0]!.reportingStructure, { teamId: "support", teamRoleTitle: ROLE_TITLES.support });
 });
