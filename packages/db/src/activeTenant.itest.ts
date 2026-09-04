@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ActiveTenantStore, TenantNotMemberError } from "./activeTenant.js";
+import { withTenantScope } from "./tenantContext.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -36,8 +37,16 @@ async function seedTenant(): Promise<string> {
   return id;
 }
 
+// tenant_members has FORCE ROW LEVEL SECURITY (tenant_isolation, scoped
+// by app.tenant_id) — a plain, unscoped pool.query insert fails its own
+// WITH CHECK outright, the same way it would for the real afterAddMember
+// hook (packages/auth/src/config.ts) if that hook didn't already use
+// withTenantScope for this exact insert. Caught only by actually running
+// this against real Postgres in CI, not by any local unit test.
 async function seedMembership(tenantId: string, userId: string): Promise<void> {
-  await pool.query("INSERT INTO tenant_members (tenant_id, user_id, role) VALUES ($1, $2, 'owner')", [tenantId, userId]);
+  await withTenantScope(pool, tenantId, async (client) => {
+    await client.query("INSERT INTO tenant_members (tenant_id, user_id, role) VALUES ($1, $2, 'owner')", [tenantId, userId]);
+  });
 }
 
 async function cleanup(userIds: string[], tenantIds: string[]): Promise<void> {
