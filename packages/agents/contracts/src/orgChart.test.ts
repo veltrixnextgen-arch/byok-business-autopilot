@@ -87,6 +87,48 @@ test("normalizeOrgChart backfills a missing riskTier from the agent's own tasks"
   assert.equal(result.agents[0]!.riskTier, "medium");
 });
 
+// Found live 2026-09-04: customize.ts's handsTool is free-text (no enum
+// constraint against HANDS_AUTH_METHOD's registry keys), so the LLM can
+// write "Google Calendar" where the real, connectable key is "Calendar"
+// — silently landing the agent in the oauth-pending (draft-only) UI
+// branch instead of oauth-live (a real Google OAuth connect button)
+// even though the integration exists.
+test("normalizeOrgChart maps a legacy 'Google Calendar' hands label to the real registry key 'Calendar', on both the agent and its task", () => {
+  const a = agent({ id: "a1", tier: "T1", taskIds: ["t1"], hands: ["Google Calendar"] });
+  const c = chart({ tasks: [task({ id: "t1", handsTool: "Google Calendar" })], agents: [a] });
+  const result = normalizeOrgChart(c);
+  assert.deepEqual(result.agents[0]!.hands, ["Calendar"]);
+  assert.equal(result.tasks[0]!.handsTool, "Calendar");
+});
+
+test("normalizeOrgChart's hands-label fix applies even to an otherwise fully-populated agent — it's independent of the four-field backfill", () => {
+  const a = agent({
+    id: "a1",
+    tier: "T1",
+    taskIds: [],
+    hands: ["Google Calendar"],
+    budget: { perDayUsd: 2, source: "tier-default" },
+    riskTier: "low",
+  });
+  const c = chart({ agents: [a] });
+  const result = normalizeOrgChart(c);
+  assert.deepEqual(result.agents[0]!.hands, ["Calendar"]);
+});
+
+test("normalizeOrgChart leaves an already-correct or unrelated hands label untouched", () => {
+  const a = agent({ id: "a1", tier: "T1", taskIds: ["t1"], hands: ["Calendar", "Stripe"] });
+  const c = chart({ tasks: [task({ id: "t1", handsTool: "Shared inbox" })], agents: [a] });
+  const result = normalizeOrgChart(c);
+  assert.deepEqual(result.agents[0]!.hands, ["Calendar", "Stripe"]);
+  assert.equal(result.tasks[0]!.handsTool, "Shared inbox");
+});
+
+test("normalizeOrgChart never invents a tasks array on a stub chart that never had one", () => {
+  const c = { meta: { idea: "a laundromat" }, agents: [] } as unknown as OrgChart;
+  const result = normalizeOrgChart(c);
+  assert.equal(result.tasks, undefined);
+});
+
 test("normalizeOrgChart tolerates a partial/stub chart with no agents field at all", () => {
   const c = { meta: { idea: "a laundromat" } } as unknown as OrgChart;
   assert.deepEqual(normalizeOrgChart(c), c);

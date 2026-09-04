@@ -8,6 +8,11 @@ vi.mock("./AppShell", () => ({
 const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
+  Link: ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
 }));
 
 const getCharterState = vi.fn();
@@ -83,5 +88,17 @@ describe("CharterScreen — handoff ceremony", () => {
     fireEvent.click(acceptButton);
 
     await waitFor(() => expect(screen.getByText("Nothing was scheduled yet — claim an org chart first.")).toBeTruthy());
+  });
+
+  // Previously a dead end (2026-09-04): this state had no way back into
+  // the interview for either an unfinished interview or someone who
+  // wants to change their answers and regenerate.
+  it("links back to the interview when there's no org chart to draft a Charter from yet", async () => {
+    getCharterState.mockRejectedValue(new Error("no org chart"));
+
+    render(<CharterScreen />);
+
+    const link = await screen.findByRole("link", { name: /Go to the interview/ });
+    expect(link.getAttribute("href")).toBe("/interview");
   });
 });
