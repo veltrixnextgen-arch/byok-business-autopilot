@@ -6,14 +6,15 @@ import {
   PostgresDurableAuditLog,
   SignupExtractionBatchStore,
   TenantCeilingStore,
+  getTenantEligibilityFacts,
   getTenantOwnerEmails,
-  getTenantStripeIds,
   type PoolLike,
 } from "@byok/db";
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
 import { DEV_TIER_MODEL_MAP, TIER_MODEL_MAPS_BY_PROVIDER, createDevKms } from "./dev/devTrustCore.js";
+import { withinFreeAllowance } from "./freeAllowance.js";
 import { createGoogleCalendarRefresher, GOOGLE_CALENDAR_SERVICE } from "./oauth/googleCalendar.js";
 import { DEFAULT_MONTHLY_CEILING_USD, DEFAULT_PER_AGENT_PER_DAY_USD, perAgentDailyCeilingsFromOrgChart } from "./routes/ceiling.js";
 
@@ -46,21 +47,26 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   const tenantCeilings = new TenantCeilingStore(pool);
   const signupExtractionBatches = new SignupExtractionBatchStore(pool);
   const agentBudgetOverrides = new AgentBudgetOverrideStore(pool);
-  // One company per user (2026-09-03): the deepest fail-closed layer,
+  // One company per user (2026-09-03/04): the deepest fail-closed layer,
   // per that ask — CostGate refuses to reserve for a tenant that is
-  // EITHER not the account's active company OR has no active Stripe
-  // subscription, closing the multi-org gap and the pre-existing "no
-  // subscription gate exists anywhere" gap (billing.ts's own comment)
-  // with one check. Vault gets the narrower half of this (active-company
-  // only, below) — subscription status is a CostGate-only concern.
+  // EITHER not the account's active company OR (has no active Stripe
+  // subscription AND is past its free allowance), closing the multi-org
+  // gap and the pre-existing "no subscription gate exists anywhere" gap
+  // (billing.ts's own comment) with one check. The free-allowance half
+  // (freeAllowance.ts) matters as much as the gate itself: shipping the
+  // subscription check alone would have blocked every real tenant on
+  // this account today (verified directly against production —
+  // A/Acme/Fitbite all have stripe_subscription_id = NULL) the hour it
+  // deployed. Vault gets the narrower half of this (active-company only,
+  // below) — subscription/allowance status is a CostGate-only concern.
   const activeTenantStore = new ActiveTenantStore(pool);
   const tenantEligibility = async (tenantId: string) => {
-    const [active, stripeIds] = await Promise.all([activeTenantStore.isTenantActive(tenantId), getTenantStripeIds(pool, tenantId)]);
+    const [active, facts] = await Promise.all([activeTenantStore.isTenantActive(tenantId), getTenantEligibilityFacts(pool, tenantId)]);
     if (!active) {
       return { eligible: false, reason: "This company is not your account's active company right now." };
     }
-    if (!stripeIds.stripeSubscriptionId) {
-      return { eligible: false, reason: "This company has no active subscription." };
+    if (!facts.stripeSubscriptionId && !withinFreeAllowance(facts.createdAt)) {
+      return { eligible: false, reason: "This company's free trial has ended and it has no active subscription." };
     }
     return { eligible: true };
   };

@@ -11,7 +11,7 @@ import { createPool } from "./connection.js";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getTenantStripeIds, getTenantTier, setTenantStripeIds, setTenantTier } from "./tenantSchedule.js";
+import { getTenantEligibilityFacts, getTenantStripeIds, getTenantTier, setTenantStripeIds, setTenantTier } from "./tenantSchedule.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -100,4 +100,26 @@ test("the DB's own CHECK constraint rejects a tier other than 'solo' — the rea
   } finally {
     await cleanup([tenantId]);
   }
+});
+
+test("getTenantEligibilityFacts reads the real createdAt and subscription id together, and null-subscription for a never-subscribed tenant", async () => {
+  const tenantId = await seedTenant();
+  try {
+    const facts = await getTenantEligibilityFacts(pool, tenantId);
+    assert.equal(facts.stripeSubscriptionId, null);
+    assert.ok(facts.createdAt instanceof Date);
+    // Seeded moments ago — well within any sane clock-skew tolerance.
+    assert.ok(Math.abs(Date.now() - facts.createdAt!.getTime()) < 60_000);
+
+    await setTenantStripeIds(pool, tenantId, { stripeCustomerId: "cus_live_4", stripeSubscriptionId: "sub_live_4" });
+    assert.equal((await getTenantEligibilityFacts(pool, tenantId)).stripeSubscriptionId, "sub_live_4");
+  } finally {
+    await cleanup([tenantId]);
+  }
+});
+
+test("getTenantEligibilityFacts returns createdAt: null for a tenant id that doesn't exist -- fails closed, not open", async () => {
+  const facts = await getTenantEligibilityFacts(pool, randomUUID());
+  assert.equal(facts.createdAt, null);
+  assert.equal(facts.stripeSubscriptionId, null);
 });

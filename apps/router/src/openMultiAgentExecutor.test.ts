@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { SecretHandle } from "@byok/vault";
+import { SecretHandle, TenantNotActiveError } from "@byok/vault";
 import type { BrainKeyProvider, HandsKeyProvider, RequesterIdentity } from "@byok/vault";
 import { OpenMultiAgentExecutor } from "./openMultiAgentExecutor.js";
 import type { HandsToolSpec } from "./handsTool.js";
@@ -211,6 +211,32 @@ test("gracefully returns an error outcome when no Brain key is configured for th
   const outcome = await executor.execute(makeTask({ teamId: "sales" }));
   assert.ok("error" in outcome);
   assert.match((outcome as { error: string }).error, /Brain key unavailable for role "sales"/);
+});
+
+// One company per user (2026-09-04): Vault.decryptBrainKey throws
+// TenantNotActiveError for a tenant the account has switched away from
+// — verifying it surfaces exactly the same clean, human-readable way
+// every other decrypt failure already does here (this catch block has
+// no TenantNotActiveError-specific branch, and needs none: the error's
+// own message is already a plain sentence, not a stack trace), rather
+// than propagating as a raw, unhandled exception.
+test("a Vault TenantNotActiveError surfaces as the same clean {error} outcome as any other decrypt failure, never a raw throw", async () => {
+  const fakeVault: BrainKeyProvider = {
+    async decryptBrainKey(tenantId) {
+      throw new TenantNotActiveError(tenantId);
+    },
+  };
+
+  const executor = new OpenMultiAgentExecutor(fakeVault, ROUTER, "claude-sonnet-4-6", () => {
+    throw new Error("orchestratorFactory should never be called when the key lookup fails");
+  });
+
+  const outcome = await executor.execute(makeTask({ teamId: "cfo" }));
+  assert.ok("error" in outcome);
+  assert.match(
+    (outcome as { error: string }).error,
+    /Brain key unavailable for role "cfo": Tenant ".+" is not the account's active company/,
+  );
 });
 
 test("a provider/orchestrator error surfaces as {error}, not a hang or an unhandled rejection", async () => {

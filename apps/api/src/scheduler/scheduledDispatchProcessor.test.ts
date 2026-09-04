@@ -75,7 +75,7 @@ function baseDeps(overrides: Partial<ScheduledDispatchDeps> = {}): ScheduledDisp
     batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), pause: async () => {} },
     activeTenant: { isTenantActive: async () => true },
-    hasActiveSubscription: async () => true,
+    hasSpendAllowance: async () => true,
     instrumentation: { recordScheduledRun: async () => {} },
     durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [] }) as never },
     tierModelMaps: { anthropic: { T1: "model-t1", T2: "model-t2", T3: "model-t3" } },
@@ -276,7 +276,7 @@ test("pauses with 'no-active-subscription' (never 'ceiling-exhausted') and sends
   let pauseArgs: [string, string, string | null] | undefined;
   const sent: { to: string; subject: string; text: string }[] = [];
   const deps = baseDeps({
-    hasActiveSubscription: async () => false,
+    hasSpendAllowance: async () => false,
     scheduleState: {
       get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }),
       pause: async (tenantId, reason, pausedBatchId) => {

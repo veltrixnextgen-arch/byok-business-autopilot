@@ -52,15 +52,6 @@ export interface TenantStripeIds {
 }
 
 /**
- * Issue #18/ADR-045 (migration 0015). Stored for operational/support use
- * (looking up a tenant's real Stripe customer record) and a future
- * "manage billing" portal-link — NOT used to resolve which tenant a
- * webhook event is about (every event this app handles carries tenantId
- * in its own metadata already, see billing/stripeClient.ts). Called
- * alongside applyTierChange, never in place of it — this only persists
- * the Stripe-side identifiers, `tier` is a separate write.
- */
-/**
  * One company per user (2026-09-03): the other half of the "neither
  * active nor subscribed" eligibility check — durableTrustCore.ts's
  * CostGate resolver reads this alongside ActiveTenantStore.isTenantActive
@@ -77,6 +68,15 @@ export async function getTenantStripeIds(pool: PoolLike, tenantId: string): Prom
   });
 }
 
+/**
+ * Issue #18/ADR-045 (migration 0015). Stored for operational/support use
+ * (looking up a tenant's real Stripe customer record) and a future
+ * "manage billing" portal-link — NOT used to resolve which tenant a
+ * webhook event is about (every event this app handles carries tenantId
+ * in its own metadata already, see billing/stripeClient.ts). Called
+ * alongside applyTierChange, never in place of it — this only persists
+ * the Stripe-side identifiers, `tier` is a separate write.
+ */
 export async function setTenantStripeIds(pool: PoolLike, tenantId: string, ids: TenantStripeIds): Promise<void> {
   await withTenantScope(pool, tenantId, async (client) => {
     await client.query(`UPDATE tenants SET stripe_customer_id = $2, stripe_subscription_id = $3 WHERE id = $1::uuid`, [
@@ -84,6 +84,40 @@ export async function setTenantStripeIds(pool: PoolLike, tenantId: string, ids: 
       ids.stripeCustomerId,
       ids.stripeSubscriptionId,
     ]);
+  });
+}
+
+export interface TenantEligibilityFacts {
+  stripeSubscriptionId: string | null;
+  // null only if the tenant row itself doesn't exist -- should never
+  // happen in real operation (this is only ever called with a tenantId
+  // already validated by isTenantActive), but callers must treat null
+  // as "not eligible" rather than guessing at a fallback date: any
+  // date-arithmetic placeholder here (now, epoch, a fixed future date)
+  // would accidentally satisfy either the grandfather check or the
+  // trial-window check for at least some possible "now", which a plain
+  // null can't.
+  createdAt: Date | null;
+}
+
+/**
+ * One company per user (2026-09-04): the two facts CostGate's/the
+ * scheduler's free-allowance check needs, in one query -- deliberately
+ * not folded into getTenantStripeIds above (that interface is named for
+ * exactly what it returns, and adding an unrelated timestamp to it would
+ * make its name lie). createdAt already exists on every tenant row; no
+ * new schema.
+ */
+export async function getTenantEligibilityFacts(pool: PoolLike, tenantId: string): Promise<TenantEligibilityFacts> {
+  return withTenantScope(pool, tenantId, async (client) => {
+    const result = (await client.query(`SELECT stripe_subscription_id, created_at FROM tenants WHERE id = $1::uuid`, [
+      tenantId,
+    ])) as unknown as { rows: Array<{ stripe_subscription_id: string | null; created_at: string }> };
+    const row = result.rows[0];
+    return {
+      stripeSubscriptionId: row?.stripe_subscription_id ?? null,
+      createdAt: row ? new Date(row.created_at) : null,
+    };
   });
 }
 

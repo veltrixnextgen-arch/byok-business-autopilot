@@ -18,14 +18,18 @@ export interface ScheduledDispatchDeps {
    *  reserve for it regardless (the authoritative check), this just
    *  avoids the wasted work. */
   activeTenant: Pick<ActiveTenantStore, "isTenantActive">;
-  /** One company per user (2026-09-03): CostGate refuses to reserve for
-   *  an unsubscribed tenant too (the other half of "neither active nor
-   *  subscribed"), but that SKIP would otherwise fall into the
-   *  isCeilingExhaustion() path below and get paused/notified with a
-   *  "ceiling exhausted" reason that has nothing to do with what
-   *  actually happened. This check runs first specifically so that
-   *  never happens — see the dedicated pause branch below. */
-  hasActiveSubscription: (tenantId: string) => Promise<boolean>;
+  /** One company per user (2026-09-03/04): CostGate refuses to reserve
+   *  for a tenant with no subscription AND past its free allowance too
+   *  (the other half of "neither active nor subscribed/allowed"), but
+   *  that SKIP would otherwise fall into the isCeilingExhaustion() path
+   *  below and get paused/notified with a "ceiling exhausted" reason
+   *  that has nothing to do with what actually happened. This check
+   *  runs first specifically so that never happens — see the dedicated
+   *  pause branch below. True whenever a real subscription exists OR
+   *  the tenant is still within its free allowance (freeAllowance.ts) —
+   *  named for what it actually gates (spend), not just "subscription",
+   *  since the free-allowance half isn't a subscription at all. */
+  hasSpendAllowance: (tenantId: string) => Promise<boolean>;
   instrumentation: Pick<SchedulerInstrumentationStore, "recordScheduledRun">;
   durableBatchStore: Pick<DurableBatchStore, "pause">;
   /** Multi-provider AI (Phase 2 item 5, ADR-047/048): a scheduled dispatch
@@ -91,12 +95,13 @@ export function createScheduledDispatchProcessor(deps: ScheduledDispatchDeps) {
 
     if (!(await deps.activeTenant.isTenantActive(payload.tenantId))) return; // not the account's active company right now
 
-    if (!(await deps.hasActiveSubscription(payload.tenantId))) {
+    if (!(await deps.hasSpendAllowance(payload.tenantId))) {
       // Loud, not silent (unlike the isTenantActive check above): a
       // deliberate company-switch is expected behavior, a lapsed
-      // subscription is not something the owner should have to notice
-      // on their own. Its own honest reason/notification, never
-      // "ceiling-exhausted" — see hasActiveSubscription's own comment.
+      // subscription (or an expired free trial) is not something the
+      // owner should have to notice on their own. Its own honest
+      // reason/notification, never "ceiling-exhausted" — see
+      // hasSpendAllowance's own comment.
       await deps.scheduleState.pause(payload.tenantId, "no-active-subscription", null);
       await notifySubscriptionRequired(deps.notifications, payload.tenantId);
       return;
