@@ -211,7 +211,16 @@ test("google is null when only one of GOOGLE_OAUTH_CLIENT_ID/SECRET is set — n
   assert.equal(config.google, null);
 });
 
-test("google is populated with a redirectUri derived from authBaseUrl once both env vars are set", () => {
+// Found live 2026-09-04 recording the OAuth demo video: the callback
+// must land on webOrigin (the proxied web domain, where Better Auth's
+// session cookie is actually scoped), never authBaseUrl (the raw
+// Railway domain) — a request landing on a genuinely different domain
+// never carries that cookie, so the callback's session check always
+// failed as "state_mismatch." This test asserts the fix, using two
+// different values for authBaseUrl/webOrigin specifically so a
+// regression back to authBaseUrl would fail loudly, not coincidentally
+// pass because both happened to be equal.
+test("google's redirectUri is derived from webOrigin, not authBaseUrl — the callback needs the session cookie", () => {
   const config = readServerConfigFromEnv({
     DATABASE_URL: "postgres://x",
     BETTER_AUTH_SECRET: "s",
@@ -221,11 +230,12 @@ test("google is populated with a redirectUri derived from authBaseUrl once both 
     GOOGLE_OAUTH_CLIENT_ID: "client-1",
     GOOGLE_OAUTH_CLIENT_SECRET: "secret-1",
     BETTER_AUTH_URL: "https://api.example.com",
+    WEB_ORIGIN: "https://www.example.com",
   } as NodeJS.ProcessEnv);
   assert.deepEqual(config.google, {
     clientId: "client-1",
     clientSecret: "secret-1",
-    redirectUri: "https://api.example.com/api/hands-oauth/google-calendar/callback",
+    redirectUri: "https://www.example.com/api/hands-oauth/google-calendar/callback",
   });
 });
 

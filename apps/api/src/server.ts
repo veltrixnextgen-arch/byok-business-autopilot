@@ -149,9 +149,22 @@ export function readServerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): S
 
   const googleClientId = env.GOOGLE_OAUTH_CLIENT_ID;
   const googleClientSecret = env.GOOGLE_OAUTH_CLIENT_SECRET;
+  // Issue found live 2026-09-04 recording the OAuth demo video: this must
+  // be webOrigin (the proxied www.runwisely.cc origin apps/web's own
+  // vercel.json rewrites /api/* through to this same backend), NOT
+  // authBaseUrl (the raw Railway domain). Better Auth's session cookie is
+  // scoped to webOrigin — Google redirects the browser here as a
+  // top-level navigation, and a request landing on a genuinely different
+  // domain (the raw Railway one) never carries that cookie at all, no
+  // matter the cookie's SameSite/Domain settings. The callback's own
+  // session check (handsOAuth.ts) then always sees no session and fails
+  // closed as "state_mismatch" — every attempt, not a flake. The
+  // registered-redirect-URI check done earlier only verified this string
+  // matched Google's console entry; it never verified a live callback
+  // round-trip actually completing, which is what caught this.
   const google =
     googleClientId && googleClientSecret
-      ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${authBaseUrl}/api/hands-oauth/google-calendar/callback` }
+      ? { clientId: googleClientId, clientSecret: googleClientSecret, redirectUri: `${webOrigin}/api/hands-oauth/google-calendar/callback` }
       : null;
 
   const resendApiKey = env.RESEND_API_KEY;
