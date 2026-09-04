@@ -96,13 +96,14 @@ describe("CharterScreen — handoff ceremony", () => {
   // the interview at all. Fixed honestly rather than implying a
   // capability that doesn't exist (there is no "edit this company's
   // existing answers in place" feature) — the copy and link branch on
-  // whether a real interview is genuinely still pending, since
-  // /interview otherwise silently bounces to "/" and starting fresh
-  // from there creates a brand new, separate company (reported live,
-  // 2026-09-04: a user hitting the old single "Go to the interview"
-  // link with no idea pending got redirected to "/", which reads as
-  // "logged out" — no dashboard chrome, marketing nav — and would have
-  // created a second company had they continued).
+  // whether a real interview is genuinely still pending. Reported live,
+  // 2026-09-04, TWICE: the first fix still pointed the "no interview
+  // pending" case at "/" (the marketing homepage), which has zero
+  // session-awareness and reads as a logout even though nothing about
+  // the session changes, and starting fresh from there would have
+  // created a brand new, separate company. Now points at /new-company,
+  // an authenticated screen that reuses the same IdeaForm inside
+  // AppShell instead.
   it("resumes the interview when one is genuinely still pending", async () => {
     getCharterState.mockRejectedValue(new Error("no org chart"));
     loadIdea.mockReturnValue("a laundromat");
@@ -122,6 +123,6 @@ describe("CharterScreen — handoff ceremony", () => {
 
     await screen.findByText("Starting a new interview creates a separate company — it won't change this one.");
     const link = screen.getByRole("link", { name: /Start a new company/ });
-    expect(link.getAttribute("href")).toBe("/");
+    expect(link.getAttribute("href")).toBe("/new-company");
   });
 });

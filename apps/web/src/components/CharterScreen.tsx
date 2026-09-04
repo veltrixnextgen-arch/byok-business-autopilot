@@ -147,10 +147,13 @@ export function CharterScreen() {
 // feature (claimLatestForTenant's own idempotency guard means a second
 // claim for an already-claimed tenant just returns the existing batch,
 // never a fresher one), so /interview only ever helps here if a real
-// interview is genuinely still pending (loadIdea() returns something) —
-// otherwise it silently bounces to "/" (InterviewScreen's own fallback),
-// and continuing from there creates a brand new, separate company, not
-// a change to this one. Branching the copy on loadIdea() up front means
+// interview is genuinely still pending (loadIdea() returns something).
+// Otherwise this links to /new-company, an authenticated screen (real
+// dashboard chrome, not the public marketing page) that reuses the same
+// IdeaForm the landing page does — /new-company existing at all is
+// itself a fix: it used to point at "/" (the marketing homepage), which
+// has zero session-awareness and reads as a logout even though the
+// session is untouched. Branching the copy on loadIdea() up front means
 // the link never claims more than it actually does.
 function EmptyView() {
   const idea = loadIdea();
@@ -169,7 +172,7 @@ function EmptyView() {
           <p className="mt-2 text-sm text-text-secondary">
             Starting a new interview creates a separate company — it won't change this one.
           </p>
-          <Link to="/" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
+          <Link to="/new-company" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
             Start a new company →
           </Link>
         </>
