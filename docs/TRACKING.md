@@ -285,3 +285,17 @@ After merging PR #210 (Tier 1 features) and #211 (docs) back to back, `redeploy`
 **Fix used this time**: `railway up` from a local checkout confirmed at `main`'s exact HEAD forces a genuinely fresh build — but per this file's own 2026-08-16 entry, that path doesn't populate `meta.commitHash` either, so confirming it landed still required an out-of-band check (the route probe above), not a mechanical one.
 
 **Action needed**: neither stale-build path (`redeploy`'s cache reuse, `railway up`'s missing commit metadata) has a real fix yet — both are flagged, not resolved. A genuine fix likely needs the same shape either way: assert something *derived from the actually-running code* (a route's existence, a `BUILD_SHA` env var set explicitly at deploy time and read back via `/health`, per ADR-029) rather than trusting deploy status or `meta.commitHash` on any path that isn't the plain git-webhook auto-deploy.
+
+## Known gap: PR #225 showed MERGED on GitHub while its code never reached main — a stacked-PR merge-order gap (2026-09-04)
+
+**The third distinct "reported success, didn't happen" mechanism on this project** — after the deploy-verification watch-pattern gap above (2026-08-16 entry: Railway's `meta.commitHash` assertion only populates on the git-webhook path, not `railway up`) and the cached-build reuse entries above (2026-09-02: `redeploy` served a stale commit while reporting `SUCCESS`; ADR-016: a stale Vercel build cache masked a real production bug the same way). All three share the same shape: a system genuinely reported success, and the report was wrong for a reason specific to *how* that system reports it, not to the code itself.
+
+PR #225 (CostGate/scheduler/Vault tenant-eligibility enforcement) was stacked on PR #224's own branch (`feat/active-tenant-table`), not `main` — a normal dependency stack. GitHub merged #224 into `main` *before* #225 finished merging into #224's branch. #225 then merged into a branch that no longer led anywhere — GitHub reports it as `MERGED` (true — the merge commit exists), but that merge never reached `main`.
+
+**Found by**: `grep`-ing `main` directly for `TenantEligibilityResolver` (the type PR #225 introduces) and getting zero matches, while preparing an unrelated follow-up that needed to touch the same resolver. The commits weren't lost (`git fetch` of the original branch ref still resolved them), just unreachable from `main`.
+
+**Checked every other stacked PR from the same session for the same gap — none had it**: grepped `main` for a real symbol from #218, #219, #220, #221, #224 (see ADR-PENDING "PR #225 showed MERGED..." in `docs/DECISIONS.md` for the exact grep per PR). All five present and correct — #225 was the only PR in the stack whose base branch got merged out from under it before it could finish merging itself.
+
+**Fixed**: #225's real commits cherry-picked onto a fresh branch off current `main` — PR #230.
+
+**Action needed / adopted going forward**: no mechanical detection proposed for this specific mechanism (a stacked PR whose base merges before it does) — the adopted mitigation is procedural: PRs no longer auto-merge on green CI, full stop (standing instruction as of 2026-09-04, superseding whatever merged #225 without a human clicking merge) — every merge is now an explicit human call, and a stacked PR's base gets re-pointed at `main` once the base PR merges, checked before the dependent PR merges. Full incident writeup: `docs/DECISIONS.md`, ADR-PENDING "PR #225 showed MERGED on GitHub while its code never reached main."
