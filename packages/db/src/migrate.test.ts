@@ -272,6 +272,35 @@ test("0011_vault_durable_storage.sql RLS-policies every tenant-scoped table it c
   }
 });
 
+test("0023_user_active_tenant.sql adds the internal_metrics read exception to tenant_members/audit_log, never in a WITH CHECK", async () => {
+  const sql = await readFile(path.join(migrationsDir(), "0023_user_active_tenant.sql"), "utf8");
+
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS user_active_tenant/);
+  assert.match(sql, /CREATE POLICY internal_metrics_read ON tenant_members/);
+  assert.match(sql, /CREATE POLICY internal_metrics_read ON audit_log/);
+
+  // Same invariant 0005/0006 already enforce for their own internal-metrics
+  // exceptions: it must only ever appear in USING, never WITH CHECK — this
+  // is a SELECT-only carve-out, so it must never grant a write path.
+  const internalMetricsConditions = sql.match(/current_setting\('app\.internal_metrics', true\) = 'true'/g) ?? [];
+  assert.equal(internalMetricsConditions.length, 2, "expected exactly one internal_metrics condition per policy (2 tables touched)");
+  const withChecks = sql.match(/WITH CHECK \([^)]*\)/g) ?? [];
+  for (const clause of withChecks) {
+    assert.doesNotMatch(clause, /internal_metrics/);
+  }
+
+  // The backfill's set_config must be transaction-local (`true`), not
+  // session-level — a session-level set on a pooled connection would leak
+  // the internal_metrics bypass onto a later, unrelated query reusing the
+  // same physical connection after this migration's pool.query() call
+  // returns it. And it must be bracketed by an explicit BEGIN/COMMIT, since
+  // that's what actually gives set_config's `true` (is_local) form a
+  // transaction boundary to revert at.
+  assert.match(sql, /SELECT set_config\('app\.internal_metrics', 'true', true\);/);
+  assert.match(sql, /^BEGIN;/m);
+  assert.match(sql, /^COMMIT;/m);
+});
+
 test("schemaCanaries names exactly the four ALTER TABLE ADD COLUMN migrations that exist today", () => {
   const canaries = schemaCanaries();
   assert.deepEqual(
