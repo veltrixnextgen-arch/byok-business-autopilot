@@ -1,16 +1,35 @@
 import type { PromptTier, Router, RouterTask, RouterTaskInput } from "@byok/router";
 import type { DurableBatchStore, TierModelMapsByProvider } from "@byok/cost-gate";
 import { selectModel } from "@byok/cost-gate";
-import type { CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
+import type { ActiveTenantStore, CompanyCharterStore, SchedulerInstrumentationStore, SignupExtractionBatchStore, TenantScheduleStateStore } from "@byok/db";
 import type { Vault } from "@byok/vault";
 import type { ScheduledDispatchPayload } from "./computeDesiredSchedule.js";
-import { notifySchedulePaused, type ScheduleNotificationDeps } from "./scheduleNotifications.js";
+import { notifySchedulePaused, notifySubscriptionRequired, type ScheduleNotificationDeps } from "./scheduleNotifications.js";
 
 export interface ScheduledDispatchDeps {
   router: Pick<Router, "submitTask">;
   charters: Pick<CompanyCharterStore, "getActive">;
   batchStore: Pick<SignupExtractionBatchStore, "latestForTenant">;
   scheduleState: Pick<TenantScheduleStateStore, "get" | "pause">;
+  /** One company per user (2026-09-03): a cheap early-exit alongside the
+   *  existing pausedAt check below, so a stale BullMQ job for a tenant
+   *  the user has since switched away from doesn't even build a task
+   *  input, let alone reach the Router — CostGate would refuse to
+   *  reserve for it regardless (the authoritative check), this just
+   *  avoids the wasted work. */
+  activeTenant: Pick<ActiveTenantStore, "isTenantActive">;
+  /** One company per user (2026-09-03/04): CostGate refuses to reserve
+   *  for a tenant with no subscription AND past its free allowance too
+   *  (the other half of "neither active nor subscribed/allowed"), but
+   *  that SKIP would otherwise fall into the isCeilingExhaustion() path
+   *  below and get paused/notified with a "ceiling exhausted" reason
+   *  that has nothing to do with what actually happened. This check
+   *  runs first specifically so that never happens — see the dedicated
+   *  pause branch below. True whenever a real subscription exists OR
+   *  the tenant is still within its free allowance (freeAllowance.ts) —
+   *  named for what it actually gates (spend), not just "subscription",
+   *  since the free-allowance half isn't a subscription at all. */
+  hasSpendAllowance: (tenantId: string) => Promise<boolean>;
   instrumentation: Pick<SchedulerInstrumentationStore, "recordScheduledRun">;
   durableBatchStore: Pick<DurableBatchStore, "pause">;
   /** Multi-provider AI (Phase 2 item 5, ADR-047/048): a scheduled dispatch
@@ -73,6 +92,20 @@ export function createScheduledDispatchProcessor(deps: ScheduledDispatchDeps) {
   return async function processScheduledDispatch(payload: ScheduledDispatchPayload): Promise<void> {
     const scheduleState = await deps.scheduleState.get(payload.tenantId);
     if (scheduleState.pausedAt) return; // paused for this tenant — cheap no-op, will fire again next cadence tick
+
+    if (!(await deps.activeTenant.isTenantActive(payload.tenantId))) return; // not the account's active company right now
+
+    if (!(await deps.hasSpendAllowance(payload.tenantId))) {
+      // Loud, not silent (unlike the isTenantActive check above): a
+      // deliberate company-switch is expected behavior, a lapsed
+      // subscription (or an expired free trial) is not something the
+      // owner should have to notice on their own. Its own honest
+      // reason/notification, never "ceiling-exhausted" — see
+      // hasSpendAllowance's own comment.
+      await deps.scheduleState.pause(payload.tenantId, "no-active-subscription", null);
+      await notifySubscriptionRequired(deps.notifications, payload.tenantId);
+      return;
+    }
 
     const [charter, batch] = await Promise.all([
       deps.charters.getActive(payload.tenantId),

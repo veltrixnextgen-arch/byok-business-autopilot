@@ -2,9 +2,11 @@ import { serve } from "@hono/node-server";
 import { createAuth } from "@byok/auth";
 import { PostgresDurableBatchStore, PostgresReservationStore } from "@byok/cost-gate";
 import {
+  ActiveTenantStore,
   CompanyCharterStore,
   createDb,
   createPool,
+  getTenantEligibilityFacts,
   getTenantOwnerEmails,
   listAllTenantIds,
   SchedulerInstrumentationStore,
@@ -22,6 +24,7 @@ import { createStripePriceMapFromEnv, type StripePriceMap } from "./billing/pric
 import type { DigestDeps } from "./digest/buildDigestData.js";
 import { sendDailyDigests } from "./digest/sendDailyDigests.js";
 import type { TrustCoreDeps } from "./context.js";
+import { withinFreeAllowance } from "./freeAllowance.js";
 import { createApp } from "./index.js";
 import type { ScheduledDispatchPayload } from "./scheduler/computeDesiredSchedule.js";
 import { createScheduledDispatchProcessor } from "./scheduler/scheduledDispatchProcessor.js";
@@ -347,6 +350,11 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     charters: new CompanyCharterStore(pool),
     batchStore,
     scheduleState: new TenantScheduleStateStore(pool),
+    activeTenant: new ActiveTenantStore(pool),
+    hasSpendAllowance: async (tenantId) => {
+      const facts = await getTenantEligibilityFacts(pool, tenantId);
+      return facts.stripeSubscriptionId !== null || withinFreeAllowance(facts.createdAt);
+    },
     instrumentation: new SchedulerInstrumentationStore(pool),
     durableBatchStore: new PostgresDurableBatchStore(pool),
     tierModelMaps: trustCore.tierModelMaps,

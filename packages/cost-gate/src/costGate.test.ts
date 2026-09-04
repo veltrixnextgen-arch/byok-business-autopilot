@@ -5,7 +5,7 @@ import { InMemoryDurableReservationStore } from "./durable/reservationStore.js";
 import { CostGate } from "./costGate.js";
 import type { CeilingConfig } from "./ceilings.js";
 import type { TierModelMap } from "./tierRouter.js";
-import type { GateEvaluationRequest } from "./costGate.js";
+import type { GateEvaluationRequest, TenantEligibilityResolver } from "./costGate.js";
 
 const modelMaps = { anthropic: { T1: "cheap-model", T2: "mid-model", T3: "frontier-model" } as TierModelMap };
 
@@ -21,8 +21,12 @@ function freshPricingTable() {
   });
 }
 
-function makeGate(ceilingConfig: CeilingConfig, store = new InMemoryDurableReservationStore()) {
-  return new CostGate(freshPricingTable(), ceilingConfig, store, modelMaps);
+function makeGate(
+  ceilingConfig: CeilingConfig,
+  store = new InMemoryDurableReservationStore(),
+  tenantEligibility?: TenantEligibilityResolver,
+) {
+  return new CostGate(freshPricingTable(), ceilingConfig, store, modelMaps, undefined, tenantEligibility);
 }
 
 function makeInput(overrides: Partial<GateEvaluationRequest> = {}): GateEvaluationRequest {
@@ -50,6 +54,43 @@ test("PROCEED/DOWNGRADE reserve budget; QUEUE/SKIP never do", async () => {
   const queueResult = await tinyBudgetGate.evaluateAndReserve(makeInput({ taskId: "task-2" }));
   assert.equal(queueResult.verdict.kind, "QUEUE");
   assert.equal(queueResult.reservation, undefined);
+});
+
+test("one company per user: an ineligible tenant (inactive company or no subscription) is SKIPped without ever reserving, even when well within ceiling", async () => {
+  const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} }, undefined, () => ({
+    eligible: false,
+    reason: "This company is not your account's active company.",
+  }));
+
+  const result = await gate.evaluateAndReserve(makeInput());
+  assert.equal(result.verdict.kind, "SKIP");
+  assert.equal(result.verdict.reason, "This company is not your account's active company.");
+  assert.equal(result.reservation, undefined);
+});
+
+test("an ineligible tenant SKIPs even when the task type is batchable — ineligibility isn't a capacity problem a queue retry fixes", async () => {
+  const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} }, undefined, () => ({ eligible: false }));
+  const result = await gate.evaluateAndReserve(makeInput({ batchable: true }));
+  assert.equal(result.verdict.kind, "SKIP");
+});
+
+test("an ineligible tenant is still audited and still emits task.skipped, same as any other SKIP", async () => {
+  const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} }, undefined, () => ({ eligible: false }));
+  const events: string[] = [];
+  gate.onEvent((e) => events.push(e.type));
+
+  await gate.evaluateAndReserve(makeInput());
+  const audit = await gate.auditEvents("tenant-a");
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].kind, "SKIP");
+  assert.deepEqual(events, ["task.skipped"]);
+});
+
+test("an eligible tenant proceeds exactly as before — the eligibility check is a pure gate, not a behavior change for the common case", async () => {
+  const gate = makeGate({ companyMonthlyUsd: 1000, perRoleUsd: {}, perTaskTypeUsd: {} }, undefined, () => ({ eligible: true }));
+  const result = await gate.evaluateAndReserve(makeInput());
+  assert.equal(result.verdict.kind, "PROCEED");
+  assert.ok(result.reservation);
 });
 
 test("settle after a successful execution moves the reservation into settled spend", async () => {

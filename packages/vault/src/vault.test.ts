@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { Vault } from "./vault.js";
-import type { HandsCredentialRefresher } from "./vault.js";
+import { Vault, TenantNotActiveError } from "./vault.js";
+import type { HandsCredentialRefresher, TenantEligibilityResolver } from "./vault.js";
 import { LocalKms } from "./kms.js";
 import { DekUndecryptableError } from "./dekStore.js";
 import { InMemoryDekRecordStore } from "./durable/dekRecordStore.js";
@@ -36,6 +36,12 @@ function makeVaultWithRefreshers(
   const dir = mkdtempSync(join(tmpdir(), "vault-test-"));
   const kms = new LocalKms(join(dir, "master.key"));
   return new Vault(kms, undefined, 60_000, refreshers, refreshTimeoutMs);
+}
+
+function makeVaultWithEligibility(tenantEligibility: TenantEligibilityResolver): Vault {
+  const dir = mkdtempSync(join(tmpdir(), "vault-test-"));
+  const kms = new LocalKms(join(dir, "master.key"));
+  return new Vault(kms, undefined, 60_000, undefined, undefined, undefined, undefined, tenantEligibility);
 }
 
 // A HandsCredentialRefresher test double that records every refreshToken it
@@ -99,6 +105,38 @@ test("lifecycle: store -> decrypt round-trips the exact plaintext, and shows a m
   const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
   const recovered = await handle.use((buf) => buf.toString("utf8"));
   assert.equal(recovered, "sk-ant-super-secret-1234");
+});
+
+// One company per user (2026-09-03): a Brain/Hands key must not decrypt
+// for a tenant that isn't the account's currently active company, even
+// though the key itself is perfectly valid — this is the third,
+// independent enforcement layer alongside CostGate and the scheduler,
+// so a decrypt call reached some other way still can't use the key.
+test("decryptBrainKey refuses a valid key for a tenant the eligibility resolver says is not active", async () => {
+  const vault = makeVaultWithEligibility(() => false);
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-1234") }, ONBOARDING);
+
+  await assert.rejects(() => vault.decryptBrainKey("tenant-a", "cfo", ROUTER), TenantNotActiveError);
+});
+
+test("decryptHandsKey refuses a valid key for a tenant the eligibility resolver says is not active", async () => {
+  const vault = makeVaultWithEligibility(() => false);
+  const keyId = await storeOAuthHandsKey(vault, { service: "google-calendar", accessToken: "tok-1", expiresAt: FRESH_ISO });
+
+  await assert.rejects(() => decryptOAuth(vault, keyId), TenantNotActiveError);
+});
+
+test("the eligibility resolver is called with the tenant id being decrypted, per-call, and a true result decrypts normally", async () => {
+  const seen: string[] = [];
+  const vault = makeVaultWithEligibility((tenantId) => {
+    seen.push(tenantId);
+    return true;
+  });
+  await vault.storeBrainKey({ tenantId: "tenant-a", roleId: "cfo", provider: "anthropic", plaintext: Buffer.from("sk-ant-1234") }, ONBOARDING);
+
+  const { handle } = await vault.decryptBrainKey("tenant-a", "cfo", ROUTER);
+  assert.equal(await handle.use((buf) => buf.toString("utf8")), "sk-ant-1234");
+  assert.deepEqual(seen, ["tenant-a"]);
 });
 
 // ADR-031: getBrainKeyStatus is a pure metadata read (does the row exist,

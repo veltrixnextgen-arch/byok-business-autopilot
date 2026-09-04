@@ -234,16 +234,25 @@ function stubReducedMotion(matches: boolean) {
 }
 
 describe("InterviewScreen — generating state", () => {
-  it("shows the checklist with the first step active as soon as submission starts", async () => {
-    stubReducedMotion(false);
-    await reachSubmittingPhase();
+  it(
+    "shows the checklist with the first step active as soon as submission starts",
+    async () => {
+      stubReducedMotion(false);
+      await reachSubmittingPhase();
 
-    expect(screen.getByText("Understanding your business")).toBeTruthy();
-    expect(screen.getByText("Discovering the work")).toBeTruthy();
-    expect(screen.getByText("Forming your teams")).toBeTruthy();
-    expect(screen.getByText("Assigning your agents")).toBeTruthy();
-    expect(screen.queryAllByText("✓").length).toBe(0);
-  });
+      expect(screen.getByText("Understanding your business")).toBeTruthy();
+      expect(screen.getByText("Discovering the work")).toBeTruthy();
+      expect(screen.getByText("Forming your teams")).toBeTruthy();
+      expect(screen.getByText("Assigning your agents")).toBeTruthy();
+      expect(screen.queryAllByText("✓").length).toBe(0);
+    },
+    // reachSubmittingPhase()'s own internal waitFor already budgets up to
+    // 5000ms for CI's shared-runner contention (see its comment) — that
+    // alone can exhaust this test's default 5000ms vitest timeout before
+    // ever reaching the assertions below, exactly as flaked in CI. Same
+    // 15_000ms precedent as the sibling test below.
+    15_000,
+  );
 
   it(
     "never marks the last checklist step done while startBatch is still pending, no matter how long the timer runs",
@@ -263,11 +272,15 @@ describe("InterviewScreen — generating state", () => {
     15_000,
   );
 
-  it("respects prefers-reduced-motion by skipping straight to the final still-working state, not a ticking animation", async () => {
-    stubReducedMotion(true);
-    await reachSubmittingPhase();
+  it(
+    "respects prefers-reduced-motion by skipping straight to the final still-working state, not a ticking animation",
+    async () => {
+      stubReducedMotion(true);
+      await reachSubmittingPhase();
 
-    await waitFor(() => expect(screen.queryAllByText("✓").length).toBe(3));
-    expect(screen.getByText("Assigning your agents")).toBeTruthy();
-  });
+      await waitFor(() => expect(screen.queryAllByText("✓").length).toBe(3));
+      expect(screen.getByText("Assigning your agents")).toBeTruthy();
+    },
+    15_000,
+  );
 });

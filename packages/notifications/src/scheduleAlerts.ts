@@ -40,3 +40,25 @@ export function buildScheduleResumedEmail(input: { dashboardUrl: string }): { su
     text: ["Your scheduled tasks are running again.", "", `View activity: ${input.dashboardUrl}`].join("\n"),
   };
 }
+
+// One company per user (2026-09-03): deliberately its OWN email, not a
+// third PauseReason value on buildSchedulePausedEmail — that template's
+// copy is inherently ceiling/spend-shaped ("N tasks waiting", "$X of
+// your $Y ceiling"), which is actively misleading for "you have no
+// subscription" (there's no ceiling to report, and nothing is "waiting
+// to resume" in the batch sense). Reusing it here would have told a
+// tenant they'd hit their spend ceiling when the real reason is an
+// unpaid/cancelled subscription — exactly the class of silent-wrong-
+// signal bug this feature exists to avoid.
+export function buildSubscriptionRequiredEmail(input: { dashboardUrl: string }): { subject: string; text: string } {
+  return {
+    subject: "Your automation has paused — subscription needed",
+    text: [
+      "Your scheduled tasks have paused because this company has no active subscription.",
+      "",
+      "Resubscribe to resume scheduled work.",
+      "",
+      `Manage billing: ${input.dashboardUrl}`,
+    ].join("\n"),
+  };
+}
