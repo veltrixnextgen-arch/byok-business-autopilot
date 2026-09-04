@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
-import type { Charter } from "@byok/contracts";
+import type { Charter, OnboardingBatch } from "@byok/contracts";
 import { generateCascade } from "@byok/extraction";
-import type { CompanyCharterStore, SignupExtractionBatchStore } from "@byok/db";
+import type { CompanyCharterStore, SignupExtractionBatch, SignupExtractionBatchStore } from "@byok/db";
 import type { SyncResult } from "@byok/jobs";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -17,7 +17,18 @@ export interface CharterRouteDeps {
     CompanyCharterStore,
     "createDraft" | "updateDraft" | "getLatestDraft" | "getActive" | "accept" | "get"
   >;
-  batchStore: Pick<SignupExtractionBatchStore, "latestForTenant">;
+  batchStore: Pick<SignupExtractionBatchStore, "latestForTenant" | "updateOrgChartForTenant">;
+  /** Self-heal for a claimed org chart whose onboardingBatch/charterDraft
+   *  is missing — either JSONB schema drift (the chart predates this field)
+   *  or issue #124's truncated-generation case. Only POST /draft (the one
+   *  side-effecting, cost-guarded call in this route) ever invokes it —
+   *  GET / stays a pure read per its own doc comment below, so it never
+   *  triggers a paid LLM call. Optional so tests that don't exercise this
+   *  path (and any deploy where it's momentarily unwired) keep today's
+   *  404 behavior instead of erroring. */
+  regenerateOnboardingBatch?: (
+    batch: SignupExtractionBatch & { orgChart: NonNullable<SignupExtractionBatch["orgChart"]> },
+  ) => Promise<OnboardingBatch>;
   /** R3/ADR-025: syncs the tenant's BullMQ repeatable-job schedule against
    *  the just-installed cascade — called after every successful accept, so
    *  a Charter handoff makes the company actually run on its own, not just
@@ -86,7 +97,19 @@ export function charterRoute(deps: CharterRouteDeps) {
       }
 
       const batch = await deps.batchStore.latestForTenant(tenantId);
-      const rawDraft = batch?.orgChart?.onboardingBatch?.charterDraft;
+      if (!batch?.orgChart) return c.json({ error: "No org chart to draft a Charter from — complete extraction first." }, 404);
+
+      let rawDraft = batch.orgChart.onboardingBatch?.charterDraft;
+      if (!rawDraft && deps.regenerateOnboardingBatch) {
+        try {
+          const onboardingBatch = await deps.regenerateOnboardingBatch({ ...batch, orgChart: batch.orgChart });
+          await deps.batchStore.updateOrgChartForTenant(tenantId, batch.id, { ...batch.orgChart, onboardingBatch });
+          rawDraft = onboardingBatch.charterDraft;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Something went wrong generating your Charter draft.";
+          return c.json({ error: message }, 502);
+        }
+      }
       if (!rawDraft) return c.json({ error: "No org chart to draft a Charter from — complete extraction first." }, 404);
 
       const draft = await deps.charters.createDraft(tenantId, rawDraft);

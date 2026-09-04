@@ -37,7 +37,7 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 
 ## 3. Reconciliation — what exists today
 
-*Last reconciled 2026-09-04, against commit history through PR #213/#215/#217/#218/#219/#220/#221/#227 (all merged).*
+*Last reconciled 2026-09-04, against commit history through PR #213/#215/#217/#218/#219/#220/#221/#227/#232 (all merged).*
 
 | Target capability | Real state |
 |---|---|
@@ -79,7 +79,7 @@ Nothing in §5's Tier 2 or 3 gets built until these pass. They cost days, not mo
 1. **Twenty testers.** ≥70% saying the org chart taught them something about their business. Ready for weeks. **Still open** — needs real signup volume, not more engineering.
 2. **Key-connection rate.** ≥35% of chart-completers connect a Brain key. **Still open** — same, needs volume.
 3. **Billing proven end to end** in test mode against real staging. **Done** — real Checkout Session → subscription → webhook → tier/Stripe-id update → cancellation → tier revert, all verified against live Stripe test mode and a real database row read (2026-09-01/02).
-4. **Google OAuth verification submitted** — the shortest path from "we draft" to "we act," which is the category's own dividing line. **Still open** — this is a real action item (submit the verification request), not a build task.
+4. **Google OAuth verification submitted** — the shortest path from "we draft" to "we act," which is the category's own dividing line. **Still open** — this is a real action item (submit the verification request), not a build task. Preparing the demo video that submission needs found two real bugs blocking it (both fixed, PR #227/#232): a Hands-tool label drift that made a working Calendar connect button show as "draft only," and a claimed org chart with no `onboardingBatch` that couldn't draft a Charter at all — the latter now self-heals via a real `generateOnboardingBatch` call instead of dead-ending.
 5. **First paying customer.** **Still open.**
 
 ## 5. Sequenced roadmap

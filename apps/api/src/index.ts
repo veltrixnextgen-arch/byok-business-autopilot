@@ -14,6 +14,7 @@ import {
   type SignupMetricsStore,
   type TemplateTaskDeltaStore,
 } from "@byok/db";
+import { DEFAULT_MAX_COST_USD, generateOnboardingBatch } from "@byok/extraction";
 import { syncTenantSchedule, type ConnectionHealth, type QueueLike, type RepeatableQueueLike } from "@byok/jobs";
 import { PostgresCostActivityQueries } from "@byok/router";
 import { Hono } from "hono";
@@ -187,6 +188,33 @@ export function createApp(options: CreateAppOptions) {
       charterRoute({
         charters,
         batchStore: options.extraction.batchStore,
+        // Self-heal for a claimed org chart whose onboardingBatch is missing
+        // (JSONB schema drift on an older chart, or issue #124's truncated-
+        // generation case) — the real Anthropic call, using the platform
+        // key already threaded in here. Only whatCustomersPayFor and idea
+        // actually feed generateOnboardingBatch's prompt (onboardingBatch.ts's
+        // buildPrompt), so the other InterviewAnswers fields — never
+        // collected for a self-heal, since no interview is being re-run —
+        // get honest placeholders rather than fabricated specifics.
+        regenerateOnboardingBatch: async (batch) => {
+          const { batch: onboardingBatch } = await generateOnboardingBatch(
+            batch.orgChart,
+            batch.idea,
+            {
+              whatCustomersPayFor: batch.idea,
+              whoTheCustomerIs: "both",
+              howMoneyArrives: "not-sure",
+              howDeliveryReaches: "not-sure",
+              jurisdiction: { country: "not-specified" },
+              stage: "live-business",
+              whoIsWorkingOnIt: "solo",
+              branchAnswers: {},
+            },
+            options.extraction.apiKey,
+            DEFAULT_MAX_COST_USD,
+          );
+          return onboardingBatch;
+        },
         onAccepted: async (tenantId) => {
           const batch = await options.extraction.batchStore.latestForTenant(tenantId);
           if (!batch?.orgChart) return null; // shouldn't happen post-accept; nothing to schedule if it did

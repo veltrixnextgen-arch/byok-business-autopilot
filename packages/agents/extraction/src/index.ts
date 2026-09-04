@@ -11,6 +11,9 @@ export type { SpineGuess } from "./guessAnswers.js";
 export { generateCascade } from "./cascade.js";
 export { diffTaskLists, customizationLogToDeltas } from "./taskDeltas.js";
 export type { TaskDelta, TaskDeltaKind } from "./taskDeltas.js";
+export { generateOnboardingBatch } from "./onboardingBatch.js";
+export type { OnboardingBatchResult } from "./onboardingBatch.js";
+export { DEFAULT_MAX_COST_USD } from "./costGuard.js";
 
 // Model ids each internal call uses — aliased since customize.ts and
 // onboardingBatch.ts both name their own constant CLAUDE_MODEL (correct
