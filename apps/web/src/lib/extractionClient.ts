@@ -14,6 +14,11 @@ const IDEA_KEY = "byok:idea";
 
 export function saveIdea(idea: string): void {
   sessionStorage.setItem(IDEA_KEY, idea);
+  // A genuinely new idea submission must never inherit stale in-progress
+  // answers left over from a previous, abandoned interview (there is no
+  // other call site for this function — it only ever runs when a fresh
+  // idea is being submitted from the idea box).
+  sessionStorage.removeItem(INTERVIEW_PROGRESS_KEY);
 }
 
 // `typeof window` guard: this is called from route `beforeLoad` hooks
@@ -35,6 +40,46 @@ export function loadIdea(): string | null {
 export function clearIdea(): void {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(IDEA_KEY);
+}
+
+// The other half of this file's own header comment above ("the idea text
+// AND in-progress interview answers need to survive... navigation") —
+// only the idea half was ever actually implemented. Found live 2026-09-04:
+// navigating from /interview to /charter and back lost every answer typed
+// so far (answers/index/jurisdiction/guessedIds were plain component
+// state in InterviewScreen, nothing persisted them), even though the
+// interview itself correctly resumed rather than restarting from
+// scratch. Same mechanism as the idea text, same tab-lifetime scope.
+const INTERVIEW_PROGRESS_KEY = "byok:interview-progress";
+
+export interface InterviewProgress {
+  answers: Record<string, string>;
+  index: number;
+  jurisdiction: { country: string; stateOrProvince: string };
+  guessedIds: string[];
+}
+
+export function saveInterviewProgress(progress: InterviewProgress): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(INTERVIEW_PROGRESS_KEY, JSON.stringify(progress));
+}
+
+export function loadInterviewProgress(): InterviewProgress | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(INTERVIEW_PROGRESS_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as InterviewProgress;
+  } catch {
+    // Corrupt/malformed sessionStorage value — resume as if there were
+    // none rather than crashing the interview on mount.
+    return null;
+  }
+}
+
+export function clearInterviewProgress(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(INTERVIEW_PROGRESS_KEY);
 }
 
 export interface QuestionsResponse {

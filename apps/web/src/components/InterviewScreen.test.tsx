@@ -18,7 +18,7 @@ vi.mock("../lib/extractionClient", async (importOriginal) => {
   };
 });
 
-import { ApiError, fetchQuestions, startBatch } from "../lib/extractionClient";
+import { ApiError, fetchQuestions, loadInterviewProgress, saveInterviewProgress, startBatch } from "../lib/extractionClient";
 import { InterviewScreen } from "./InterviewScreen";
 
 afterEach(() => {
@@ -27,6 +27,13 @@ afterEach(() => {
   vi.mocked(fetchQuestions).mockReset();
   vi.mocked(startBatch).mockReset();
   vi.unstubAllGlobals();
+  // loadIdea is mocked above, but loadInterviewProgress/
+  // saveInterviewProgress/clearInterviewProgress are NOT (this suite
+  // never cared about them before they existed) — they run for real
+  // against jsdom's sessionStorage, which persists across tests in this
+  // file unless cleared. Without this, a later test's mount effect could
+  // pick up a previous test's saved progress.
+  sessionStorage.clear();
 });
 
 // The bug this covers: the initial fetchQuestions() call in the mount
@@ -86,6 +93,94 @@ describe("InterviewScreen — initial load failure", () => {
 
     await waitFor(() => expect(screen.getByText("What do customers pay you for?")).toBeTruthy());
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+// Found live 2026-09-04: navigating away from /interview (e.g. to
+// /charter) and back lost every answer typed so far — answers/index/
+// jurisdiction/guessedIds were plain component state, nothing persisted
+// them, even though the interview itself correctly avoided restarting
+// from scratch (the idea text alone was already persisted). These tests
+// exercise the real sessionStorage-backed save/load, not a mock of it —
+// loadIdea is the only extractionClient export still stubbed above.
+describe("InterviewScreen — resuming saved progress", () => {
+  it("resumes from the saved index with the saved answers, not question 1", async () => {
+    saveInterviewProgress({
+      answers: { whatCustomersPayFor: "Grooming appointments" },
+      index: 1,
+      jurisdiction: { country: "", stateOrProvince: "" },
+      guessedIds: [],
+    });
+    vi.mocked(fetchQuestions).mockResolvedValueOnce({
+      questions: [
+        { id: "whatCustomersPayFor", kind: "text", prompt: "What do customers pay you for?" },
+        { id: "whoTheCustomerIs", kind: "text", prompt: "Who is the customer?" },
+      ],
+      templateHint: null,
+      guess: {},
+    });
+
+    render(<InterviewScreen />);
+
+    // Resumed straight to the second question (index 1), not the first.
+    await waitFor(() => expect(screen.getByText("Who is the customer?")).toBeTruthy());
+    expect(screen.queryByText("What do customers pay you for?")).toBeNull();
+    // The saved answer was passed through as the partial fetchQuestions
+    // was called with — not a fresh, answer-less first call.
+    expect(fetchQuestions).toHaveBeenCalledWith(
+      "a mobile dog grooming business",
+      expect.objectContaining({ whatCustomersPayFor: "Grooming appointments" }),
+    );
+  });
+
+  it("starts fresh at question 1 when no progress was ever saved", async () => {
+    vi.mocked(fetchQuestions).mockResolvedValueOnce({
+      questions: [{ id: "whatCustomersPayFor", kind: "text", prompt: "What do customers pay you for?" }],
+      templateHint: null,
+      guess: {},
+    });
+
+    render(<InterviewScreen />);
+
+    await waitFor(() => expect(screen.getByText("What do customers pay you for?")).toBeTruthy());
+    expect(fetchQuestions).toHaveBeenCalledWith("a mobile dog grooming business", undefined);
+  });
+
+  it("persists an answer to sessionStorage as it's given, so a later mount can resume from it", async () => {
+    const oneQuestion = {
+      questions: [{ id: "whatCustomersPayFor" as const, kind: "text" as const, prompt: "What do customers pay you for?" }],
+      templateHint: null,
+      guess: {},
+    };
+    vi.mocked(fetchQuestions).mockResolvedValueOnce(oneQuestion).mockResolvedValueOnce(oneQuestion);
+
+    render(<InterviewScreen />);
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "Grooming appointments" } });
+    const continueButton = await screen.findByRole("button", { name: /continue/i });
+    await waitFor(() => expect(continueButton.hasAttribute("disabled")).toBe(false));
+    fireEvent.click(continueButton);
+
+    await waitFor(() => {
+      const saved = loadInterviewProgress();
+      expect(saved?.answers.whatCustomersPayFor).toBe("Grooming appointments");
+      expect(saved?.index).toBe(1);
+    });
+  });
+
+  it("clears saved progress once the interview genuinely completes", async () => {
+    stubReducedMotion(true);
+    saveInterviewProgress({ answers: { whatCustomersPayFor: "x" }, index: 1, jurisdiction: { country: "", stateOrProvince: "" }, guessedIds: [] });
+    vi.mocked(fetchQuestions).mockResolvedValueOnce({
+      questions: [{ id: "whatCustomersPayFor", kind: "text", prompt: "What do customers pay you for?" }],
+      templateHint: null,
+      guess: {},
+    });
+    vi.mocked(startBatch).mockResolvedValueOnce({ status: "completed" } as never);
+
+    render(<InterviewScreen />);
+    // index 1 with a 1-question list triggers the submit effect immediately on mount.
+    await waitFor(() => expect(startBatch).toHaveBeenCalled());
+    await waitFor(() => expect(loadInterviewProgress()).toBeNull());
   });
 });
 

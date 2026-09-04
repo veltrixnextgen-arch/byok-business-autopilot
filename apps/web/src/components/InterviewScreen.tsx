@@ -1,7 +1,18 @@
 import type { InterviewAnswers, InterviewQuestion } from "@byok/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ApiError, clearIdea, fetchQuestions, loadIdea, recordFunnelEvent, startBatch } from "../lib/extractionClient";
+import {
+  ApiError,
+  clearIdea,
+  clearInterviewProgress,
+  fetchQuestions,
+  loadIdea,
+  loadInterviewProgress,
+  recordFunnelEvent,
+  saveInterviewProgress,
+  startBatch,
+  type InterviewProgress,
+} from "../lib/extractionClient";
 import { type IllustrationStage, NetworkIllustration } from "./landing/NetworkIllustration";
 import { Button, cx } from "./ui";
 
@@ -100,27 +111,49 @@ export function InterviewScreen() {
   const [error, setError] = useState<InterviewError | null>(null);
   const generatingStep = useGeneratingStep(phase === "submitting");
 
-  async function loadInitialQuestions(ideaValue: string) {
+  // resume is only ever the value loadInterviewProgress() returned at
+  // mount time (passed through, never re-read here) — resuming reruns
+  // fetchQuestions with the SAME answers already given, so the returned
+  // question list reflects the same branching state instead of a fresh
+  // question 1, and answers/index/jurisdiction/guessedIds are restored
+  // from what was saved rather than the freshly-guessed prefill (the
+  // user's own prior answers always win over a guess).
+  async function loadInitialQuestions(ideaValue: string, resume: InterviewProgress | null) {
     setLoading(true);
     try {
-      const res = await fetchQuestions(ideaValue);
-      const prefilled: Record<string, string> = {};
-      const guessed = new Set<string>();
-      for (const [key, value] of Object.entries(res.guess)) {
-        if (key === "jurisdiction" || typeof value !== "string") continue;
-        prefilled[key] = value;
-        guessed.add(key);
-      }
+      const partial: Partial<InterviewAnswers> | undefined = resume
+        ? {
+            ...resume.answers,
+            ...(resume.jurisdiction.country.trim()
+              ? { jurisdiction: { country: resume.jurisdiction.country, stateOrProvince: resume.jurisdiction.stateOrProvince || undefined } }
+              : {}),
+          }
+        : undefined;
+      const res = await fetchQuestions(ideaValue, partial);
       setQuestions(res.questions);
-      setAnswers(prefilled);
-      setGuessedIds(guessed);
+      if (resume) {
+        setAnswers(resume.answers);
+        setGuessedIds(new Set(resume.guessedIds));
+        setJurisdiction(resume.jurisdiction);
+        setIndex(resume.index);
+      } else {
+        const prefilled: Record<string, string> = {};
+        const guessed = new Set<string>();
+        for (const [key, value] of Object.entries(res.guess)) {
+          if (key === "jurisdiction" || typeof value !== "string") continue;
+          prefilled[key] = value;
+          guessed.add(key);
+        }
+        setAnswers(prefilled);
+        setGuessedIds(guessed);
+      }
       setLoading(false);
       setPhase("answering");
       setError(null);
     } catch (err) {
       setLoading(false);
       setPhase("error");
-      setError({ source: "load", kind: classifyLoadError(err), retry: () => void loadInitialQuestions(ideaValue) });
+      setError({ source: "load", kind: classifyLoadError(err), retry: () => void loadInitialQuestions(ideaValue, resume) });
     }
   }
 
@@ -130,10 +163,20 @@ export function InterviewScreen() {
       return;
     }
     recordFunnelEvent("interview");
-    void loadInitialQuestions(idea);
+    void loadInitialQuestions(idea, loadInterviewProgress());
     // idea is stable for this component's lifetime (loaded once from
     // sessionStorage) — this effect is meant to run once on mount.
   }, []);
+
+  // Persists on every answer/index/jurisdiction change, not scattered
+  // across each handler — one write path that can't fall behind a future
+  // handler that forgets to call it. Skipped while still loading so the
+  // transient empty initial state never overwrites a real saved resume
+  // before loadInitialQuestions has applied it.
+  useEffect(() => {
+    if (loading || !idea) return;
+    saveInterviewProgress({ answers, index, jurisdiction, guessedIds: Array.from(guessedIds) });
+  }, [answers, index, jurisdiction, guessedIds, loading, idea]);
 
   async function refetchQuestions(nextAnswers: Record<string, string>, nextJurisdiction: typeof jurisdiction) {
     if (!idea) return;
@@ -206,8 +249,11 @@ export function InterviewScreen() {
         // Done with the idea's one job (getting here) — clear it so a
         // later visit to /dashboard in this same tab doesn't read a
         // stale pending idea and bounce a returning user with a real org
-        // chart straight back into the interview.
+        // chart straight back into the interview. Same reasoning for the
+        // in-progress answers: this interview is genuinely finished, not
+        // just navigated away from.
         clearIdea();
+        clearInterviewProgress();
         await navigate({ to: "/tasks" });
         return;
       }
