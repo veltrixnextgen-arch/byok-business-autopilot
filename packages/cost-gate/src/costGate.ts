@@ -48,6 +48,38 @@ function defaultAuditLog(): DurableAuditLog {
   return new InMemoryDurableAuditLog();
 }
 
+// One company per user (2026-09-03): the deepest fail-closed layer for
+// both the multi-org gap (a tenant a user has switched away from) and
+// the pre-existing, separate gap billing.ts's own comment flagged
+// (nothing anywhere gated spend on having an active subscription at
+// all) — one check closes both, since a tenant that fails either
+// condition must never reserve budget, regardless of what happens
+// upstream (a stale scheduler job, a route that forgot its own guard).
+// A resolver function, not a concrete @byok/db dependency — same
+// reasoning as CeilingConfigResolver: CostGate stays DB-agnostic;
+// durableTrustCore.ts supplies the real check (ActiveTenantStore +
+// tenants.stripe_subscription_id).
+export interface TenantEligibility {
+  eligible: boolean;
+  /** Surfaced in the SKIP verdict's reason and the audit trail — only
+   *  meaningful when eligible is false. */
+  reason?: string;
+}
+
+export type TenantEligibilityResolver = (tenantId: string) => Promise<TenantEligibility> | TenantEligibility;
+
+export class DevOnlyCostGateEligibilityGuardError extends Error {}
+
+function defaultTenantEligibility(): TenantEligibilityResolver {
+  if (!isDevOrTestEnvironment()) {
+    throw new DevOnlyCostGateEligibilityGuardError(
+      "CostGate cannot default every tenant to eligible outside a dev or test environment — pass a real " +
+        "TenantEligibilityResolver (active-company + subscription check) for any deployed environment.",
+    );
+  }
+  return () => ({ eligible: true });
+}
+
 // tenantId scopes every ceiling level (company/role/task-type) to ONE
 // tenant's own pool, per issue #47 — "one single shared $50/month pool, not
 // per-signup or per-tenant" was the bug. For pre-org signup flows there's
@@ -100,6 +132,7 @@ export class CostGate {
   private readonly reservationMeta = new Map<string, { tenantId: string; localId: string }>();
 
   private readonly audit: DurableAuditLog;
+  private readonly tenantEligibility: TenantEligibilityResolver;
 
   constructor(
     private readonly pricingTable: PricingTable,
@@ -107,8 +140,10 @@ export class CostGate {
     private readonly store: DurableReservationStore,
     private readonly modelMaps: TierModelMapsByProvider,
     audit?: DurableAuditLog,
+    tenantEligibility?: TenantEligibilityResolver,
   ) {
     this.audit = audit ?? defaultAuditLog();
+    this.tenantEligibility = tenantEligibility ?? defaultTenantEligibility();
   }
 
   onEvent(listener: GateEventListener): void {
@@ -133,6 +168,31 @@ export class CostGate {
   }
 
   async evaluateAndReserve(input: GateEvaluationRequest): Promise<GateEvaluationResult> {
+    const eligibility = await this.tenantEligibility(input.tenantId);
+    if (!eligibility.eligible) {
+      const verdict: GateVerdict = {
+        kind: "SKIP",
+        reason: eligibility.reason ?? "Tenant is not eligible to spend.",
+        model: input.model,
+      };
+      await this.audit.append({
+        tenantId: input.tenantId,
+        source: "cost-gate",
+        kind: verdict.kind,
+        refId: input.taskId,
+        detail: { roleId: input.roleId, taskType: input.taskType, reason: verdict.reason },
+      });
+      this.emit({
+        type: "task.skipped",
+        taskId: input.taskId,
+        roleId: input.roleId,
+        taskType: input.taskType,
+        reason: verdict.reason,
+        at: new Date().toISOString(),
+      });
+      return { verdict };
+    }
+
     const ceilingConfig = await this.resolveCeilingConfig(input.tenantId);
     const preCheck = evaluateGateVerdict(input, {
       pricingTable: this.pricingTable,

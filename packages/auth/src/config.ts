@@ -1,5 +1,5 @@
 import type { Database, PoolLike } from "@byok/db";
-import { tenants, users, withTenantScope } from "@byok/db";
+import { ActiveTenantStore, tenants, users, withTenantScope } from "@byok/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, organization, twoFactor } from "better-auth/plugins";
@@ -131,6 +131,25 @@ export function createAuth(options: AuthConfigOptions) {
                 [member.organizationId, member.userId, member.role],
               );
             });
+
+            // One company per user (2026-09-03): without this, a brand
+            // new signup's very first company has NO row in
+            // user_active_tenant — CostGate/the scheduler/Vault all read
+            // that as "not the active company" and refuse to ever
+            // dispatch or spend for it, permanently, since nothing else
+            // creates this row until a user deliberately switches via
+            // the (separate) switcher UI. Only auto-activates when the
+            // user has NO active tenant yet (their first company, or an
+            // account that predates this table and hasn't been backfilled
+            // some other way) — a user who already has a choice made
+            // keeps it; creating a SECOND company never silently steals
+            // activation away from the first, matching "switching is
+            // deliberate, never automatic."
+            const activeTenants = new ActiveTenantStore(options.pool);
+            const alreadyActive = await activeTenants.getActiveTenantId(member.userId);
+            if (!alreadyActive) {
+              await activeTenants.setActiveTenant(member.userId, member.organizationId);
+            }
           },
         },
       }),

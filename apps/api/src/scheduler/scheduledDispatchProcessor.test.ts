@@ -74,6 +74,8 @@ function baseDeps(overrides: Partial<ScheduledDispatchDeps> = {}): ScheduledDisp
     charters: { getActive: async () => CHARTER },
     batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
     scheduleState: { get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }), pause: async () => {} },
+    activeTenant: { isTenantActive: async () => true },
+    hasActiveSubscription: async () => true,
     instrumentation: { recordScheduledRun: async () => {} },
     durableBatchStore: { pause: async () => ({ id: "paused-1", remainingTasks: [] }) as never },
     tierModelMaps: { anthropic: { T1: "model-t1", T2: "model-t2", T3: "model-t3" } },
@@ -238,6 +240,70 @@ test("does nothing (cheap no-op) when the tenant's schedule is paused — never 
   const process = createScheduledDispatchProcessor(deps);
   await process(PAYLOAD);
   assert.equal(routerCalled, false);
+});
+
+// One company per user (2026-09-03): the scheduler's own cheap early-exit,
+// independent of the pausedAt check above — a stale BullMQ job for a
+// tenant the user has switched away from must never even build a task
+// input. CostGate would refuse to reserve for it too (the authoritative
+// check, tested in packages/cost-gate/src/costGate.test.ts), but this is
+// what keeps the scheduler from doing the wasted work at all.
+test("does nothing (cheap no-op) when the tenant isn't the account's active company — never calls the router", async () => {
+  let routerCalled = false;
+  const deps = baseDeps({
+    activeTenant: { isTenantActive: async () => false },
+    router: {
+      submitTask: async () => {
+        routerCalled = true;
+        return { status: "completed" } as RouterTask;
+      },
+    },
+  });
+  const process = createScheduledDispatchProcessor(deps);
+  await process(PAYLOAD);
+  assert.equal(routerCalled, false);
+});
+
+// One company per user (2026-09-03): a lapsed subscription must pause
+// with its OWN honest reason and its OWN email, never fall into
+// isCeilingExhaustion's "ceiling-exhausted" branch, which would tell the
+// owner they hit a spend limit when the real cause is an unpaid/
+// cancelled subscription — the exact kind of misleading signal this
+// feature exists to avoid, per the standing lesson from the 3-week
+// silent scheduler failure (docs/TRACKING.md).
+test("pauses with 'no-active-subscription' (never 'ceiling-exhausted') and sends the subscription-required email, without ever calling the router", async () => {
+  let routerCalled = false;
+  let pauseArgs: [string, string, string | null] | undefined;
+  const sent: { to: string; subject: string; text: string }[] = [];
+  const deps = baseDeps({
+    hasActiveSubscription: async () => false,
+    scheduleState: {
+      get: async () => ({ tenantId: "tenant-1", pausedAt: null, pausedReason: null, pausedBatchId: null }),
+      pause: async (tenantId, reason, pausedBatchId) => {
+        pauseArgs = [tenantId, reason, pausedBatchId];
+      },
+    },
+    notifications: {
+      getOwnerEmails: async () => ["owner@example.com"],
+      emailSender: { send: async (input) => { sent.push(input); } },
+      ceilings: { get: async () => null },
+      reservationTotals: { totals: async () => ({ totalUsd: 0, ceilingUsd: null }) },
+      dashboardUrl: "https://example.com/dashboard",
+    },
+    router: {
+      submitTask: async () => {
+        routerCalled = true;
+        return { status: "completed" } as RouterTask;
+      },
+    },
+  });
+  await createScheduledDispatchProcessor(deps)(PAYLOAD);
+
+  assert.equal(routerCalled, false);
+  assert.deepEqual(pauseArgs, ["tenant-1", "no-active-subscription", null]);
+  assert.equal(sent.length, 1);
+  assert.match(sent[0]!.text, /no active subscription/);
+  assert.doesNotMatch(sent[0]!.text, /ceiling/i);
 });
 
 test("records instrumentation with 3 ledger rows for a full-pipeline result (pending+in_progress+terminal)", async () => {
