@@ -13,6 +13,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ActiveTenantStore, TenantNotMemberError } from "./activeTenant.js";
 import { withTenantScope } from "./tenantContext.js";
+import { withInternalMetricsScope } from "./signupMetrics.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -121,10 +122,16 @@ test("backfill (migration 0023) defaulted every pre-existing member to a real ro
   try {
     // Simulate "pre-existing member" by re-running the same backfill
     // shape the migration uses, scoped to just this user/tenant pair.
-    await pool.query("BEGIN");
-    try {
-      await pool.query("SELECT set_config('app.internal_metrics', 'true', true)");
-      await pool.query(
+    // withInternalMetricsScope (signupMetrics.ts) checks out ONE client
+    // for the whole BEGIN/set_config/COMMIT sequence -- separate
+    // pool.query() calls each check out their OWN connection from the
+    // pool, so a hand-rolled version of this (an earlier version of this
+    // test) silently ran its "BEGIN" and its "SET_CONFIG" and its INSERT
+    // on three different physical connections, meaning the transaction
+    // and the session setting never actually applied together. Caught
+    // only in CI against a real Postgres, not locally.
+    await withInternalMetricsScope(pool, async (client) => {
+      await client.query(
         `INSERT INTO user_active_tenant (user_id, tenant_id, activated_at)
          SELECT tm.user_id, tm.tenant_id, now()
          FROM tenant_members tm
@@ -132,11 +139,7 @@ test("backfill (migration 0023) defaulted every pre-existing member to a real ro
          ON CONFLICT (user_id) DO NOTHING`,
         [userId],
       );
-      await pool.query("COMMIT");
-    } catch (err) {
-      await pool.query("ROLLBACK");
-      throw err;
-    }
+    });
     assert.equal(await store.getActiveTenantId(userId), tenantId);
   } finally {
     await cleanup([userId], [tenantId]);
