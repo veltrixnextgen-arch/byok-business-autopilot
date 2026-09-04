@@ -11,7 +11,7 @@ import { createPool } from "./connection.js";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getTenantTier, setTenantStripeIds, setTenantTier } from "./tenantSchedule.js";
+import { getTenantStripeIds, getTenantTier, setTenantStripeIds, setTenantTier } from "./tenantSchedule.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -41,6 +41,17 @@ test("setTenantStripeIds persists both ids, readable back via a real query", asy
       tenantId,
     ])) as unknown as { rows: { stripe_customer_id: string | null; stripe_subscription_id: string | null }[] };
     assert.deepEqual(result.rows[0], { stripe_customer_id: "cus_live_1", stripe_subscription_id: "sub_live_1" });
+  } finally {
+    await cleanup([tenantId]);
+  }
+});
+
+test("getTenantStripeIds round-trips setTenantStripeIds through the real function, not just a raw query, and defaults a never-set tenant to both null", async () => {
+  const tenantId = await seedTenant();
+  try {
+    assert.deepEqual(await getTenantStripeIds(pool, tenantId), { stripeCustomerId: null, stripeSubscriptionId: null });
+    await setTenantStripeIds(pool, tenantId, { stripeCustomerId: "cus_live_9", stripeSubscriptionId: "sub_live_9" });
+    assert.deepEqual(await getTenantStripeIds(pool, tenantId), { stripeCustomerId: "cus_live_9", stripeSubscriptionId: "sub_live_9" });
   } finally {
     await cleanup([tenantId]);
   }

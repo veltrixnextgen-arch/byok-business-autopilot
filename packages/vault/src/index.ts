@@ -7,7 +7,7 @@ export * from "./durable/vaultKeyStore.js";
 export * from "./fingerprint.js";
 export * from "./secretHandle.js";
 export * from "./types.js";
-export { Vault, DevOnlyVaultAuditGuardError } from "./vault.js";
+export { Vault, DevOnlyVaultAuditGuardError, DevOnlyVaultEligibilityGuardError, TenantNotActiveError } from "./vault.js";
 export type {
   StoreBrainKeyInput,
   StoreHandsKeyInput,
@@ -15,4 +15,5 @@ export type {
   DecryptedBrainKey,
   HandsKeyProvider,
   HandsCredentialRefresher,
+  TenantEligibilityResolver,
 } from "./vault.js";

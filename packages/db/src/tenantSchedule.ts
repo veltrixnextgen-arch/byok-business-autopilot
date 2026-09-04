@@ -60,6 +60,23 @@ export interface TenantStripeIds {
  * alongside applyTierChange, never in place of it — this only persists
  * the Stripe-side identifiers, `tier` is a separate write.
  */
+/**
+ * One company per user (2026-09-03): the other half of the "neither
+ * active nor subscribed" eligibility check — durableTrustCore.ts's
+ * CostGate resolver reads this alongside ActiveTenantStore.isTenantActive
+ * (activeTenant.ts) to decide whether a tenant may spend at all. Same
+ * withTenantScope-for-its-UUID-handling reasoning as getTenantTier.
+ */
+export async function getTenantStripeIds(pool: PoolLike, tenantId: string): Promise<TenantStripeIds> {
+  return withTenantScope(pool, tenantId, async (client) => {
+    const result = (await client.query(`SELECT stripe_customer_id, stripe_subscription_id FROM tenants WHERE id = $1::uuid`, [
+      tenantId,
+    ])) as unknown as { rows: Array<{ stripe_customer_id: string | null; stripe_subscription_id: string | null }> };
+    const row = result.rows[0];
+    return { stripeCustomerId: row?.stripe_customer_id ?? null, stripeSubscriptionId: row?.stripe_subscription_id ?? null };
+  });
+}
+
 export async function setTenantStripeIds(pool: PoolLike, tenantId: string, ids: TenantStripeIds): Promise<void> {
   await withTenantScope(pool, tenantId, async (client) => {
     await client.query(`UPDATE tenants SET stripe_customer_id = $2, stripe_subscription_id = $3 WHERE id = $1::uuid`, [

@@ -198,9 +198,41 @@ function defaultAuditLog(): DurableAuditLog {
   return new InMemoryDurableAuditLog();
 }
 
+// One company per user (2026-09-03): a Brain/Hands key connects for its
+// tenant only while that tenant is the account's currently ACTIVE
+// company — the same fail-closed posture as CostGate's own tenant-
+// eligibility check (packages/cost-gate/src/costGate.ts), applied here so
+// a decrypt call reached some OTHER way (not through CostGate at all)
+// still can't pull a usable key for a company the user has switched
+// away from. A resolver function, not a concrete @byok/db dependency —
+// same reasoning as CeilingConfigResolver: this package stays DB-
+// agnostic, callers that own persistence (durableTrustCore.ts, backed
+// by ActiveTenantStore) supply the real check.
+export type TenantEligibilityResolver = (tenantId: string) => Promise<boolean> | boolean;
+
+export class TenantNotActiveError extends Error {
+  constructor(tenantId: string) {
+    super(`Tenant "${tenantId}" is not the account's active company — Brain/Hands keys only connect for the active company.`);
+    this.name = "TenantNotActiveError";
+  }
+}
+
+export class DevOnlyVaultEligibilityGuardError extends Error {}
+
+function defaultTenantEligibility(): TenantEligibilityResolver {
+  if (!isDevOrTestEnvironment()) {
+    throw new DevOnlyVaultEligibilityGuardError(
+      "Vault cannot default every tenant to its active company outside a dev or test environment — " +
+        "pass a real TenantEligibilityResolver (the account's active-company check) for any deployed environment.",
+    );
+  }
+  return () => true;
+}
+
 export class Vault implements BrainKeyProvider, HandsKeyProvider {
   private readonly dekStore: DekStore;
   private readonly audit: DurableAuditLog;
+  private readonly tenantEligibility: TenantEligibilityResolver;
   private readonly listeners: VaultEventListener[] = [];
   // In-flight OAuth refresh promises, keyed by Hands key id. A second
   // decryptHandsKey call for the SAME expired key while a refresh is
@@ -231,9 +263,11 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     // undecryptable — see dekStore.ts's own comment.
     private readonly store: VaultKeyStore = new InMemoryVaultKeyStore(),
     dekRecordStore: DekRecordStore = new InMemoryDekRecordStore(),
+    tenantEligibility?: TenantEligibilityResolver,
   ) {
     this.dekStore = new DekStore(kms, dekRecordStore);
     this.audit = audit ?? defaultAuditLog();
+    this.tenantEligibility = tenantEligibility ?? defaultTenantEligibility();
   }
 
   onEvent(listener: VaultEventListener): void {
@@ -384,6 +418,13 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
 
   async decryptBrainKey(tenantId: string, roleId: string, requester: RequesterIdentity): Promise<DecryptedBrainKey> {
     assertRouterServiceIdentity(requester);
+    if (!(await this.tenantEligibility(tenantId))) {
+      await this.logAudit("decrypt-denied", tenantId, `role:${roleId}`, {
+        requester,
+        reason: "tenant is not the account's active company",
+      });
+      throw new TenantNotActiveError(tenantId);
+    }
     const record = await this.store.getBrainKey(tenantId, roleId);
     if (!record || record.revoked || !record.material) {
       await this.logAudit("decrypt-denied", record?.tenantId ?? tenantId, record?.id ?? `role:${roleId}`, {
@@ -497,6 +538,13 @@ export class Vault implements BrainKeyProvider, HandsKeyProvider {
     requester: RequesterIdentity,
   ): Promise<SecretHandle> {
     assertRouterServiceIdentity(requester);
+    if (!(await this.tenantEligibility(tenantId))) {
+      await this.logAudit("decrypt-denied", tenantId, keyId, {
+        requester,
+        reason: "tenant is not the account's active company",
+      });
+      throw new TenantNotActiveError(tenantId);
+    }
     const record = await this.store.getHandsKeyById(tenantId, keyId);
     if (!record || record.revoked || !record.material) {
       await this.logAudit("decrypt-denied", record?.tenantId ?? "unknown", keyId, {

@@ -1,6 +1,15 @@
 import { ApprovalQueue, ResendEffectExecutor, PostgresDurableApprovalStore, PostgresDurableAutonomyStore } from "@byok/approval-queue";
 import { CostGate, PostgresReservationStore, loadDefaultPricingTable, type PricingTable } from "@byok/cost-gate";
-import { AgentBudgetOverrideStore, PostgresDurableAuditLog, SignupExtractionBatchStore, TenantCeilingStore, getTenantOwnerEmails, type PoolLike } from "@byok/db";
+import {
+  ActiveTenantStore,
+  AgentBudgetOverrideStore,
+  PostgresDurableAuditLog,
+  SignupExtractionBatchStore,
+  TenantCeilingStore,
+  getTenantOwnerEmails,
+  getTenantStripeIds,
+  type PoolLike,
+} from "@byok/db";
 import { OpenMultiAgentExecutor, PostgresDurableDedupStore, PostgresDurableTaskLedger, Router } from "@byok/router";
 import { PostgresDekRecordStore, PostgresVaultKeyStore, Vault, type HandsCredentialRefresher, type RequesterIdentity } from "@byok/vault";
 import type { TrustCoreDeps } from "./context.js";
@@ -37,6 +46,24 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   const tenantCeilings = new TenantCeilingStore(pool);
   const signupExtractionBatches = new SignupExtractionBatchStore(pool);
   const agentBudgetOverrides = new AgentBudgetOverrideStore(pool);
+  // One company per user (2026-09-03): the deepest fail-closed layer,
+  // per that ask — CostGate refuses to reserve for a tenant that is
+  // EITHER not the account's active company OR has no active Stripe
+  // subscription, closing the multi-org gap and the pre-existing "no
+  // subscription gate exists anywhere" gap (billing.ts's own comment)
+  // with one check. Vault gets the narrower half of this (active-company
+  // only, below) — subscription status is a CostGate-only concern.
+  const activeTenantStore = new ActiveTenantStore(pool);
+  const tenantEligibility = async (tenantId: string) => {
+    const [active, stripeIds] = await Promise.all([activeTenantStore.isTenantActive(tenantId), getTenantStripeIds(pool, tenantId)]);
+    if (!active) {
+      return { eligible: false, reason: "This company is not your account's active company right now." };
+    }
+    if (!stripeIds.stripeSubscriptionId) {
+      return { eligible: false, reason: "This company has no active subscription." };
+    }
+    return { eligible: true };
+  };
   const ceilingResolver = async (tenantId: string) => {
     const [override, batch, budgetOverrides] = await Promise.all([
       tenantCeilings.get(tenantId),
@@ -59,7 +86,14 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
   // (migrations/0002_durable_storage.sql's audit_log), differentiated by
   // the `source` column ("vault" / "cost-gate" / "approval-queue").
   const auditLog = new PostgresDurableAuditLog(pool);
-  const costGate = new CostGate(pricingTable, ceilingResolver, new PostgresReservationStore(pool, auditLog), TIER_MODEL_MAPS_BY_PROVIDER, auditLog);
+  const costGate = new CostGate(
+    pricingTable,
+    ceilingResolver,
+    new PostgresReservationStore(pool, auditLog),
+    TIER_MODEL_MAPS_BY_PROVIDER,
+    auditLog,
+    tenantEligibility,
+  );
   // Autonomy durability: PostgresDurableAutonomyStore, not the in-memory
   // AutonomyEngine this used to be — this closes the accept-offer
   // split-brain (apps/api/src/routes/approvals.ts's own doc comment on
@@ -92,6 +126,11 @@ export function createDurableTrustCore(pool: PoolLike, options: { google?: { cli
     undefined,
     new PostgresVaultKeyStore(pool),
     new PostgresDekRecordStore(pool),
+    // Narrower than CostGate's tenantEligibility above — active-company
+    // only, no subscription check. Subscription status stays a
+    // CostGate-only concern; a Brain/Hands key's own eligibility is
+    // "did the user switch away from this company," full stop.
+    (tenantId) => activeTenantStore.isTenantActive(tenantId),
   );
   // Week 1's narrow effect-dispatch scope (docs/STATUS.md): the first
   // real EffectExecutor, replacing MockEffectExecutor here (dev/

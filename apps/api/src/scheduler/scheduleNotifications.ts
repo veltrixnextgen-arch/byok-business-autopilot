@@ -1,6 +1,12 @@
 import { companyScopeKey, type DurableReservationStore } from "@byok/cost-gate";
 import type { TenantCeilingStore } from "@byok/db";
-import { buildSchedulePausedEmail, buildScheduleResumedEmail, type EmailSender, type PauseReason } from "@byok/notifications";
+import {
+  buildSchedulePausedEmail,
+  buildScheduleResumedEmail,
+  buildSubscriptionRequiredEmail,
+  type EmailSender,
+  type PauseReason,
+} from "@byok/notifications";
 import { DEFAULT_MONTHLY_CEILING_USD } from "../routes/ceiling.js";
 
 export interface ScheduleNotificationDeps {
@@ -50,6 +56,25 @@ export async function notifySchedulePaused(
     await sendToOwners(deps, emails, subject, text);
   } catch (err) {
     console.error("[notifications] Failed to prepare/send schedule-paused notification:", err);
+  }
+}
+
+/**
+ * One company per user (2026-09-03): fires when the scheduler pauses a
+ * tenant specifically for lacking an active subscription — kept
+ * separate from notifySchedulePaused above (never passed "ceiling-
+ * exhausted" or any other PauseReason) so this can never send the
+ * ceiling/spend-shaped email for a reason that has nothing to do with
+ * spend. Same never-throws contract.
+ */
+export async function notifySubscriptionRequired(deps: ScheduleNotificationDeps, tenantId: string): Promise<void> {
+  try {
+    const emails = await deps.getOwnerEmails(tenantId);
+    if (emails.length === 0) return;
+    const { subject, text } = buildSubscriptionRequiredEmail({ dashboardUrl: deps.dashboardUrl });
+    await sendToOwners(deps, emails, subject, text);
+  } catch (err) {
+    console.error("[notifications] Failed to prepare/send subscription-required notification:", err);
   }
 }
 
