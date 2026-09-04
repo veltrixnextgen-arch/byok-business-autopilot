@@ -74,7 +74,12 @@ test("GET returns the raw org-chart draft when no Charter record exists yet", as
         throw new Error("unused");
       },
     },
-    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    batchStore: {
+      latestForTenant: async () => ({ orgChart: CHART }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/");
@@ -108,6 +113,9 @@ test("GET returns the existing draft without touching rawDraft once one has been
       latestForTenant: async () => {
         throw new Error("must not be called once a draft row exists");
       },
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
     },
   });
 
@@ -138,7 +146,12 @@ test("POST /draft is idempotent — a second call never creates a second draft",
         throw new Error("unused");
       },
     },
-    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    batchStore: {
+      latestForTenant: async () => ({ orgChart: CHART }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft", { method: "POST" });
@@ -172,6 +185,9 @@ test("POST /draft seeds a reopened Charter from the active version's content, no
       latestForTenant: async () => {
         throw new Error("must not read the raw org-chart draft when an active Charter already exists");
       },
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
     },
   });
 
@@ -198,11 +214,128 @@ test("POST /draft 404s cleanly when there's no org chart to draft a Charter from
         throw new Error("unused");
       },
     },
-    batchStore: { latestForTenant: async () => null },
+    batchStore: {
+      latestForTenant: async () => null,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft", { method: "POST" });
   assert.equal(res.status, 404);
+});
+
+test("POST /draft self-heals a claimed chart whose onboardingBatch is missing, then persists it", async () => {
+  const CHART_WITHOUT_ONBOARDING_BATCH: OrgChart = { ...CHART, onboardingBatch: undefined as never };
+  const HEALED_BATCH = { simulatedDay: [], charterDraft: CHARTER_CONTENT };
+  let updateArgs: [string, string, OrgChart] | undefined;
+  let regenerateArgs: unknown;
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: {
+      getActive: async () => null,
+      getLatestDraft: async () => null,
+      createDraft: async (_tenantId, content) => makeDraft({ content }),
+      updateDraft: async () => {
+        throw new Error("unused");
+      },
+      accept: async () => {
+        throw new Error("unused");
+      },
+      get: async () => {
+        throw new Error("unused");
+      },
+    },
+    batchStore: {
+      latestForTenant: async () => ({ id: "batch-1", idea: "A candle shop.", orgChart: CHART_WITHOUT_ONBOARDING_BATCH }) as never,
+      updateOrgChartForTenant: async (tenantId, id, orgChart) => {
+        updateArgs = [tenantId, id, orgChart];
+      },
+    },
+    regenerateOnboardingBatch: async (batch) => {
+      regenerateArgs = batch;
+      return HEALED_BATCH;
+    },
+  });
+
+  const res = await app.request("/draft", { method: "POST" });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { draft: CompanyCharter };
+  assert.deepEqual(body.draft.content, CHARTER_CONTENT);
+  assert.deepEqual(updateArgs, ["tenant-1", "batch-1", { ...CHART_WITHOUT_ONBOARDING_BATCH, onboardingBatch: HEALED_BATCH }]);
+  assert.deepEqual((regenerateArgs as { idea: string }).idea, "A candle shop.");
+});
+
+test("POST /draft 404s cleanly when there's no org chart at all, even with self-heal wired", async () => {
+  let regenerateCalled = false;
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: {
+      getActive: async () => null,
+      getLatestDraft: async () => null,
+      createDraft: async () => {
+        throw new Error("must not be called");
+      },
+      updateDraft: async () => {
+        throw new Error("unused");
+      },
+      accept: async () => {
+        throw new Error("unused");
+      },
+      get: async () => {
+        throw new Error("unused");
+      },
+    },
+    batchStore: {
+      latestForTenant: async () => null,
+      updateOrgChartForTenant: async () => {
+        throw new Error("must not be called");
+      },
+    },
+    regenerateOnboardingBatch: async () => {
+      regenerateCalled = true;
+      return { simulatedDay: [], charterDraft: CHARTER_CONTENT };
+    },
+  });
+
+  const res = await app.request("/draft", { method: "POST" });
+  assert.equal(res.status, 404);
+  assert.equal(regenerateCalled, false);
+});
+
+test("POST /draft surfaces the self-heal's error message cleanly, without creating a draft", async () => {
+  const CHART_WITHOUT_ONBOARDING_BATCH: OrgChart = { ...CHART, onboardingBatch: undefined as never };
+  const app = appWithSession("tenant-1", SESSION, {
+    charters: {
+      getActive: async () => null,
+      getLatestDraft: async () => null,
+      createDraft: async () => {
+        throw new Error("must not be called");
+      },
+      updateDraft: async () => {
+        throw new Error("unused");
+      },
+      accept: async () => {
+        throw new Error("unused");
+      },
+      get: async () => {
+        throw new Error("unused");
+      },
+    },
+    batchStore: {
+      latestForTenant: async () => ({ id: "batch-1", idea: "A candle shop.", orgChart: CHART_WITHOUT_ONBOARDING_BATCH }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("must not be called");
+      },
+    },
+    regenerateOnboardingBatch: async () => {
+      throw new Error("We couldn't finish setting up your company — the response was too long to finish. Please try again.");
+    },
+  });
+
+  const res = await app.request("/draft", { method: "POST" });
+  assert.equal(res.status, 502);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "We couldn't finish setting up your company — the response was too long to finish. Please try again.");
 });
 
 test("PATCH /draft/:id 404s when the store reports no editable draft", async () => {
@@ -221,7 +354,12 @@ test("PATCH /draft/:id 404s when the store reports no editable draft", async () 
         throw new Error("unused");
       },
     },
-    batchStore: { latestForTenant: async () => null },
+    batchStore: {
+      latestForTenant: async () => null,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft/charter-1", {
@@ -251,7 +389,12 @@ test("POST /draft/:id/accept generates a cascade from the draft content + claime
         return { ...draft, status: "active", cascade, installedAt: "2026-01-02T00:00:00.000Z" };
       },
     },
-    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    batchStore: {
+      latestForTenant: async () => ({ orgChart: CHART }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft/charter-1/accept", { method: "POST" });
@@ -282,7 +425,12 @@ test("POST /draft/:id/accept surfaces onAccepted's sync result, not just the ins
       get: async () => draft,
       accept: async (_tenantId, _id, cascade) => ({ ...draft, status: "active", cascade, installedAt: "2026-01-02T00:00:00.000Z" }),
     },
-    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    batchStore: {
+      latestForTenant: async () => ({ orgChart: CHART }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
     onAccepted: async () => ({ added: ["tenant-1:agent-1:task-1"], removed: [], unchanged: [], clampNotes: [{ taskId: "task-1", reason: "Clamped to solo tier's daily floor." }] }),
   });
 
@@ -312,7 +460,12 @@ test("POST /draft/:id/accept returns sync: null when onAccepted is omitted (exis
       get: async () => draft,
       accept: async (_tenantId, _id, cascade) => ({ ...draft, status: "active", cascade, installedAt: "2026-01-02T00:00:00.000Z" }),
     },
-    batchStore: { latestForTenant: async () => ({ orgChart: CHART }) as never },
+    batchStore: {
+      latestForTenant: async () => ({ orgChart: CHART }) as never,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft/charter-1/accept", { method: "POST" });
@@ -338,7 +491,12 @@ test("POST /draft/:id/accept 409s when no org chart has been claimed yet", async
         throw new Error("must not be called");
       },
     },
-    batchStore: { latestForTenant: async () => null },
+    batchStore: {
+      latestForTenant: async () => null,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft/charter-1/accept", { method: "POST" });
@@ -361,7 +519,12 @@ test("POST /draft/:id/accept 404s when the id isn't an editable draft", async ()
         throw new Error("must not be called");
       },
     },
-    batchStore: { latestForTenant: async () => null },
+    batchStore: {
+      latestForTenant: async () => null,
+      updateOrgChartForTenant: async () => {
+        throw new Error("unused");
+      },
+    },
   });
 
   const res = await app.request("/draft/nonexistent/accept", { method: "POST" });
