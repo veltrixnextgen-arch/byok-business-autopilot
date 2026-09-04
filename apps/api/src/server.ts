@@ -2,10 +2,12 @@ import { serve } from "@hono/node-server";
 import { createAuth } from "@byok/auth";
 import { PostgresDurableBatchStore, PostgresReservationStore } from "@byok/cost-gate";
 import {
+  ActiveTenantStore,
   CompanyCharterStore,
   createDb,
   createPool,
   getTenantOwnerEmails,
+  getTenantStripeIds,
   listAllTenantIds,
   SchedulerInstrumentationStore,
   SignupExtractionBatchStore,
@@ -334,6 +336,8 @@ export function startServer(config: ServerConfig, trustCore: TrustCoreDeps, pool
     charters: new CompanyCharterStore(pool),
     batchStore,
     scheduleState: new TenantScheduleStateStore(pool),
+    activeTenant: new ActiveTenantStore(pool),
+    hasActiveSubscription: async (tenantId) => (await getTenantStripeIds(pool, tenantId)).stripeSubscriptionId !== null,
     instrumentation: new SchedulerInstrumentationStore(pool),
     durableBatchStore: new PostgresDurableBatchStore(pool),
     tierModelMaps: trustCore.tierModelMaps,
