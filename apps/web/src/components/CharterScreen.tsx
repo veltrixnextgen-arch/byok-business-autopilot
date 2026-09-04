@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { Charter, CompanyCharter } from "@byok/contracts";
 import { acceptDraft, createDraft, getCharterState, updateDraft, type CharterAcceptResult } from "../lib/charterClient";
-import { getOrgChartForTenant } from "../lib/extractionClient";
+import { getOrgChartForTenant, loadIdea } from "../lib/extractionClient";
 import { AppShell } from "./AppShell";
 import { Button, Card } from "./ui";
 
@@ -118,23 +118,7 @@ export function CharterScreen() {
 
         {state.kind === "loading" && <p className="text-sm text-text-muted">Loading…</p>}
 
-        {state.kind === "empty" && (
-          <Card>
-            <p className="text-sm text-text-secondary">
-              There's no org chart to draft a Charter from yet. Finish the interview first.
-            </p>
-            {/* Previously a dead end — this state had no way back into the
-                interview itself, for either a genuinely unfinished
-                interview or someone who wants to change their answers and
-                regenerate. /interview resumes the pending idea from
-                sessionStorage if one exists, or redirects to "/" to start
-                a fresh one otherwise (InterviewScreen's own fallback) —
-                either way this link is never broken. */}
-            <Link to="/interview" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
-              Go to the interview →
-            </Link>
-          </Card>
-        )}
+        {state.kind === "empty" && <EmptyView />}
 
         {state.kind === "installed" && <InstalledView charter={state.active} />}
 
@@ -154,6 +138,46 @@ export function CharterScreen() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+// Previously a dead end: this state had no way back into the interview
+// at all. Fixed honestly rather than implying a capability that doesn't
+// exist — there is no "edit this company's existing answers in place"
+// feature (claimLatestForTenant's own idempotency guard means a second
+// claim for an already-claimed tenant just returns the existing batch,
+// never a fresher one), so /interview only ever helps here if a real
+// interview is genuinely still pending (loadIdea() returns something).
+// Otherwise this links to /new-company, an authenticated screen (real
+// dashboard chrome, not the public marketing page) that reuses the same
+// IdeaForm the landing page does — /new-company existing at all is
+// itself a fix: it used to point at "/" (the marketing homepage), which
+// has zero session-awareness and reads as a logout even though the
+// session is untouched. Branching the copy on loadIdea() up front means
+// the link never claims more than it actually does.
+function EmptyView() {
+  const idea = loadIdea();
+  return (
+    <Card>
+      <p className="text-sm text-text-secondary">There's no org chart to draft a Charter from yet.</p>
+      {idea ? (
+        <>
+          <p className="mt-2 text-sm text-text-secondary">You have an interview in progress — finish it to continue.</p>
+          <Link to="/interview" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
+            Resume the interview →
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-text-secondary">
+            Starting a new interview creates a separate company — it won't change this one.
+          </p>
+          <Link to="/new-company" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
+            Start a new company →
+          </Link>
+        </>
+      )}
+    </Card>
   );
 }
 
