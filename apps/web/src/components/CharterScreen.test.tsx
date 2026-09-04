@@ -27,8 +27,10 @@ vi.mock("../lib/charterClient", () => ({
 }));
 
 const getOrgChartForTenant = vi.fn();
+const loadIdea = vi.fn();
 vi.mock("../lib/extractionClient", () => ({
   getOrgChartForTenant: () => getOrgChartForTenant(),
+  loadIdea: () => loadIdea(),
 }));
 
 import { CharterScreen } from "./CharterScreen";
@@ -91,14 +93,35 @@ describe("CharterScreen — handoff ceremony", () => {
   });
 
   // Previously a dead end (2026-09-04): this state had no way back into
-  // the interview for either an unfinished interview or someone who
-  // wants to change their answers and regenerate.
-  it("links back to the interview when there's no org chart to draft a Charter from yet", async () => {
+  // the interview at all. Fixed honestly rather than implying a
+  // capability that doesn't exist (there is no "edit this company's
+  // existing answers in place" feature) — the copy and link branch on
+  // whether a real interview is genuinely still pending, since
+  // /interview otherwise silently bounces to "/" and starting fresh
+  // from there creates a brand new, separate company (reported live,
+  // 2026-09-04: a user hitting the old single "Go to the interview"
+  // link with no idea pending got redirected to "/", which reads as
+  // "logged out" — no dashboard chrome, marketing nav — and would have
+  // created a second company had they continued).
+  it("resumes the interview when one is genuinely still pending", async () => {
     getCharterState.mockRejectedValue(new Error("no org chart"));
+    loadIdea.mockReturnValue("a laundromat");
 
     render(<CharterScreen />);
 
-    const link = await screen.findByRole("link", { name: /Go to the interview/ });
+    await screen.findByText("You have an interview in progress — finish it to continue.");
+    const link = screen.getByRole("link", { name: /Resume the interview/ });
     expect(link.getAttribute("href")).toBe("/interview");
+  });
+
+  it("honestly offers to start a new company, never claiming it edits this one, when no interview is pending", async () => {
+    getCharterState.mockRejectedValue(new Error("no org chart"));
+    loadIdea.mockReturnValue(null);
+
+    render(<CharterScreen />);
+
+    await screen.findByText("Starting a new interview creates a separate company — it won't change this one.");
+    const link = screen.getByRole("link", { name: /Start a new company/ });
+    expect(link.getAttribute("href")).toBe("/");
   });
 });
