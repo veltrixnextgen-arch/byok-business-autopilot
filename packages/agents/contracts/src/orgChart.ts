@@ -262,6 +262,30 @@ export function mostRestrictiveStakes(tasks: Task[]): Stakes {
   return tasks.reduce((max, t) => (STAKES_RANK[t.stakes] > STAKES_RANK[max] ? t.stakes : max), "low" as Stakes);
 }
 
+// Found live 2026-09-04 investigating why a real tenant's Scheduling
+// agent showed "Google Calendar · draft only" instead of a real connect
+// button: customize.ts's JSON schema declares `handsTool` as free text
+// ("Service API this task will eventually need") with zero enum
+// constraint against HANDS_AUTH_METHOD's actual registry keys
+// (@byok/templates/handsAuth.ts) — nothing stops the customize LLM from
+// writing "Google Calendar" when the registry's real, connectable key is
+// "Calendar", silently landing that agent in the oauth-pending (draft-
+// only) UI branch instead of oauth-live (real Google OAuth button) even
+// though a real integration exists. This is corrected here rather than
+// in customize.ts's prompt/schema because a prompt constraint only
+// protects FUTURE runs — every chart already generated with the drifted
+// label needs the same fix on read, and normalizeOrgChart is exactly
+// that mechanism. Tightening customize.ts's schema against forming new
+// drift is a real, separate follow-up (not done here, no evidence yet of
+// the full set of variants the LLM might produce beyond this one).
+const LEGACY_HANDS_TOOL_LABELS: Record<string, string> = {
+  "Google Calendar": "Calendar",
+};
+
+function normalizeHandsTool(tool: string): string {
+  return LEGACY_HANDS_TOOL_LABELS[tool] ?? tool;
+}
+
 /**
  * Migration-on-read for a stored org chart — the systemic fix for JSONB
  * schema drift (docs/STATUS.md's "JSONB schema drift" issue, found via
@@ -293,22 +317,34 @@ export function normalizeOrgChart(chart: OrgChart): OrgChart {
   return {
     ...chart,
     agents: chart.agents.map((agent) => {
+      // Hands-tool label normalization runs unconditionally, independent
+      // of the four-field early-return below — a chart can have every
+      // one of those fields already (assembled after they existed) and
+      // still carry a drifted handsTool label, since that's a separate
+      // failure mode (free-text LLM output, not a missing contract
+      // field) with no correlation to when the chart was generated.
+      const hands = agent.hands?.map(normalizeHandsTool);
+
       if (
         agent.budget !== undefined &&
         agent.riskTier !== undefined &&
         agent.objective !== undefined &&
         agent.reportingStructure !== undefined
       ) {
-        return agent;
+        return hands === agent.hands ? agent : { ...agent, hands };
       }
       const agentTasks = (chart.tasks ?? []).filter((t) => agent.taskIds.includes(t.id));
       return {
         ...agent,
+        hands,
         budget: agent.budget ?? { perDayUsd: TIER_DEFAULT_BUDGET_PER_DAY_USD[agent.tier], source: "tier-default" },
         riskTier: agent.riskTier ?? mostRestrictiveStakes(agentTasks),
         objective: agent.objective ?? deriveObjective(agentTasks),
         reportingStructure: agent.reportingStructure ?? { teamId: agent.teamId, teamRoleTitle: ROLE_TITLES[agent.teamId] },
       };
     }),
+    tasks: Array.isArray(chart.tasks)
+      ? chart.tasks.map((task) => (task.handsTool ? { ...task, handsTool: normalizeHandsTool(task.handsTool) } : task))
+      : chart.tasks,
   };
 }

@@ -37,7 +37,7 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 
 ## 3. Reconciliation — what exists today
 
-*Last reconciled 2026-09-03, against commit history through PR #213/#215/#217/#218/#219/#220/#221 (all merged).*
+*Last reconciled 2026-09-04, against commit history through PR #213/#215/#217/#218/#219/#220/#221/#227 (all merged).*
 
 | Target capability | Real state |
 |---|---|
@@ -51,7 +51,7 @@ TOOLS/APIs/AI → AUTOMATION → COMPANY BRAIN → CONTINUOUS OPERATION
 | Agent / Skill / Capability / Tool separation | **Partial.** Agent, tool and task exist. Skill and capability do not. |
 | Capability Registry | **Partial.** `tool-registry.md` is prose; Hands are scope-bound per sub-agent in code. No registry with schemas, costs, rate limits, or reliability data. |
 | Model recommendation with reasoning | **Built for new extractions.** `recommendBrain()` (`packages/agents/extraction/src/recommendBrain.ts`) populates `Agent.brain` with a cost-grounded provider pick and a real, checkable reason — wired into `assembleOrgChart` (Tier 1 item 1, PR #210). **Not retroactive**: the 5 tenants whose org chart was captured before this shipped (including Acme) still show `brain: null` for every agent until their chart is regenerated — confirmed directly against Supabase, not assumed. |
-| BYOK / BYOC | **Built for Brains.** Four providers validated, per-role keys, vault-encrypted. Hands are mostly OAuth-pending. |
+| BYOK / BYOC | **Built for Brains.** Four providers validated, per-role keys, vault-encrypted. Hands are mostly OAuth-pending. **A real bug closed, PR #227:** a Hands tool that genuinely had a live OAuth connect path (Google Calendar) could still land in the OAuth-pending UI branch because customize.ts's `handsTool` output is free text with no enum constraint against the real registry (`HANDS_AUTH_METHOD`) — found on a real tenant's Scheduling agent, fixed at `normalizeOrgChart`'s read-time chokepoint so every affected chart self-corrects, not just new ones. |
 | CEO / Company Brain | **Built, proven.** Real dispatch produced a genuine cross-team plan. T10 enforced structurally — recommend-only, no dispatch pathway. |
 | Company Memory | **Not built.** Deliberately deferred: no adjacent design, real cross-run leakage implications. |
 | Multi-agent orchestration with dynamic routing | **Partial.** Router tags, dedupes, dispatches. Routing is cadence-driven, not objective-driven. |

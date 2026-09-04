@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { Charter, CompanyCharter } from "@byok/contracts";
 import { acceptDraft, createDraft, getCharterState, updateDraft, type CharterAcceptResult } from "../lib/charterClient";
@@ -123,6 +123,16 @@ export function CharterScreen() {
             <p className="text-sm text-text-secondary">
               There's no org chart to draft a Charter from yet. Finish the interview first.
             </p>
+            {/* Previously a dead end — this state had no way back into the
+                interview itself, for either a genuinely unfinished
+                interview or someone who wants to change their answers and
+                regenerate. /interview resumes the pending idea from
+                sessionStorage if one exists, or redirects to "/" to start
+                a fresh one otherwise (InterviewScreen's own fallback) —
+                either way this link is never broken. */}
+            <Link to="/interview" className="mt-3 inline-block text-sm font-medium text-accent hover:text-accent-strong">
+              Go to the interview →
+            </Link>
           </Card>
         )}
 
